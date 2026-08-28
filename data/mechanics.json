@@ -1,0 +1,6203 @@
+{
+  "schema_version": "1.0",
+  "research_date": "2026-08-27",
+  "catalog_tower_count": 50,
+  "rule_layer_records": 7,
+  "records": [
+    {
+      "tower": "Trickery",
+      "recipe": [
+        "Light",
+        "Darkness"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Buff / clone",
+      "stats": {
+        "damage": [
+          450,
+          1800,
+          7200
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Every 15s clones a non-Buff tower; clone lasts 6/18/54s and deals 100% damage; clone cannot be recloned for 60s.",
+      "damage_profile": {
+        "tags": [
+          "Support",
+          "Clone",
+          "Enabler"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Support",
+        "Clone",
+        "Enabler"
+      ],
+      "build_position": "Enabler / multi-tower package",
+      "synergies": [
+        "high-output DPS",
+        "scaling towers",
+        "Buff interactions"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "high-output DPS",
+          "scaling towers",
+          "Buff interactions"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Support",
+        "Clone",
+        "Enabler"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Ice",
+      "recipe": [
+        "Light",
+        "Water"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS / Control",
+      "source_catalog_utility": "Slow",
+      "stats": {
+        "damage": [
+          850,
+          3400,
+          13600
+        ],
+        "attack_speed": 1.0,
+        "range": 900,
+        "aoe": 100,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Each attack stuns the primary target for 0.08/0.16/0.24s; same target cannot be stunned again for 1s.",
+      "damage_profile": {
+        "tags": [
+          "Sub-DPS",
+          "Control"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Sub-DPS",
+        "Control"
+      ],
+      "build_position": "Sub-DPS + hard-control enabler",
+      "synergies": [
+        "single-target DPS",
+        "ramp/DoT",
+        "boss control"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "single-target DPS",
+          "ramp/DoT",
+          "boss control"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Sub-DPS",
+        "Control"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Lightning",
+      "recipe": [
+        "Light",
+        "Fire"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Direct damage",
+      "stats": {
+        "damage": [
+          180,
+          720,
+          2880
+        ],
+        "attack_speed": 1.5,
+        "range": 1150,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Attacks bounce to another creep within 1500 range; 3/4/6 bounces with 15%/12%/9% loss per bounce.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Coverage"
+      ],
+      "build_position": "Wave-clear / distributed DPS",
+      "synergies": [
+        "Slow",
+        "grouped waves"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "grouped waves"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Bloom",
+      "recipe": [
+        "Light",
+        "Nature"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Direct damage",
+      "stats": {
+        "damage": [
+          355,
+          1420,
+          5680
+        ],
+        "attack_speed": 1.5,
+        "range": 750,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "After 1/0.7/0.4s not attacking, attack speed charges +1/s up to 4.5; while attacking it decays 0.5/s.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Ramp",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Ramp",
+        "Coverage"
+      ],
+      "build_position": "Ramp DPS / uptime-sensitive",
+      "synergies": [
+        "Well",
+        "Slow",
+        "stable target availability"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Well",
+          "Slow",
+          "stable target availability"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Ramp",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Atom",
+      "recipe": [
+        "Light",
+        "Earth"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Direct damage",
+      "stats": {
+        "damage": [
+          315,
+          1260,
+          5040
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Each consecutive hit on same target gains 10% damage, up to 11 attacks; loses 70% of stacks on target change.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Ramp",
+          "Focused"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Ramp",
+        "Focused"
+      ],
+      "build_position": "Focused/ramping DPS",
+      "synergies": [
+        "Slow",
+        "focus targeting",
+        "long uptime"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "focus targeting",
+          "long uptime"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Ramp",
+        "Focused"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Poison",
+      "recipe": [
+        "Darkness",
+        "Water"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS / DoT",
+      "source_catalog_utility": "Damage over time",
+      "stats": {
+        "damage": [
+          130,
+          520,
+          2080
+        ],
+        "attack_speed": 0.66,
+        "range": 900,
+        "aoe": 300,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Applies 65/260/1040 DPS DoT to all creeps hit; each stack lasts 15s; DoT stacks independently.",
+      "damage_profile": {
+        "tags": [
+          "Sub-DPS",
+          "DoT",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Sub-DPS",
+        "DoT",
+        "Coverage"
+      ],
+      "build_position": "Persistent multi-target DPS",
+      "synergies": [
+        "Slow",
+        "long uptime",
+        "many copies",
+        "Execute"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "long uptime",
+          "many copies",
+          "Execute"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Sub-DPS",
+        "DoT",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Infernal",
+      "recipe": [
+        "Darkness",
+        "Fire"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS / AoE",
+      "source_catalog_utility": "Area damage",
+      "stats": {
+        "damage": [
+          800,
+          3200,
+          12800
+        ],
+        "attack_speed": 1.5,
+        "range": 750,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Once it starts firing at a target, it continues attacking that target until it dies or target is manually changed, even after target leaves range.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Focused",
+          "Range-effective"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Focused",
+        "Range-effective"
+      ],
+      "build_position": "Boss/focused DPS",
+      "synergies": [
+        "Slow",
+        "Execute",
+        "single-target amp"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "Execute",
+          "single-target amp"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Focused",
+        "Range-effective"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Disease",
+      "recipe": [
+        "Darkness",
+        "Nature"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS / Execute",
+      "source_catalog_utility": "Execute / decay",
+      "stats": {
+        "damage": [
+          150,
+          600,
+          2400
+        ],
+        "attack_speed": 3.0,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Deals 2.5%/3%/4% more damage per 1% target HP missing.",
+      "damage_profile": {
+        "tags": [
+          "Sub-DPS",
+          "Execute-like",
+          "Focused"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Sub-DPS",
+        "Execute-like",
+        "Focused"
+      ],
+      "build_position": "Finisher / health-scaling DPS",
+      "synergies": [
+        "DoT",
+        "burst",
+        "HP shaving"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "DoT",
+          "burst",
+          "HP shaving"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Sub-DPS",
+        "Execute-like",
+        "Focused"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Howitzer",
+      "recipe": [
+        "Darkness",
+        "Earth"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS / AoE",
+      "source_catalog_utility": "Long-range / splash",
+      "stats": {
+        "damage": [
+          190,
+          760,
+          3040
+        ],
+        "attack_speed": 1.0,
+        "range": 1500,
+        "aoe": 50,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "AoE increases with distance up to 400/500/650; damage increases as target gets closer.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Coverage",
+          "Range Specialist"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Coverage",
+        "Range Specialist"
+      ],
+      "build_position": "Range/AoE specialist",
+      "synergies": [
+        "Slow",
+        "wide path coverage",
+        "placement"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "wide path coverage",
+          "placement"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Coverage",
+        "Range Specialist"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Vapor",
+      "recipe": [
+        "Water",
+        "Fire"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Direct damage",
+      "stats": {
+        "damage": [
+          1150,
+          4600,
+          18400
+        ],
+        "attack_speed": 0.66,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Hits every target in range, splits damage equally, and gains 3%/5%/8% more damage per target hit.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Coverage",
+          "Density Scaling"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Coverage",
+        "Density Scaling"
+      ],
+      "build_position": "High-density wave DPS",
+      "synergies": [
+        "Slow",
+        "clumping",
+        "Archdruid"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "clumping",
+          "Archdruid"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Coverage",
+        "Density Scaling"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Well",
+      "recipe": [
+        "Water",
+        "Nature"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Buff",
+      "stats": {
+        "damage": [
+          450,
+          1800,
+          7200
+        ],
+        "attack_speed": 1.5,
+        "range": 1150,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Every 15s buffs a non-Buff tower with +10%/+30%/+90% attack speed for 60s; up to 4 towers.",
+      "damage_profile": {
+        "tags": [
+          "Support",
+          "Attack-speed Amp"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Support",
+        "Attack-speed Amp"
+      ],
+      "build_position": "Support / multiplicative enabler",
+      "synergies": [
+        "Bloom",
+        "Haste",
+        "high attack-value towers"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Bloom",
+          "Haste",
+          "high attack-value towers"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Support",
+        "Attack-speed Amp"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Geyser",
+      "recipe": [
+        "Water",
+        "Earth"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS / AoE",
+      "source_catalog_utility": "Area damage",
+      "stats": {
+        "damage": [
+          1100,
+          4400,
+          17600
+        ],
+        "attack_speed": 1.0,
+        "range": 750,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Every 4th attack becomes a 300 AoE attack.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Burst",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Burst",
+        "Coverage"
+      ],
+      "build_position": "Heavy hit + periodic AoE",
+      "synergies": [
+        "Slow",
+        "clumping",
+        "Amp"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "clumping",
+          "Amp"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Burst",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Blacksmith",
+      "recipe": [
+        "Fire",
+        "Earth"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Buff",
+      "stats": {
+        "damage": [
+          450,
+          1800,
+          7200
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Every 15s grants a non-Buff tower +10%/+30%/+90% damage for 60s; up to 4 towers.",
+      "damage_profile": {
+        "tags": [
+          "Support",
+          "Damage Buff"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Support",
+        "Damage Buff"
+      ],
+      "build_position": "Support / damage enabler",
+      "synergies": [
+        "high-output DPS",
+        "DoT",
+        "Obelisk/Doom interactions"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "high-output DPS",
+          "DoT",
+          "Obelisk/Doom interactions"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Support",
+        "Damage Buff"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Solar",
+      "recipe": [
+        "Fire",
+        "Nature"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS / DoT",
+      "source_catalog_utility": "Damage over time",
+      "stats": {
+        "damage": [
+          240,
+          960,
+          3840
+        ],
+        "attack_speed": 1.0,
+        "range": 750,
+        "aoe": 100,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Each hit applies a stacking 120/480/1920 DPS debuff in 200 AoE around target for 4s.",
+      "damage_profile": {
+        "tags": [
+          "Sub-DPS",
+          "DoT",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Sub-DPS",
+        "DoT",
+        "Coverage"
+      ],
+      "build_position": "Stacking AoE DoT",
+      "synergies": [
+        "Slow",
+        "clumping",
+        "Archdruid"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "clumping",
+          "Archdruid"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Sub-DPS",
+        "DoT",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Mushroom",
+      "recipe": [
+        "Nature",
+        "Earth"
+      ],
+      "type": "Dual",
+      "max_level": 3,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Direct damage",
+      "stats": {
+        "damage": [
+          490,
+          1960,
+          7840
+        ],
+        "attack_speed": 1.0,
+        "range": 750,
+        "aoe": 300,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Deals more damage the slower the target: multiplier 300/current speed; current source explains this as 2% more damage per 1% slow.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Coverage",
+          "Slow-dependent"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Coverage",
+        "Slow-dependent"
+      ],
+      "build_position": "AoE damage that scales with Slow",
+      "synergies": [
+        "Slow",
+        "grouping"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "grouping"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Coverage",
+        "Slow-dependent"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Astral",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Ability / area",
+      "stats": {
+        "damage": [
+          2250,
+          9000
+        ],
+        "attack_speed": 1.0,
+        "range": 1500,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "For 3s every 9s, fires at up to 3 extra creeps regardless of distance.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Range Specialist",
+          "Burst/coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Range Specialist",
+        "Burst/coverage"
+      ],
+      "build_position": "Long-range sniper with burst multi-target window",
+      "synergies": [
+        "Slow",
+        "boss damage",
+        "global-ish extra targets"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "boss damage",
+          "global-ish extra targets"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Range Specialist",
+        "Burst/coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Runic",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Area / burst",
+      "stats": {
+        "damage": [
+          1150,
+          4600
+        ],
+        "attack_speed": 1.0,
+        "range": 1150,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "For 3s every 6s, fires at all creeps within 300 AoE around target.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Coverage",
+          "Burst"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Coverage",
+        "Burst"
+      ],
+      "build_position": "Burst wave-clear",
+      "synergies": [
+        "clumping",
+        "Slow",
+        "Singularity",
+        "Windstorm"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "clumping",
+          "Slow",
+          "Singularity",
+          "Windstorm"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Coverage",
+        "Burst"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Jinx",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Nature"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Damage amplification",
+      "stats": {
+        "damage": [
+          1100,
+          4400
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Applies debuff that every 2.5s deals 8%/16% of damage the creep has taken since debuff began; lasts 7.5s.",
+      "damage_profile": {
+        "tags": [
+          "Damage Amp",
+          "Support",
+          "Secondary Damage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Damage Amp",
+        "Support",
+        "Secondary Damage"
+      ],
+      "build_position": "Damage amplification / package multiplier",
+      "synergies": [
+        "high-output DPS",
+        "DoT",
+        "other amp towers"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "high-output DPS",
+          "DoT",
+          "other amp towers"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Damage Amp",
+        "Support",
+        "Secondary Damage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Laser",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Concentration",
+      "stats": {
+        "damage": [
+          7000,
+          28000
+        ],
+        "attack_speed": 1.0,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Loses 750/2250 damage per creep within 200 AoE of target, down to 3000/12000 loss.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Focused",
+          "Isolation Specialist"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Focused",
+        "Isolation Specialist"
+      ],
+      "build_position": "Isolation-dependent boss/focused DPS",
+      "synergies": [
+        "Rage",
+        "Gravity Cannon",
+        "Phantom Zone"
+      ],
+      "anti_synergies": [
+        "Singularity",
+        "Windstorm"
+      ],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Rage",
+          "Gravity Cannon",
+          "Phantom Zone"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Focused",
+        "Isolation Specialist"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Windstorm",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Slow",
+      "stats": {
+        "damage": [
+          350,
+          1400
+        ],
+        "attack_speed": 0.2,
+        "range": 1125,
+        "aoe": 400,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Creates a moving tornado dealing 350/1400 DPS and 16%/32% slow; slow lingers 3s. Tornado follows target and can group creeps.",
+      "damage_profile": {
+        "tags": [
+          "Slow",
+          "Control",
+          "Sub-DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Slow",
+        "Control",
+        "Sub-DPS"
+      ],
+      "build_position": "Primary slow / grouping",
+      "synergies": [
+        "Flamethrower",
+        "Vapor",
+        "Runic",
+        "AoE"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Flamethrower",
+          "Vapor",
+          "Runic",
+          "AoE"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Slow",
+        "Control",
+        "Sub-DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Wisp",
+      "recipe": [
+        "Light",
+        "Water",
+        "Nature"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Ramp / area",
+      "stats": {
+        "damage": [
+          950,
+          3800
+        ],
+        "attack_speed": 1.0,
+        "range": 900,
+        "aoe": 500,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Each attack reduces AoE by 10 and increases damage by 5%, up to 430% damage; resets after 6s not attacking.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Ramp",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Ramp",
+        "Coverage"
+      ],
+      "build_position": "Ramp DPS with shrinking coverage",
+      "synergies": [
+        "Slow",
+        "wave persistence",
+        "Well"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "wave persistence",
+          "Well"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Ramp",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Polar",
+      "recipe": [
+        "Light",
+        "Water",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Debuff",
+      "stats": {
+        "damage": [
+          500,
+          2000
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 300,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Applies 11%/22% current-HP removal for 30s; removal is percentage-based and does not return after duration.",
+      "damage_profile": {
+        "tags": [
+          "Support",
+          "HP Shave",
+          "Debuff"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Support",
+        "HP Shave",
+        "Debuff"
+      ],
+      "build_position": "Pre-damage HP shaving",
+      "synergies": [
+        "Main DPS",
+        "before amp/DR debuffs"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Main DPS",
+          "before amp/DR debuffs"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Support",
+        "HP Shave",
+        "Debuff"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Nova",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Nature"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Slow / low-HP scaling",
+      "stats": {
+        "damage": [
+          300,
+          1200
+        ],
+        "attack_speed": 0.66,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Hits all creeps in range and slows them 16%/32%; slow lingers 3s.",
+      "damage_profile": {
+        "tags": [
+          "Slow",
+          "Control",
+          "Distributed Sub-DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Neutral/anti-clump",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Slow",
+        "Control",
+        "Distributed Sub-DPS"
+      ],
+      "build_position": "Area slow without grouping",
+      "synergies": [
+        "AoE DPS",
+        "Incantation",
+        "Laser"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "AoE DPS",
+          "Incantation",
+          "Laser"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Slow",
+        "Control",
+        "Distributed Sub-DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Money",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS / Economy",
+      "source_catalog_utility": "Gold scaling",
+      "stats": {
+        "damage": [
+          3300,
+          13200
+        ],
+        "attack_speed": 1.0,
+        "range": 1150,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Gains damage equal to 25%/50% of unspent gold, capped by version-specific maximum; older passive gold generation was removed in 2024.",
+      "damage_profile": {
+        "tags": [
+          "Economy",
+          "Main DPS",
+          "Scaling"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "Late-game / opportunity-cost heavy"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Economy",
+        "Main DPS",
+        "Scaling"
+      ],
+      "build_position": "Economy scaling DPS",
+      "synergies": [
+        "long fights",
+        "income investment"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "long fights",
+          "income investment"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Economy",
+        "Main DPS",
+        "Scaling"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Incantation",
+      "recipe": [
+        "Light",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Utility",
+      "stats": {
+        "damage": [
+          475,
+          1900
+        ],
+        "attack_speed": 3.0,
+        "range": 900,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Debuff increases damage taken 13%/26%; if no other creeps within 200 AoE, bonus is 26%/52%. Lasts 5s.",
+      "damage_profile": {
+        "tags": [
+          "Damage Amp",
+          "Isolation Specialist",
+          "Support"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Damage Amp",
+        "Isolation Specialist",
+        "Support"
+      ],
+      "build_position": "Conditional high-value damage amp",
+      "synergies": [
+        "Rage",
+        "Gravity Cannon",
+        "Phantom Zone",
+        "Laser"
+      ],
+      "anti_synergies": [
+        "clumping effects"
+      ],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Rage",
+          "Gravity Cannon",
+          "Phantom Zone",
+          "Laser"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Damage Amp",
+        "Isolation Specialist",
+        "Support"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Corrosion",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Damage amplification",
+      "stats": {
+        "damage": [
+          150,
+          600
+        ],
+        "attack_speed": 1.0,
+        "range": 900,
+        "aoe": 300,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Deals 150/600 DPS and increases all damage taken by 20%/40% for 5s.",
+      "damage_profile": {
+        "tags": [
+          "Damage Amp",
+          "Sub-DPS",
+          "Debuff"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Damage Amp",
+        "Sub-DPS",
+        "Debuff"
+      ],
+      "build_position": "Flat team damage amplification",
+      "synergies": [
+        "all DPS",
+        "DoT",
+        "other amp towers"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "all DPS",
+          "DoT",
+          "other amp towers"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Damage Amp",
+        "Sub-DPS",
+        "Debuff"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Flooding",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Nature"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Area",
+      "stats": {
+        "damage": [
+          470,
+          1880
+        ],
+        "attack_speed": 3.0,
+        "range": 1125,
+        "aoe": 300,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Each consecutive attack on same target gains 15 AoE; resets on target change.",
+      "damage_profile": {
+        "tags": [
+          "Coverage",
+          "Ramp",
+          "Main DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Coverage",
+        "Ramp",
+        "Main DPS"
+      ],
+      "build_position": "Expanding-AoE sustained damage",
+      "synergies": [
+        "Nuclear",
+        "Slow",
+        "focus"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Nuclear",
+          "Slow",
+          "focus"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Coverage",
+        "Ramp",
+        "Main DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Muck",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Slow",
+      "stats": {
+        "damage": [
+          450,
+          1800
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 300,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Applies 16%/32% slow for 5s in AoE.",
+      "damage_profile": {
+        "tags": [
+          "Slow",
+          "Control",
+          "Sub-DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Slow",
+        "Control",
+        "Sub-DPS"
+      ],
+      "build_position": "AoE slow / grouping support",
+      "synergies": [
+        "Flamethrower",
+        "Vapor",
+        "Mushroom"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Flamethrower",
+          "Vapor",
+          "Mushroom"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Slow",
+        "Control",
+        "Sub-DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Ethereal",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Nature"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Kill scaling",
+      "stats": {
+        "damage": [
+          900,
+          3600
+        ],
+        "attack_speed": 3.0,
+        "range": 1500,
+        "aoe": 100,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Each creep dying within 1500 range grants 75/300 damage for 6s.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Kill Scaling",
+          "Range Specialist"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Kill Scaling",
+        "Range Specialist"
+      ],
+      "build_position": "Kill-scaling long-range DPS",
+      "synergies": [
+        "Shredder",
+        "AoE",
+        "Slow",
+        "wave density"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Shredder",
+          "AoE",
+          "Slow",
+          "wave density"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Kill Scaling",
+        "Range Specialist"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Flamethrower",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "AoE",
+      "stats": {
+        "damage": [
+          400,
+          1600
+        ],
+        "attack_speed": 1.5,
+        "range": 750,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Applies stacking Napalm; on target death, stacks explode for 200/800 per stack within 450 AoE. Shredder split can trigger napalm early.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "AoE",
+          "Chain Reaction",
+          "DoT"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "AoE",
+        "Chain Reaction",
+        "DoT"
+      ],
+      "build_position": "Chain-reaction wave clear",
+      "synergies": [
+        "Shredder",
+        "Slow",
+        "Doom",
+        "Singularity",
+        "Muck",
+        "Windstorm"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Shredder",
+          "Slow",
+          "Doom",
+          "Singularity",
+          "Muck",
+          "Windstorm"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "AoE",
+        "Chain Reaction",
+        "DoT"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Root",
+      "recipe": [
+        "Darkness",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "Slow / DoT",
+      "stats": {
+        "damage": [
+          100,
+          400
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Line attack applies 100/400 DPS DoT and 16%/32% slow for 5s.",
+      "damage_profile": {
+        "tags": [
+          "Slow",
+          "Sub-DPS",
+          "DoT",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Slow",
+        "Sub-DPS",
+        "DoT",
+        "Coverage"
+      ],
+      "build_position": "Slow + DoT hybrid",
+      "synergies": [
+        "DoT",
+        "Mushroom",
+        "Flamethrower"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "DoT",
+          "Mushroom",
+          "Flamethrower"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Slow",
+        "Sub-DPS",
+        "DoT",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Impulse",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Momentum",
+      "stats": {
+        "damage": [
+          3000,
+          12000
+        ],
+        "attack_speed": 1.0,
+        "range": 1500,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Damage multiplier scales with projectile distance traveled; recommended far targeting.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Range Specialist",
+          "Burst/Focused"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Range Specialist",
+        "Burst/Focused"
+      ],
+      "build_position": "Long-range distance-scaling DPS",
+      "synergies": [
+        "Slow",
+        "placement",
+        "isolation"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "placement",
+          "isolation"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Range Specialist",
+        "Burst/Focused"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Haste",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Attack scaling",
+      "stats": {
+        "damage": [
+          1000,
+          4000
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Each attack increases attack speed 6%, capped at 6/7; loses 0.5 attack speed per second when not attacking.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Ramp",
+          "Attack-Speed Scaling"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Ramp",
+        "Attack-Speed Scaling"
+      ],
+      "build_position": "Sustained ramping single-target DPS",
+      "synergies": [
+        "Well",
+        "Slow",
+        "stable lanes"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Well",
+          "Slow",
+          "stable lanes"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Ramp",
+        "Attack-Speed Scaling"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Golem",
+      "recipe": [
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Front-loaded damage",
+      "stats": {
+        "damage": [
+          2800,
+          11200
+        ],
+        "attack_speed": 3.0,
+        "range": 1150,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Attacks in bursts for ~3s then stops for ~3s (current implementation); burst cadence drives front-loaded damage.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Burst",
+          "Timing-sensitive"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Burst",
+        "Timing-sensitive"
+      ],
+      "build_position": "Burst-cycle DPS",
+      "synergies": [
+        "Slow",
+        "damage amp"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "damage amp"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Burst",
+        "Timing-sensitive"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Quake",
+      "recipe": [
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Trio",
+      "max_level": 2,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "Shockwave AoE",
+      "stats": {
+        "damage": [
+          2000,
+          8000
+        ],
+        "attack_speed": 1.5,
+        "range": 750,
+        "aoe": 100,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Every 5 attacks releases a shockwave hitting all creeps in range for 2600/10400.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Coverage",
+          "Burst"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Coverage",
+        "Burst"
+      ],
+      "build_position": "Short-range periodic AoE",
+      "synergies": [
+        "Slow",
+        "clumping",
+        "placement"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "clumping",
+          "placement"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Coverage",
+        "Burst"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Singularity",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Fire"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          12000
+        ],
+        "attack_speed": 0.33,
+        "range": 900,
+        "aoe": 400,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Attacks pull surrounding creeps toward primary target for 0.25s.",
+      "damage_profile": {
+        "tags": [
+          "Coverage",
+          "Control",
+          "Special",
+          "Main DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Strong positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Coverage",
+        "Control",
+        "Special",
+        "Main DPS"
+      ],
+      "build_position": "Clumping/geometry enabler with heavy AoE",
+      "synergies": [
+        "Runic",
+        "Flamethrower",
+        "Vapor"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Runic",
+          "Flamethrower",
+          "Vapor"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Coverage",
+        "Control",
+        "Special",
+        "Main DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Railgun",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Nature"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          1000
+        ],
+        "attack_speed": 1.0,
+        "range": 750,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Static discharge hits all creeps in range and builds charge (25/s + 1/creep hit); at 200 charge fires a 62,500-damage global shot.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Global finisher",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Global finisher",
+        "Coverage"
+      ],
+      "build_position": "Hybrid local field + global finisher",
+      "synergies": [
+        "dense waves",
+        "boss/cleanup",
+        "Slow"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "dense waves",
+          "boss/cleanup",
+          "Slow"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Global finisher",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Phantom Zone",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS / Utility",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          16000
+        ],
+        "attack_speed": 0.33,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Stasis target for 2s, stores incoming damage, then releases 25% of stored damage as a 300 AoE shockwave; same target cooldown 12s.",
+      "damage_profile": {
+        "tags": [
+          "Enabler",
+          "Coverage",
+          "Control",
+          "Sub-DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Enabler",
+        "Coverage",
+        "Control",
+        "Sub-DPS"
+      ],
+      "build_position": "Damage conversion / spacing control",
+      "synergies": [
+        "Laser",
+        "AoE DPS",
+        "isolation"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Laser",
+          "AoE DPS",
+          "isolation"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Enabler",
+        "Coverage",
+        "Control",
+        "Sub-DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Doom",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire",
+        "Nature"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          2000
+        ],
+        "attack_speed": 1.5,
+        "range": 750,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Applies Doom stacks; after 10s stack triggers 9000 damage, increasing 5%/s up to 25,200 per stack; can instantly kill if damage would finish the creep.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Back-loaded",
+          "Execute",
+          "DoT-like"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Back-loaded",
+        "Execute",
+        "DoT-like"
+      ],
+      "build_position": "Back-loaded execute/threshold DPS",
+      "synergies": [
+        "Flamethrower",
+        "Slow",
+        "DoT",
+        "Blacksmith"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Flamethrower",
+          "Slow",
+          "DoT",
+          "Blacksmith"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Back-loaded",
+        "Execute",
+        "DoT-like"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Rage",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "Support / DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          4500
+        ],
+        "attack_speed": 1.0,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Sets creep on fire for 4000 DPS, increases damage taken 20%, and speeds it up (current page says 50%) for 5s.",
+      "damage_profile": {
+        "tags": [
+          "Damage Amp",
+          "Debuff",
+          "Speed Manipulation",
+          "Sub-DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Damage Amp",
+        "Debuff",
+        "Speed Manipulation",
+        "Sub-DPS"
+      ],
+      "build_position": "Risk/reward isolation enabler",
+      "synergies": [
+        "Incantation",
+        "Laser",
+        "Gravity Cannon"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Incantation",
+          "Laser",
+          "Gravity Cannon"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Damage Amp",
+        "Debuff",
+        "Speed Manipulation",
+        "Sub-DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Nuclear",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          10000
+        ],
+        "attack_speed": 0.33,
+        "range": 750,
+        "aoe": 400,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Doubles target HP, slows by up to 30%, then permanently emits radiation dealing 0.35% current HP + 6000 DPS in 100 AoE.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Control",
+          "DoT",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "Positive",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Control",
+        "DoT",
+        "Coverage"
+      ],
+      "build_position": "Permanent radiation / slow hybrid",
+      "synergies": [
+        "Flooding",
+        "Slow",
+        "AoE"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Flooding",
+          "Slow",
+          "AoE"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Control",
+        "DoT",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Tesla Tree",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          8000
+        ],
+        "attack_speed": 1.5,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Tesla Trees in range of each other link, combining damage, attack speed, range, buffs and debuffs.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Network/Package",
+          "Special"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Network/Package",
+        "Special"
+      ],
+      "build_position": "Network scaling",
+      "synergies": [
+        "multiple Tesla Trees",
+        "buff/debuff packages"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "multiple Tesla Trees",
+          "buff/debuff packages"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Network/Package",
+        "Special"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Obelisk",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          7500
+        ],
+        "attack_speed": 1.0,
+        "range": 900,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Channels a beam; when target switches/dies/leaves range/shield pops, explodes for base AoE damage plus build-up based on channel duration; current 2025 base/build-up reduced to 7500/3600.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Burst",
+          "Back-loaded",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Burst",
+        "Back-loaded",
+        "Coverage"
+      ],
+      "build_position": "Channel-to-explosion DPS",
+      "synergies": [
+        "Slow",
+        "clumping",
+        "Amp"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "clumping",
+          "Amp"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Burst",
+        "Back-loaded",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Life Altar",
+      "recipe": [
+        "Light",
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "Support",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          8500
+        ],
+        "attack_speed": 1.0,
+        "range": 900,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Active buff gives nearby towers +30% damage and +30% attack speed for 15s; every 3 kills by affected tower grants a life; costs lives based on affected towers; 60s cooldown.",
+      "damage_profile": {
+        "tags": [
+          "Support",
+          "Damage Amp",
+          "Attack-Speed Amp",
+          "Economy/Survival"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Support",
+        "Damage Amp",
+        "Attack-Speed Amp",
+        "Economy/Survival"
+      ],
+      "build_position": "High-density support burst window",
+      "synergies": [
+        "clustered tower groups",
+        "high kill-rate DPS"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "clustered tower groups",
+          "high kill-rate DPS"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Primarily Utility",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Support",
+        "Damage Amp",
+        "Attack-Speed Amp",
+        "Economy/Survival"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Archdruid",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "Support / DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          15000
+        ],
+        "attack_speed": 0.33,
+        "range": 900,
+        "aoe": 300,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Launches target into front-most creep; impact deals attack damage and damage scales with skipped path distance. Current 2025 base damage 15,000.",
+      "damage_profile": {
+        "tags": [
+          "Main DPS",
+          "Geometry Control",
+          "Coverage",
+          "Special"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Main DPS",
+        "Geometry Control",
+        "Coverage",
+        "Special"
+      ],
+      "build_position": "Position/geometry manipulator",
+      "synergies": [
+        "Solar",
+        "Vapor",
+        "grouping",
+        "path-length abuse"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Solar",
+          "Vapor",
+          "grouping",
+          "path-length abuse"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Main DPS",
+        "Geometry Control",
+        "Coverage",
+        "Special"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Plague",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          800
+        ],
+        "attack_speed": 1.0,
+        "range": 750,
+        "aoe": 100,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Applies Plague stacks dealing 675 DPS; on target death all stacks transfer to another creep within 1500 range and refresh; stacks last 20s, max 800. Current Aug 2026 official update raised attack damage to 800.",
+      "damage_profile": {
+        "tags": [
+          "Sub-DPS",
+          "DoT",
+          "Chain Reaction",
+          "Wave Clear"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Sub-DPS",
+        "DoT",
+        "Chain Reaction",
+        "Wave Clear"
+      ],
+      "build_position": "Contagious kill-chain DoT",
+      "synergies": [
+        "Slow",
+        "Shredder",
+        "high-density waves"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "Shredder",
+          "high-density waves"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Sub-DPS",
+        "DoT",
+        "Chain Reaction",
+        "Wave Clear"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Crystal Spire",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          36000
+        ],
+        "attack_speed": 0.5,
+        "range": 625,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Spawns spirits over time up to 9; each spirit seeks within 600 and explodes on impact. Current range is 625 after 2024 balance.",
+      "damage_profile": {
+        "tags": [
+          "Burst",
+          "Finisher",
+          "Coverage"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Burst",
+        "Finisher",
+        "Coverage"
+      ],
+      "build_position": "Stored projectile burst",
+      "synergies": [
+        "Slow",
+        "grouping",
+        "Trickery"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "grouping",
+          "Trickery"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Conditional Main DPS",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Burst",
+        "Finisher",
+        "Coverage"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Gravity Cannon",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS / Utility",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          8000
+        ],
+        "attack_speed": 1.0,
+        "range": 1500,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Very long-range tower that drastically speeds its target; if target passes other creeps, it slows them. Can clump or separate creeps depending on targeting. Exact current speed/slow numbers were not recovered.",
+      "damage_profile": {
+        "tags": [
+          "Range Specialist",
+          "Control",
+          "Geometry Control",
+          "Main DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Range Specialist",
+        "Control",
+        "Geometry Control",
+        "Main DPS"
+      ],
+      "build_position": "Movement manipulation / isolation",
+      "synergies": [
+        "Incantation",
+        "Laser",
+        "Phantom Zone"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Incantation",
+          "Laser",
+          "Phantom Zone"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Range Specialist",
+        "Control",
+        "Geometry Control",
+        "Main DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Shredder",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          13000
+        ],
+        "attack_speed": 0.66,
+        "range": 900,
+        "aoe": 200,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Splits target into two creeps at 60% HP each and half bounty; split counts as a kill for on-death effects; cannot split same creep twice.",
+      "damage_profile": {
+        "tags": [
+          "Special",
+          "Coverage",
+          "Chain Reaction",
+          "Main DPS"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Special",
+        "Coverage",
+        "Chain Reaction",
+        "Main DPS"
+      ],
+      "build_position": "Wave multiplication / trigger enabler",
+      "synergies": [
+        "Flamethrower",
+        "Ethereal",
+        "kill scaling"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Flamethrower",
+          "Ethereal",
+          "kill scaling"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Special",
+        "Coverage",
+        "Chain Reaction",
+        "Main DPS"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Tsunami",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Quad",
+      "max_level": 1,
+      "source_catalog_role": "DPS / AoE",
+      "source_catalog_utility": "",
+      "stats": {
+        "damage": [
+          7500
+        ],
+        "attack_speed": 1.0,
+        "range": 1150,
+        "aoe": 0,
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Builds charge at 1/s +2 per creep hit; activate wave hits all creeps. Current 2024 ability values are 20k/50k/85k/130k by charge level.",
+      "damage_profile": {
+        "tags": [
+          "Burst",
+          "Coverage",
+          "Main DPS",
+          "Boss Specialist"
+        ],
+        "single_target_or_multi": "UNKNOWN",
+        "burst": "UNKNOWN",
+        "sustained": "UNKNOWN",
+        "ramp": "UNKNOWN",
+        "stacking": "UNKNOWN",
+        "dot": "UNKNOWN",
+        "execute": "UNKNOWN",
+        "kill_scaling": "UNKNOWN",
+        "attack_scaling": "UNKNOWN",
+        "front_loaded": "UNKNOWN",
+        "back_loaded": "UNKNOWN",
+        "focused": "UNKNOWN",
+        "distributed": "UNKNOWN",
+        "chain_reaction": "UNKNOWN"
+      },
+      "control": {
+        "slow": "UNKNOWN",
+        "hard_cc": "UNKNOWN",
+        "debuff": "UNKNOWN",
+        "hp_manipulation": "UNKNOWN",
+        "execute_threshold": "UNKNOWN",
+        "duration": "UNKNOWN",
+        "coverage": "UNKNOWN"
+      },
+      "coverage": {
+        "profile": "UNKNOWN",
+        "density_scaling": "UNKNOWN",
+        "wave_clear": "UNKNOWN",
+        "boss": "UNKNOWN"
+      },
+      "support_amplification": {
+        "type": "UNKNOWN",
+        "details": "UNKNOWN"
+      },
+      "economy": {
+        "type": "UNKNOWN",
+        "timing": "UNKNOWN"
+      },
+      "progression": {
+        "level_notes": "See researched mechanic and stats; some exact per-level changes remain unverified.",
+        "role_changes": "UNKNOWN"
+      },
+      "strategic_roles": [
+        "Burst",
+        "Coverage",
+        "Main DPS",
+        "Boss Specialist"
+      ],
+      "build_position": "Stored-charge wave deletion",
+      "synergies": [
+        "Slow",
+        "dense waves",
+        "alternating pair usage"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "UNKNOWN",
+        "enables": [
+          "Slow",
+          "dense waves",
+          "alternating pair usage"
+        ],
+        "weaknesses": "UNKNOWN",
+        "solves": "UNKNOWN"
+      },
+      "main_dps_test": "Strong Main DPS candidate",
+      "pure_late_game_value": "Not a Pure tower; Pure is a separate element-allocation layer.",
+      "role_priority": [
+        "Burst",
+        "Coverage",
+        "Main DPS",
+        "Boss Specialist"
+      ],
+      "optimizer_treatment": "Package-aware; synergy-aware",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for listed mechanic(s); UNKNOWN for omitted mechanics",
+      "sources": [
+        "Supplied catalog",
+        "Element TD 2 Wiki / tower page",
+        "Official Steam balance notes where applicable"
+      ]
+    },
+    {
+      "tower": "Pure Light",
+      "recipe": [
+        "Light"
+      ],
+      "type": "Solo/Pure",
+      "max_level": 4,
+      "source_catalog_role": "DPS (rule-layer)",
+      "source_catalog_utility": "Pure element \u00b7 Level 4 via Pure Essence",
+      "stats": {
+        "damage": "UNKNOWN",
+        "attack_speed": "UNKNOWN",
+        "range": "UNKNOWN",
+        "aoe": "UNKNOWN",
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Pure Element tower; Lv4 requires 2 Pure Essence in supplied optimizer model.",
+      "damage_profile": {},
+      "control": {},
+      "coverage": {},
+      "support_amplification": {},
+      "economy": {},
+      "progression": {
+        "level_notes": "Lv1-Lv3 normal progression; Lv4 is the Pure Essence opportunity.",
+        "role_changes": "Late-game allocation layer."
+      },
+      "strategic_roles": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "build_position": "Late-game specialist",
+      "synergies": [
+        "Element package using this element"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "2 Pure Essence for Lv4 opportunity",
+        "enables": "UNKNOWN",
+        "weaknesses": "Consumes scarce Essence/allocation",
+        "solves": "Late-game damage/access needs"
+      },
+      "main_dps_test": "Do not classify as primary Main DPS merely because it is a DPS rule-layer tower.",
+      "pure_late_game_value": "Primary role is late-game Pure allocation; evaluate 2-3 point investment after the combat package.",
+      "role_priority": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "optimizer_treatment": "Evaluate after combat package/synergy.",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH on rule-layer identity; LOW on actual Pure tower mechanics",
+      "sources": [
+        "Supplied catalog rule layer"
+      ]
+    },
+    {
+      "tower": "Pure Darkness",
+      "recipe": [
+        "Darkness"
+      ],
+      "type": "Solo/Pure",
+      "max_level": 4,
+      "source_catalog_role": "DPS (rule-layer)",
+      "source_catalog_utility": "Pure element \u00b7 Level 4 via Pure Essence",
+      "stats": {
+        "damage": "UNKNOWN",
+        "attack_speed": "UNKNOWN",
+        "range": "UNKNOWN",
+        "aoe": "UNKNOWN",
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Pure Element tower; Lv4 requires 2 Pure Essence in supplied optimizer model.",
+      "damage_profile": {},
+      "control": {},
+      "coverage": {},
+      "support_amplification": {},
+      "economy": {},
+      "progression": {
+        "level_notes": "Lv1-Lv3 normal progression; Lv4 is the Pure Essence opportunity.",
+        "role_changes": "Late-game allocation layer."
+      },
+      "strategic_roles": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "build_position": "Late-game specialist",
+      "synergies": [
+        "Element package using this element"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "2 Pure Essence for Lv4 opportunity",
+        "enables": "UNKNOWN",
+        "weaknesses": "Consumes scarce Essence/allocation",
+        "solves": "Late-game damage/access needs"
+      },
+      "main_dps_test": "Do not classify as primary Main DPS merely because it is a DPS rule-layer tower.",
+      "pure_late_game_value": "Primary role is late-game Pure allocation; evaluate 2-3 point investment after the combat package.",
+      "role_priority": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "optimizer_treatment": "Evaluate after combat package/synergy.",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH on rule-layer identity; LOW on actual Pure tower mechanics",
+      "sources": [
+        "Supplied catalog rule layer"
+      ]
+    },
+    {
+      "tower": "Pure Water",
+      "recipe": [
+        "Water"
+      ],
+      "type": "Solo/Pure",
+      "max_level": 4,
+      "source_catalog_role": "DPS (rule-layer)",
+      "source_catalog_utility": "Pure element \u00b7 Level 4 via Pure Essence",
+      "stats": {
+        "damage": "UNKNOWN",
+        "attack_speed": "UNKNOWN",
+        "range": "UNKNOWN",
+        "aoe": "UNKNOWN",
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Pure Element tower; Lv4 requires 2 Pure Essence in supplied optimizer model.",
+      "damage_profile": {},
+      "control": {},
+      "coverage": {},
+      "support_amplification": {},
+      "economy": {},
+      "progression": {
+        "level_notes": "Lv1-Lv3 normal progression; Lv4 is the Pure Essence opportunity.",
+        "role_changes": "Late-game allocation layer."
+      },
+      "strategic_roles": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "build_position": "Late-game specialist",
+      "synergies": [
+        "Element package using this element"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "2 Pure Essence for Lv4 opportunity",
+        "enables": "UNKNOWN",
+        "weaknesses": "Consumes scarce Essence/allocation",
+        "solves": "Late-game damage/access needs"
+      },
+      "main_dps_test": "Do not classify as primary Main DPS merely because it is a DPS rule-layer tower.",
+      "pure_late_game_value": "Primary role is late-game Pure allocation; evaluate 2-3 point investment after the combat package.",
+      "role_priority": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "optimizer_treatment": "Evaluate after combat package/synergy.",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH on rule-layer identity; LOW on actual Pure tower mechanics",
+      "sources": [
+        "Supplied catalog rule layer"
+      ]
+    },
+    {
+      "tower": "Pure Fire",
+      "recipe": [
+        "Fire"
+      ],
+      "type": "Solo/Pure",
+      "max_level": 4,
+      "source_catalog_role": "DPS (rule-layer)",
+      "source_catalog_utility": "Pure element \u00b7 Level 4 via Pure Essence",
+      "stats": {
+        "damage": "UNKNOWN",
+        "attack_speed": "UNKNOWN",
+        "range": "UNKNOWN",
+        "aoe": "UNKNOWN",
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Pure Element tower; Lv4 requires 2 Pure Essence in supplied optimizer model.",
+      "damage_profile": {},
+      "control": {},
+      "coverage": {},
+      "support_amplification": {},
+      "economy": {},
+      "progression": {
+        "level_notes": "Lv1-Lv3 normal progression; Lv4 is the Pure Essence opportunity.",
+        "role_changes": "Late-game allocation layer."
+      },
+      "strategic_roles": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "build_position": "Late-game specialist",
+      "synergies": [
+        "Element package using this element"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "2 Pure Essence for Lv4 opportunity",
+        "enables": "UNKNOWN",
+        "weaknesses": "Consumes scarce Essence/allocation",
+        "solves": "Late-game damage/access needs"
+      },
+      "main_dps_test": "Do not classify as primary Main DPS merely because it is a DPS rule-layer tower.",
+      "pure_late_game_value": "Primary role is late-game Pure allocation; evaluate 2-3 point investment after the combat package.",
+      "role_priority": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "optimizer_treatment": "Evaluate after combat package/synergy.",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH on rule-layer identity; LOW on actual Pure tower mechanics",
+      "sources": [
+        "Supplied catalog rule layer"
+      ]
+    },
+    {
+      "tower": "Pure Nature",
+      "recipe": [
+        "Nature"
+      ],
+      "type": "Solo/Pure",
+      "max_level": 4,
+      "source_catalog_role": "DPS (rule-layer)",
+      "source_catalog_utility": "Pure element \u00b7 Level 4 via Pure Essence",
+      "stats": {
+        "damage": "UNKNOWN",
+        "attack_speed": "UNKNOWN",
+        "range": "UNKNOWN",
+        "aoe": "UNKNOWN",
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Pure Element tower; Lv4 requires 2 Pure Essence in supplied optimizer model.",
+      "damage_profile": {},
+      "control": {},
+      "coverage": {},
+      "support_amplification": {},
+      "economy": {},
+      "progression": {
+        "level_notes": "Lv1-Lv3 normal progression; Lv4 is the Pure Essence opportunity.",
+        "role_changes": "Late-game allocation layer."
+      },
+      "strategic_roles": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "build_position": "Late-game specialist",
+      "synergies": [
+        "Element package using this element"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "2 Pure Essence for Lv4 opportunity",
+        "enables": "UNKNOWN",
+        "weaknesses": "Consumes scarce Essence/allocation",
+        "solves": "Late-game damage/access needs"
+      },
+      "main_dps_test": "Do not classify as primary Main DPS merely because it is a DPS rule-layer tower.",
+      "pure_late_game_value": "Primary role is late-game Pure allocation; evaluate 2-3 point investment after the combat package.",
+      "role_priority": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "optimizer_treatment": "Evaluate after combat package/synergy.",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH on rule-layer identity; LOW on actual Pure tower mechanics",
+      "sources": [
+        "Supplied catalog rule layer"
+      ]
+    },
+    {
+      "tower": "Pure Earth",
+      "recipe": [
+        "Earth"
+      ],
+      "type": "Solo/Pure",
+      "max_level": 4,
+      "source_catalog_role": "DPS (rule-layer)",
+      "source_catalog_utility": "Pure element \u00b7 Level 4 via Pure Essence",
+      "stats": {
+        "damage": "UNKNOWN",
+        "attack_speed": "UNKNOWN",
+        "range": "UNKNOWN",
+        "aoe": "UNKNOWN",
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Pure Element tower; Lv4 requires 2 Pure Essence in supplied optimizer model.",
+      "damage_profile": {},
+      "control": {},
+      "coverage": {},
+      "support_amplification": {},
+      "economy": {},
+      "progression": {
+        "level_notes": "Lv1-Lv3 normal progression; Lv4 is the Pure Essence opportunity.",
+        "role_changes": "Late-game allocation layer."
+      },
+      "strategic_roles": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "build_position": "Late-game specialist",
+      "synergies": [
+        "Element package using this element"
+      ],
+      "anti_synergies": [],
+      "dependencies": {
+        "needs": "2 Pure Essence for Lv4 opportunity",
+        "enables": "UNKNOWN",
+        "weaknesses": "Consumes scarce Essence/allocation",
+        "solves": "Late-game damage/access needs"
+      },
+      "main_dps_test": "Do not classify as primary Main DPS merely because it is a DPS rule-layer tower.",
+      "pure_late_game_value": "Primary role is late-game Pure allocation; evaluate 2-3 point investment after the combat package.",
+      "role_priority": [
+        "Pure Allocation",
+        "Late Game"
+      ],
+      "optimizer_treatment": "Evaluate after combat package/synergy.",
+      "opportunity_cost": "UNKNOWN",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH on rule-layer identity; LOW on actual Pure tower mechanics",
+      "sources": [
+        "Supplied catalog rule layer"
+      ]
+    },
+    {
+      "tower": "Periodic",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "type": "Special",
+      "max_level": 1,
+      "source_catalog_role": "Special",
+      "source_catalog_utility": "All six elements at Lv1+",
+      "stats": {
+        "damage": "UNKNOWN",
+        "attack_speed": "UNKNOWN",
+        "range": "UNKNOWN",
+        "aoe": "UNKNOWN",
+        "targets": "UNKNOWN",
+        "targeting": "UNKNOWN",
+        "projectile": "UNKNOWN",
+        "splash": "UNKNOWN",
+        "chain": "UNKNOWN",
+        "pierce": "UNKNOWN"
+      },
+      "core_mechanic": "Unlocked when all six elements are at least Level 1; special rule-layer tower.",
+      "damage_profile": {},
+      "control": {},
+      "coverage": {},
+      "support_amplification": {},
+      "economy": {},
+      "progression": {
+        "level_notes": "Lv1 in supplied model.",
+        "role_changes": "Keystone allocation path."
+      },
+      "strategic_roles": [
+        "Keystone",
+        "Special",
+        "Late Game"
+      ],
+      "build_position": "Keystone",
+      "synergies": [
+        "Broad six-element allocation",
+        "Quad access",
+        "Pure allocation"
+      ],
+      "anti_synergies": [
+        "Concentrated depth allocations"
+      ],
+      "dependencies": {
+        "needs": "All six elements Lv1+",
+        "enables": "Broad tower access",
+        "weaknesses": "High breadth opportunity cost",
+        "solves": "Six-element/keystone package access"
+      },
+      "main_dps_test": "Unknown",
+      "pure_late_game_value": "Separate keystone decision; not a Main DPS role.",
+      "role_priority": [
+        "Keystone",
+        "Late Game"
+      ],
+      "optimizer_treatment": "Evaluate as allocation-path decision, not normal tower slot.",
+      "opportunity_cost": "Very high breadth cost",
+      "redundancy_risk": "UNKNOWN",
+      "confidence": "HIGH for supplied rule, LOW for missing combat stats",
+      "sources": [
+        "Supplied catalog rule layer"
+      ]
+    }
+  ],
+  "research_notes": {
+    "current_update": "Aug 2026 official Steam small update raises Plague base damage from 725 to 800; Version 1.9.6 on Dec 13 2025 reduced Poison base and DoT and fixed a buff-tower exploit.",
+    "architecture": "Role vectors, range, damage behavior, control, coverage, amplification, economy, synergy, redundancy, and opportunity cost are separate data dimensions.",
+    "priority_hierarchy": [
+      "Main DPS",
+      "Slow / Control",
+      "Sub-DPS",
+      "Coverage / AoE",
+      "Damage Amplification",
+      "Pure Element Allocation",
+      "Special / Economy / Geometry"
+    ],
+    "highest_value_synergies": [
+      "Doom + Flamethrower",
+      "Flamethrower + Shredder",
+      "Flamethrower + Windstorm/Muck",
+      "Laser + Rage/Gravity Cannon/Phantom Zone",
+      "Incantation + isolation effects",
+      "Ethereal + Shredder",
+      "Vapor + Archdruid",
+      "Flooding + Nuclear",
+      "Mushroom + Slow"
+    ]
+  }
+}

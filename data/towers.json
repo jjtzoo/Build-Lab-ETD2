@@ -1,0 +1,1094 @@
+{
+  "elements": [
+    "Light",
+    "Darkness",
+    "Water",
+    "Fire",
+    "Nature",
+    "Earth"
+  ],
+  "towers": [
+    {
+      "name": "Trickery",
+      "type": "Dual",
+      "recipe": [
+        "Light",
+        "Darkness"
+      ],
+      "role": "Support",
+      "utility": "Buff / clone",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Ice",
+      "type": "Dual",
+      "recipe": [
+        "Light",
+        "Water"
+      ],
+      "role": "DPS / Control",
+      "utility": "Slow",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Lightning",
+      "type": "Dual",
+      "recipe": [
+        "Light",
+        "Fire"
+      ],
+      "role": "DPS",
+      "utility": "Direct damage",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Bloom",
+      "type": "Dual",
+      "recipe": [
+        "Light",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "Direct damage",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Atom",
+      "type": "Dual",
+      "recipe": [
+        "Light",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "Direct damage",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Poison",
+      "type": "Dual",
+      "recipe": [
+        "Darkness",
+        "Water"
+      ],
+      "role": "DPS / DoT",
+      "utility": "Damage over time",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Infernal",
+      "type": "Dual",
+      "recipe": [
+        "Darkness",
+        "Fire"
+      ],
+      "role": "DPS / AoE",
+      "utility": "Area damage",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Disease",
+      "type": "Dual",
+      "recipe": [
+        "Darkness",
+        "Nature"
+      ],
+      "role": "DPS / Execute",
+      "utility": "Execute / decay",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Howitzer",
+      "type": "Dual",
+      "recipe": [
+        "Darkness",
+        "Earth"
+      ],
+      "role": "DPS / AoE",
+      "utility": "Long-range / splash",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Vapor",
+      "type": "Dual",
+      "recipe": [
+        "Water",
+        "Fire"
+      ],
+      "role": "DPS",
+      "utility": "Direct damage",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Well",
+      "type": "Dual",
+      "recipe": [
+        "Water",
+        "Nature"
+      ],
+      "role": "Support",
+      "utility": "Buff",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Geyser",
+      "type": "Dual",
+      "recipe": [
+        "Water",
+        "Earth"
+      ],
+      "role": "DPS / AoE",
+      "utility": "Area damage",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Blacksmith",
+      "type": "Dual",
+      "recipe": [
+        "Fire",
+        "Earth"
+      ],
+      "role": "Support",
+      "utility": "Buff",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Solar",
+      "type": "Dual",
+      "recipe": [
+        "Fire",
+        "Nature"
+      ],
+      "role": "DPS / DoT",
+      "utility": "Damage over time",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Mushroom",
+      "type": "Dual",
+      "recipe": [
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "Direct damage",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Astral",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water"
+      ],
+      "role": "DPS",
+      "utility": "Ability / area",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Runic",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire"
+      ],
+      "role": "DPS",
+      "utility": "Area / burst",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Jinx",
+      "type": "Trio",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Nature"
+      ],
+      "role": "Support",
+      "utility": "Damage amplification",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Laser",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "Concentration",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Windstorm",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire"
+      ],
+      "role": "Support",
+      "utility": "Slow",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Wisp",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Water",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "Ramp / area",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Polar",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Water",
+        "Earth"
+      ],
+      "role": "Support",
+      "utility": "Debuff",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Nova",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Nature"
+      ],
+      "role": "Support",
+      "utility": "Slow / low-HP scaling",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Money",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Earth"
+      ],
+      "role": "DPS / Economy",
+      "utility": "Gold scaling",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Incantation",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "Utility",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Corrosion",
+      "type": "Trio",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire"
+      ],
+      "role": "Support",
+      "utility": "Damage amplification",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Flooding",
+      "type": "Trio",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "Area",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Muck",
+      "type": "Trio",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Earth"
+      ],
+      "role": "Support",
+      "utility": "Slow",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Ethereal",
+      "type": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "Kill scaling",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Flamethrower",
+      "type": "Trio",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "AoE",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Root",
+      "type": "Trio",
+      "recipe": [
+        "Darkness",
+        "Nature",
+        "Earth"
+      ],
+      "role": "Support",
+      "utility": "Slow / DoT",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Impulse",
+      "type": "Trio",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "Momentum",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Haste",
+      "type": "Trio",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "Attack scaling",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Golem",
+      "type": "Trio",
+      "recipe": [
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "Front-loaded damage",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Quake",
+      "type": "Trio",
+      "recipe": [
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "Shockwave AoE",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Singularity",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Fire"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Railgun",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Light",
+      "damageId": 1,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Phantom Zone",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Earth"
+      ],
+      "role": "DPS / Utility",
+      "utility": "",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Doom",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Rage",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire",
+        "Earth"
+      ],
+      "role": "Support / DPS",
+      "utility": "",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Nuclear",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Tesla Tree",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Obelisk",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Fire",
+      "damageId": 4,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Life Altar",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "role": "Support",
+      "utility": "",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Archdruid",
+      "type": "Quad",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "role": "Support / DPS",
+      "utility": "",
+      "damage": "Nature",
+      "damageId": 5,
+      "req": {
+        "Light": 1,
+        "Darkness": 0,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Plague",
+      "type": "Quad",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Darkness",
+      "damageId": 2,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 0
+      }
+    },
+    {
+      "name": "Crystal Spire",
+      "type": "Quad",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 0,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Gravity Cannon",
+      "type": "Quad",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS / Utility",
+      "utility": "",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 0,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Shredder",
+      "type": "Quad",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS",
+      "utility": "",
+      "damage": "Earth",
+      "damageId": 6,
+      "req": {
+        "Light": 0,
+        "Darkness": 1,
+        "Water": 0,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 1
+      }
+    },
+    {
+      "name": "Tsunami",
+      "type": "Quad",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "role": "DPS / AoE",
+      "utility": "",
+      "damage": "Water",
+      "damageId": 3,
+      "req": {
+        "Light": 0,
+        "Darkness": 0,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 1
+      }
+    }
+  ],
+  "specialRules": {
+    "Periodic": {
+      "name": "Periodic",
+      "type": "Periodic",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "role": "Special",
+      "utility": "All six elements at Lv1+",
+      "damage": "\u2014",
+      "damageId": null,
+      "req": {
+        "Light": 1,
+        "Darkness": 1,
+        "Water": 1,
+        "Fire": 1,
+        "Nature": 1,
+        "Earth": 1
+      },
+      "source": "rule"
+    }
+  },
+  "sourceCoverage": {
+    "soloPureRows": false,
+    "periodicRow": false,
+    "towerRows": 50
+  }
+}
