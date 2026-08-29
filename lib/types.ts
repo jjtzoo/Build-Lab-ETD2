@@ -21,11 +21,45 @@ export type MechanicsRecord = {
   source_catalog_utility: string;
   stats: Record<string, unknown>;
   core_mechanic: string;
+  damage_profile: {
+    tags: string[];
+    single_target_or_multi: string;
+    burst: string;
+    sustained: string;
+    ramp: string;
+    stacking: string;
+    dot: string;
+    execute: string;
+    kill_scaling: string;
+    attack_scaling: string;
+    front_loaded: string;
+    back_loaded: string;
+    focused: string;
+    distributed: string;
+    chain_reaction: string;
+  };
+  control: {
+    slow: string;
+    hard_cc: string;
+    debuff: string;
+    hp_manipulation: string;
+    execute_threshold: string;
+    duration: string;
+    coverage: string;
+  };
+  coverage: {
+  profile: string;
+  density_scaling: string;
+  wave_clear: string;
+  boss: string;
+  };
   strategic_roles: string[];
   build_position: string;
   synergies: string[];
   anti_synergies: string[];
   dependencies: Record<string, unknown>;
+  role_priority: string[];
+  sources: string[];
   confidence: string;
 };
 
