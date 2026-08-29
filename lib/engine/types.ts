@@ -208,11 +208,23 @@ export interface PackageEvaluation {
   provenance: string[];
 }
 
+import type {
+  AllocationProfile,
+} from "./allocation-profile";
+
+import type {
+  AnchorProfile,
+} from "./anchor-profile";
+
 export interface CandidateEvaluation {
   allocation: Allocation;
 
   core: ElementName[];
   anchor: string | null;
+
+  allocationProfile: AllocationProfile;
+
+  anchorProfile: AnchorProfile;
 
   towers: TowerState[];
 

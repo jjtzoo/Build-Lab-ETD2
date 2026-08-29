@@ -53,13 +53,13 @@ describe("package beam search", () => {
 
   it("keeps a requested anchor in every finalist", () => {
     const allocation: Allocation = [
-        2,
-        2,
-        2,
-        1,
-        2,
-        2,
-    ];
+  2,
+  2,
+  2,
+  1,
+  2,
+  2,
+];
 
     const candidates = TOWERS
       .map((tower) =>

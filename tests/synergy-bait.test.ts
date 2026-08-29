@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
+
 import {
   compareCandidates,
 } from "@/lib/engine/decision-engine";
+
+import {
+  buildAllocationProfile,
+} from "@/lib/engine/allocation-profile";
+
+import {
+  buildAnchorProfile,
+} from "@/lib/engine/anchor-profile";
+
+import type { Allocation } from "@/lib/types";
+
 import type {
   CandidateEvaluation,
   DecisionGate,
@@ -18,7 +30,9 @@ function makeGate(
   return {
     name: "legality",
     passed,
-    reason: passed ? "PASS" : "FAIL",
+    reason: passed
+      ? "PASS"
+      : "FAIL",
   };
 }
 
@@ -27,7 +41,10 @@ function makeTower(): TowerState {
     tower: {
       name: "Test Tower",
       type: "Dual",
-      recipe: ["Light", "Darkness"],
+      recipe: [
+        "Light",
+        "Darkness",
+      ],
       role: "DPS",
       utility: "",
       damage: "Light",
@@ -41,11 +58,24 @@ function makeTower(): TowerState {
         Earth: 0,
       },
     },
+
     mechanics: null,
+
     tier: 3,
-    allocation: [3, 3, 2, 1, 1, 1],
+
+    allocation: [
+      3,
+      3,
+      2,
+      1,
+      1,
+      1,
+    ],
+
     unlocked: true,
+
     maxTier: 3,
+
     roles: {
       mainDPS: "Primary",
       subDPS: "None",
@@ -56,6 +86,7 @@ function makeTower(): TowerState {
       scaling: "None",
       support: "None",
     },
+
     behavior: {
       burst: "UNKNOWN",
       sustained: "UNKNOWN",
@@ -78,7 +109,17 @@ function makeCandidate(
   completeness: number,
   synergy: number,
 ): CandidateEvaluation {
-  const opportunity: OpportunityCostEvaluation = {
+  const allocation: Allocation = [
+    3,
+    3,
+    2,
+    1,
+    1,
+    1,
+  ];
+
+  const opportunity:
+    OpportunityCostEvaluation = {
     score: 0,
     opportunityLoss: 0,
     lostDepth: 0,
@@ -91,7 +132,8 @@ function makeCandidate(
     provenance: [],
   };
 
-  const redundancy: RedundancyEvaluation = {
+  const redundancy:
+    RedundancyEvaluation = {
     score: 0,
     raw: 0,
     duplicateRoles: {},
@@ -105,7 +147,8 @@ function makeCandidate(
     provenance: [],
   };
 
-  const endgame: EndgameEvaluation = {
+  const endgame:
+    EndgameEvaluation = {
     score: 0,
     totalEssence: 2,
     spent: 0,
@@ -117,7 +160,8 @@ function makeCandidate(
     provenance: [],
   };
 
-  const synergyEvaluation: SynergyEvaluation = {
+  const synergyEvaluation:
+    SynergyEvaluation = {
     score: synergy,
     realized: synergy,
     anti: 0,
@@ -128,70 +172,133 @@ function makeCandidate(
   };
 
   return {
-    allocation: [3, 3, 2, 1, 1, 1],
-    core: ["Light", "Darkness", "Water"],
+    allocation,
+
+    allocationProfile:
+      buildAllocationProfile(
+        allocation,
+      ),
+
+    core: [
+      "Light",
+      "Darkness",
+      "Water",
+    ],
+
     anchor: null,
-    towers: [makeTower()],
-    legality: makeGate(true),
-    evaluators: {} as CandidateEvaluation["evaluators"],
+
+    anchorProfile:
+      buildAnchorProfile(
+        "Auto",
+      ),
+
+    towers: [
+      makeTower(),
+    ],
+
+    legality:
+      makeGate(true),
+
+    evaluators:
+      {} as CandidateEvaluation["evaluators"],
+
     package: {
-      score: completeness * 100,
+      score:
+        completeness * 100,
+
       viability: true,
+
       primaryDps: 50,
+
       secondaryDps: 0,
+
       primaryDepth: 1,
+
       completeness,
+
       duplicatePenalty: 0,
+
       counts: {
         main: 1,
         sub: 0,
         control: 1,
-        cover: completeness >= 0.55 ? 1 : 0,
+        cover:
+          completeness >= 0.55
+            ? 1
+            : 0,
         amp: 0,
         range: 0,
         scaling: 0,
         support: 0,
         manual: 0,
       },
+
       missing:
         completeness >= 0.55
           ? []
           : ["Coverage"],
-      primaryState: makeTower(),
+
+      primaryState:
+        makeTower(),
+
       secondPrimary: null,
+
       provenance: [],
     },
-    synergy: synergyEvaluation,
+
+    synergy:
+      synergyEvaluation,
+
     opportunity,
+
     redundancy,
+
     antiSynergy,
+
     endgame,
-    fineScore: synergy * 100,
+
+    fineScore:
+      synergy * 100,
   };
 }
 
-describe("synergy bait protection", () => {
-  it("does not let high synergy rescue an incomplete package", () => {
-    const complete = makeCandidate(
-      0.8,
-      10,
+describe(
+  "synergy bait protection",
+  () => {
+    it(
+      "does not let high synergy rescue an incomplete package",
+      () => {
+        const complete =
+          makeCandidate(
+            0.8,
+            10,
+          );
+
+        const bait =
+          makeCandidate(
+            0.4,
+            100,
+          );
+
+        expect(
+          compareCandidates(
+            bait,
+            complete,
+          ),
+        ).toBeLessThan(0);
+
+        expect(
+          complete.package
+            .completeness,
+        ).toBeGreaterThanOrEqual(
+          0.55,
+        );
+
+        expect(
+          bait.package
+            .completeness,
+        ).toBeLessThan(0.55);
+      },
     );
-
-    const bait = makeCandidate(
-      0.4,
-      100,
-    );
-
-    expect(
-      compareCandidates(bait, complete),
-    ).toBeLessThan(0);
-
-    expect(
-      complete.package.completeness,
-    ).toBeGreaterThanOrEqual(0.55);
-
-    expect(
-      bait.package.completeness,
-    ).toBeLessThan(0.55);
-  });
-});
+  },
+);

@@ -4,6 +4,10 @@ import type {
   TowerState,
 } from "./types";
 
+import {
+  evaluatePackageRequirements,
+} from "./package-requirements";
+
 function scoreOf(
   bundle: TowerEvaluationBundle,
 ): number {
@@ -19,7 +23,10 @@ export function evaluatePackage(
         bundle.state.roles.mainDPS === "Primary" &&
         bundle.dps.status !== "UNKNOWN",
     )
-    .sort((a, b) => scoreOf(b) - scoreOf(a));
+    .sort(
+      (a, b) =>
+        scoreOf(b) - scoreOf(a),
+    );
 
   const secondaryDps = bundles
     .filter(
@@ -27,44 +34,63 @@ export function evaluatePackage(
         bundle.state.roles.mainDPS === "Secondary" &&
         bundle.dps.status !== "UNKNOWN",
     )
-    .sort((a, b) => scoreOf(b) - scoreOf(a));
+    .sort(
+      (a, b) =>
+        scoreOf(b) - scoreOf(a),
+    );
 
-  const states: TowerState[] = bundles.map(
-    (bundle) => bundle.state,
-  );
+  const states: TowerState[] =
+    bundles.map(
+      (bundle) => bundle.state,
+    );
 
-  const mainCount = primaryDps.length;
-  const subCount = secondaryDps.length;
+  const mainCount =
+    primaryDps.length;
 
-  const controlCount = bundles.filter(
-    (bundle) =>
-      bundle.state.roles.control !== "None",
-  ).length;
+  const subCount =
+    secondaryDps.length;
 
-  const coverageCount = bundles.filter(
-    (bundle) =>
-      bundle.state.roles.coverage !== "None",
-  ).length;
+  const controlCount =
+    bundles.filter(
+      (bundle) =>
+        bundle.state.roles.control !==
+        "None",
+    ).length;
 
-  const amplificationCount = bundles.filter(
-    (bundle) =>
-      bundle.state.roles.amplification !== "None",
-  ).length;
+  const coverageCount =
+    bundles.filter(
+      (bundle) =>
+        bundle.state.roles.coverage !==
+        "None",
+    ).length;
 
-  const rangeCount = bundles.filter(
-    (bundle) =>
-      bundle.state.roles.range !== "None",
-  ).length;
+  const amplificationCount =
+    bundles.filter(
+      (bundle) =>
+        bundle.state.roles.amplification !==
+        "None",
+    ).length;
 
-  const scalingCount = bundles.filter(
-    (bundle) =>
-      bundle.state.roles.scaling !== "None",
-  ).length;
+  const rangeCount =
+    bundles.filter(
+      (bundle) =>
+        bundle.state.roles.range !==
+        "None",
+    ).length;
 
-  const supportCount = bundles.filter(
-    (bundle) =>
-      bundle.state.roles.support !== "None",
-  ).length;
+  const scalingCount =
+    bundles.filter(
+      (bundle) =>
+        bundle.state.roles.scaling !==
+        "None",
+    ).length;
+
+  const supportCount =
+    bundles.filter(
+      (bundle) =>
+        bundle.state.roles.support !==
+        "None",
+    ).length;
 
   const manualCount = 0;
 
@@ -80,34 +106,52 @@ export function evaluatePackage(
   const secondaryDpsScore =
     secondaryDps[0]?.dps.score ?? 0;
 
-  const primaryDepth = primaryState
-    ? primaryState.tier /
-      Math.max(primaryState.maxTier, 1)
-    : 0;
+  const primaryDepth =
+    primaryState
+      ? primaryState.tier /
+        Math.max(
+          primaryState.maxTier,
+          1,
+        )
+      : 0;
 
-  const missing: string[] = [];
+  /*
+   * Structural package requirements are now
+   * evaluated by the dedicated requirements
+   * layer rather than reconstructed here.
+   */
+  const requirementEvaluation =
+    evaluatePackageRequirements(
+      states[0]?.allocation ?? [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ],
+      states.map(
+        (state) => state.tower,
+      ),
+  );
 
-  if (!primaryState) {
-    missing.push("Main DPS");
-  }
-
-  if (controlCount === 0) {
-    missing.push("Control");
-  }
-
-  if (coverageCount === 0) {
-    missing.push("Coverage");
-  }
+  const missing =
+    requirementEvaluation.missing;
 
   const viability =
-    primaryState !== null &&
-    primaryDpsScore > 0;
+    requirementEvaluation.viable;
 
-  let completeness = 0;
-
-  if (viability) {
-    completeness += 0.55;
-  }
+  /*
+   * Package completeness remains a descriptive
+   * package property. The requirements layer now
+   * provides the structural completeness baseline.
+   *
+   * Additional evaluator-backed functional roles
+   * still contribute to the existing package
+   * completeness model.
+   */
+  let completeness =
+    requirementEvaluation.completeness;
 
   const functionalRoles = [
     controlCount > 0,
@@ -117,8 +161,15 @@ export function evaluatePackage(
     subCount > 0,
   ].filter(Boolean).length;
 
-  completeness += functionalRoles * 0.07;
-  completeness = Math.min(1, completeness);
+  /*
+   * Keep the existing role-diversity contribution,
+   * but cap the final value at 1.
+   */
+  completeness = Math.min(
+    1,
+    completeness +
+      functionalRoles * 0.07,
+  );
 
   /*
    * Package only reports obvious structural overlap.
@@ -126,21 +177,33 @@ export function evaluatePackage(
    * Redundancy evaluator.
    */
   const duplicatePenalty =
-    Math.max(0, coverageCount - 1) * 4 +
-    Math.max(0, amplificationCount - 1) * 4 +
-    Math.max(0, controlCount - 2) * 3;
+    Math.max(
+      0,
+      coverageCount - 1,
+    ) * 4 +
+    Math.max(
+      0,
+      amplificationCount - 1,
+    ) * 4 +
+    Math.max(
+      0,
+      controlCount - 2,
+    ) * 3;
 
   const provenance = [
+    "Package structural requirements",
     ...new Set(
-      bundles.flatMap((bundle) => [
-        ...bundle.role.provenance,
-        ...bundle.dps.provenance,
-        ...bundle.control.provenance,
-        ...bundle.coverage.provenance,
-        ...bundle.amplification.provenance,
-        ...bundle.range.provenance,
-        ...bundle.scaling.provenance,
-      ]),
+      bundles.flatMap(
+        (bundle) => [
+          ...bundle.role.provenance,
+          ...bundle.dps.provenance,
+          ...bundle.control.provenance,
+          ...bundle.coverage.provenance,
+          ...bundle.amplification.provenance,
+          ...bundle.range.provenance,
+          ...bundle.scaling.provenance,
+        ],
+      ),
     ),
   ];
 

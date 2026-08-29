@@ -4,9 +4,13 @@ import type {
   Tower,
 } from "@/lib/types";
 
-import { TOWERS } from "@/lib/data";
+import {
+  TOWERS,
+} from "@/lib/data";
 
-import { evaluatePackage } from "./package-evaluator";
+import {
+  evaluatePackage,
+} from "./package-evaluator";
 
 import {
   buildTowerState,
@@ -36,6 +40,39 @@ interface PackageSearchState {
   set: TowerEvaluationBundle[];
   evaluation: PackageEvaluation;
   shallowScore: number;
+}
+
+/*
+ * Package-level memoization.
+ *
+ * During beam expansion, the same tower combination can be reached
+ * from different parent states. Evaluating it repeatedly is wasted work.
+ */
+const packageEvaluationCache =
+  new Map<
+    string,
+    PackageEvaluation
+  >();
+
+const packageStateCache =
+  new Map<
+    string,
+    PackageSearchState
+  >();
+
+function towerKey(
+  bundle: TowerEvaluationBundle,
+): string {
+  return bundle.state.tower.name;
+}
+
+function packageKey(
+  bundles: TowerEvaluationBundle[],
+): string {
+  return bundles
+    .map(towerKey)
+    .sort()
+    .join("|");
 }
 
 function packageSortScore(
@@ -85,7 +122,9 @@ function shallowPackageScore(
   evaluation: PackageEvaluation,
 ): number {
   return (
-    (evaluation.viability ? 1000 : 0) +
+    (evaluation.viability
+      ? 1000
+      : 0) +
     evaluation.primaryDps * 0.6 +
     evaluation.completeness * 80 +
     evaluation.counts.cover * 0.25 +
@@ -93,13 +132,79 @@ function shallowPackageScore(
   );
 }
 
+function evaluatePackageCached(
+  set: TowerEvaluationBundle[],
+): PackageEvaluation {
+  const key =
+    packageKey(set);
+
+  const cached =
+    packageEvaluationCache.get(
+      key,
+    );
+
+  if (cached) {
+    return cached;
+  }
+
+  const evaluation =
+    evaluatePackage(set);
+
+  packageEvaluationCache.set(
+    key,
+    evaluation,
+  );
+
+  return evaluation;
+}
+
+function makePackageState(
+  set: TowerEvaluationBundle[],
+): PackageSearchState {
+  const key =
+    packageKey(set);
+
+  const cached =
+    packageStateCache.get(
+      key,
+    );
+
+  if (cached) {
+    return cached;
+  }
+
+  const evaluation =
+    evaluatePackageCached(
+      set,
+    );
+
+  const state: PackageSearchState = {
+    set,
+    evaluation,
+    shallowScore:
+      shallowPackageScore(
+        evaluation,
+      ),
+  };
+
+  packageStateCache.set(
+    key,
+    state,
+  );
+
+  return state;
+}
+
 function expandPackageState(
   state: PackageSearchState,
   candidates: TowerEvaluationBundle[],
 ): PackageSearchState[] {
-  const nextStates: PackageSearchState[] = [];
+  const nextStates:
+    PackageSearchState[] = [];
 
-  for (const candidate of candidates) {
+  for (
+    const candidate of candidates
+  ) {
     const alreadySelected =
       state.set.some(
         (bundle) =>
@@ -123,17 +228,11 @@ function expandPackageState(
       continue;
     }
 
-    const evaluation =
-      evaluatePackage(nextSet);
-
-    nextStates.push({
-      set: nextSet,
-      evaluation,
-      shallowScore:
-        shallowPackageScore(
-          evaluation,
-        ),
-    });
+    nextStates.push(
+      makePackageState(
+        nextSet,
+      ),
+    );
   }
 
   return nextStates;
@@ -142,23 +241,28 @@ function expandPackageState(
 function dedupePackageStates(
   states: PackageSearchState[],
 ): PackageSearchState[] {
-  const seen = new Set<string>();
-  const unique: PackageSearchState[] = [];
+  const seen =
+    new Set<string>();
 
-  for (const state of states) {
-    const key = state.set
-      .map(
-        (bundle) =>
-          bundle.state.tower.name,
-      )
-      .sort()
-      .join("|");
+  const unique:
+    PackageSearchState[] = [];
 
-    if (seen.has(key)) {
+  for (
+    const state of states
+  ) {
+    const key =
+      packageKey(
+        state.set,
+      );
+
+    if (
+      seen.has(key)
+    ) {
       continue;
     }
 
     seen.add(key);
+
     unique.push(state);
   }
 
@@ -179,9 +283,12 @@ export function runBeamSearch(
   candidates: TowerEvaluationBundle[],
   anchor: string,
 ): PackageSearchState[] {
-  let beam: PackageSearchState[] = [];
+  let beam:
+    PackageSearchState[] = [];
 
-  if (anchor !== "Auto") {
+  if (
+    anchor !== "Auto"
+  ) {
     const anchorBundle =
       candidates.find(
         (bundle) =>
@@ -190,55 +297,52 @@ export function runBeamSearch(
       );
 
     if (anchorBundle) {
-      const evaluation =
-        evaluatePackage([
+      beam.push(
+        makePackageState([
           anchorBundle,
-        ]);
-
-      beam.push({
-        set: [anchorBundle],
-        evaluation,
-        shallowScore:
-          shallowPackageScore(
-            evaluation,
-          ),
-      });
+        ]),
+      );
     }
   }
 
-  if (beam.length === 0) {
-    for (const candidate of candidates) {
-      const evaluation =
-        evaluatePackage([
+  if (
+    beam.length === 0
+  ) {
+    for (
+      const candidate of candidates
+    ) {
+      beam.push(
+        makePackageState([
           candidate,
-        ]);
-
-      beam.push({
-        set: [candidate],
-        evaluation,
-        shallowScore:
-          shallowPackageScore(
-            evaluation,
-          ),
-      });
+        ]),
+      );
     }
   }
 
-  beam = rankSearchStates(
-    dedupePackageStates(beam),
-  ).slice(0, BEAM_WIDTH);
+  beam =
+    rankSearchStates(
+      dedupePackageStates(
+        beam,
+      ),
+    ).slice(
+      0,
+      BEAM_WIDTH,
+    );
 
-  const completed: PackageSearchState[] = [];
+  const completed:
+    PackageSearchState[] = [];
 
   for (
     let size = 2;
     size <= MAX_PACKAGE_SIZE;
     size += 1
   ) {
-    const expanded: PackageSearchState[] =
-      [];
+    const expanded:
+      PackageSearchState[] = [];
 
-    for (const state of beam) {
+    for (
+      const state of beam
+    ) {
       expanded.push(
         ...expandPackageState(
           state,
@@ -247,38 +351,54 @@ export function runBeamSearch(
       );
     }
 
-    if (expanded.length === 0) {
+    if (
+      expanded.length === 0
+    ) {
       break;
     }
 
     const unique =
-      dedupePackageStates(expanded);
+      dedupePackageStates(
+        expanded,
+      );
 
     const ranked =
-      rankSearchStates(unique);
+      rankSearchStates(
+        unique,
+      );
 
-    for (const state of ranked) {
+    for (
+      const state of ranked
+    ) {
       if (
-        state.set.length >=
+        state.set.length <
         MIN_PACKAGE_SIZE
       ) {
-        if (
-          anchor === "Auto" ||
-          state.set.some(
-            (bundle) =>
-              bundle.state.tower.name ===
-              anchor,
-          )
-        ) {
-          completed.push(state);
-        }
+        continue;
+      }
+
+      const containsAnchor =
+        anchor === "Auto" ||
+        state.set.some(
+          (bundle) =>
+            bundle.state.tower.name ===
+            anchor,
+        );
+
+      if (
+        containsAnchor
+      ) {
+        completed.push(
+          state,
+        );
       }
     }
 
-    beam = ranked.slice(
-      0,
-      BEAM_WIDTH,
-    );
+    beam =
+      ranked.slice(
+        0,
+        BEAM_WIDTH,
+      );
   }
 
   return rankSearchStates(
@@ -294,24 +414,38 @@ export function runBeamSearch(
 function unlockedBundles(
   allocation: Allocation,
 ): TowerEvaluationBundle[] {
-  return TOWERS
-    .filter((tower) => {
-      const state =
-        buildTowerState(
-          tower,
-          allocation,
-        );
+  const bundles:
+    TowerEvaluationBundle[] = [];
 
-      return state.unlocked && state.tier > 0;
-    })
-    .map((tower) =>
+  for (
+    const tower of TOWERS
+  ) {
+    const state =
+      buildTowerState(
+        tower,
+        allocation,
+      );
+
+    if (
+      !state.unlocked ||
+      state.tier <= 0
+    ) {
+      continue;
+    }
+
+    /*
+     * Reuse the exact TowerState we
+     * just constructed. The previous
+     * implementation rebuilt it here.
+     */
+    bundles.push(
       evaluateTower(
-        buildTowerState(
-          tower,
-          allocation,
-        ),
+        state,
       ),
     );
+  }
+
+  return bundles;
 }
 
 function addBestCandidates(
@@ -321,15 +455,19 @@ function addBestCandidates(
     bundle: TowerEvaluationBundle,
   ) => boolean,
 ): void {
-  const candidates = states
-    .filter(predicate)
-    .sort(
-      (a, b) =>
-        packageSortScore(b) -
-        packageSortScore(a),
-    );
+  const candidates =
+    states
+      .filter(predicate)
+      .sort(
+        (a, b) =>
+          packageSortScore(b) -
+          packageSortScore(a),
+      );
 
-  for (const candidate of candidates.slice(0, 3)) {
+  for (
+    const candidate of
+    candidates.slice(0, 3)
+  ) {
     const existingIndex =
       selected.findIndex(
         (bundle) =>
@@ -337,8 +475,12 @@ function addBestCandidates(
           candidate.state.tower.name,
       );
 
-    if (existingIndex === -1) {
-      selected.push(candidate);
+    if (
+      existingIndex === -1
+    ) {
+      selected.push(
+        candidate,
+      );
     }
   }
 }
@@ -347,9 +489,12 @@ function buildCandidatePool(
   bundles: TowerEvaluationBundle[],
   anchor: string,
 ): TowerEvaluationBundle[] {
-  const selected: TowerEvaluationBundle[] = [];
+  const selected:
+    TowerEvaluationBundle[] = [];
 
-  if (anchor !== "Auto") {
+  if (
+    anchor !== "Auto"
+  ) {
     const anchorBundle =
       bundles.find(
         (bundle) =>
@@ -357,8 +502,12 @@ function buildCandidatePool(
           anchor,
       );
 
-    if (anchorBundle) {
-      selected.push(anchorBundle);
+    if (
+      anchorBundle
+    ) {
+      selected.push(
+        anchorBundle,
+      );
     }
   }
 
@@ -366,28 +515,7 @@ function buildCandidatePool(
     bundles,
     selected,
     (bundle) =>
-      bundle.state.roles.mainDPS !== "None",
-  );
-
-  addBestCandidates(
-    bundles,
-    selected,
-    (bundle) =>
-      bundle.state.roles.control !== "None",
-  );
-
-  addBestCandidates(
-    bundles,
-    selected,
-    (bundle) =>
-      bundle.state.roles.coverage !== "None",
-  );
-
-  addBestCandidates(
-    bundles,
-    selected,
-    (bundle) =>
-      bundle.state.roles.amplification !==
+      bundle.state.roles.mainDPS !==
       "None",
   );
 
@@ -395,46 +523,82 @@ function buildCandidatePool(
     bundles,
     selected,
     (bundle) =>
-      bundle.state.roles.range !== "None",
+      bundle.state.roles.control !==
+      "None",
   );
 
   addBestCandidates(
     bundles,
     selected,
     (bundle) =>
-      bundle.state.tower.type === "Trio",
+      bundle.state.roles.coverage !==
+      "None",
   );
 
   addBestCandidates(
     bundles,
     selected,
     (bundle) =>
-      bundle.state.tower.type === "Quad",
+      bundle.state.roles
+        .amplification !==
+      "None",
   );
 
-  const remaining = bundles
-    .filter(
-      (bundle) =>
-        !selected.some(
-          (chosen) =>
-            chosen.state.tower.name ===
-            bundle.state.tower.name,
-        ),
-    )
-    .sort(
-      (a, b) =>
-        packageSortScore(b) -
-        packageSortScore(a),
-    );
+  addBestCandidates(
+    bundles,
+    selected,
+    (bundle) =>
+      bundle.state.roles.range !==
+      "None",
+  );
+
+  addBestCandidates(
+    bundles,
+    selected,
+    (bundle) =>
+      bundle.state.tower.type ===
+      "Trio",
+  );
+
+  addBestCandidates(
+    bundles,
+    selected,
+    (bundle) =>
+      bundle.state.tower.type ===
+      "Quad",
+  );
+
+  const remaining =
+    bundles
+      .filter(
+        (bundle) =>
+          !selected.some(
+            (chosen) =>
+              chosen.state.tower.name ===
+              bundle.state.tower.name,
+          ),
+      )
+      .sort(
+        (a, b) =>
+          packageSortScore(b) -
+          packageSortScore(a),
+      );
 
   selected.push(
     ...remaining.slice(
       0,
-      Math.max(0, 10 - selected.length),
+      Math.max(
+        0,
+        10 -
+          selected.length,
+      ),
     ),
   );
 
-  return selected.slice(0, 10);
+  return selected.slice(
+    0,
+    10,
+  );
 }
 
 export function searchPackage(
@@ -443,16 +607,20 @@ export function searchPackage(
   anchor = "Auto",
 ): PackageSearchResult | null {
   const bundles =
-    unlockedBundles(allocation);
+    unlockedBundles(
+      allocation,
+    );
 
-  if (!bundles.length) {
+  if (
+    !bundles.length
+  ) {
     return null;
   }
 
   const ordered =
     buildCandidatePool(
-    bundles,
-    anchor,
+      bundles,
+      anchor,
     );
 
   if (
@@ -466,21 +634,15 @@ export function searchPackage(
     return null;
   }
 
-  /*
-   * Start conservatively with a small package.
-   * The package evaluator decides whether the set
-   * is viable and complete.
-   *
-   * Package expansion will be made more sophisticated
-   * after anchor behavior has regression coverage.
-   */
   const finalists =
     runBeamSearch(
       ordered,
       anchor,
     );
 
-  if (!finalists.length) {
+  if (
+    !finalists.length
+  ) {
     return null;
   }
 
@@ -505,11 +667,15 @@ export function searchPackage(
   }
 
   return {
-    towers: selected.map(
-      (bundle) =>
-        bundle.state.tower,
-    ),
-    bundles: selected,
+    towers:
+      selected.map(
+        (bundle) =>
+          bundle.state.tower,
+      ),
+
+    bundles:
+      selected,
+
     evaluation,
   };
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
+
+import type { Allocation } from "@/lib/types";
+
 import { makeDecision } from "@/lib/engine/decision-engine";
+
 import type {
   CandidateEvaluation,
   DecisionGate,
@@ -12,11 +16,23 @@ import type {
   TowerState,
 } from "@/lib/engine/types";
 
-function gate(passed: boolean): DecisionGate {
+import {
+  buildAllocationProfile,
+} from "@/lib/engine/allocation-profile";
+
+import {
+  buildAnchorProfile,
+} from "@/lib/engine/anchor-profile";
+
+function gate(
+  passed: boolean,
+): DecisionGate {
   return {
     name: "legality",
     passed,
-    reason: passed ? "PASS" : "FAIL",
+    reason: passed
+      ? "PASS"
+      : "FAIL",
   };
 }
 
@@ -28,12 +44,19 @@ function packageEvaluation(
 ): PackageEvaluation {
   return {
     score: 0,
+
     viability,
+
     primaryDps,
+
     secondaryDps: 0,
+
     primaryDepth,
+
     completeness,
+
     duplicatePenalty: 0,
+
     counts: {
       main: 1,
       sub: 0,
@@ -45,9 +68,13 @@ function packageEvaluation(
       support: 0,
       manual: 0,
     },
+
     missing: [],
+
     primaryState: null,
+
     secondPrimary: null,
+
     provenance: [],
   };
 }
@@ -57,7 +84,10 @@ function emptyTower(): TowerState {
     tower: {
       name: "Test",
       type: "Dual",
-      recipe: ["Light", "Darkness"],
+      recipe: [
+        "Light",
+        "Darkness",
+      ],
       role: "DPS",
       utility: "",
       damage: "Light",
@@ -71,11 +101,24 @@ function emptyTower(): TowerState {
         Earth: 0,
       },
     },
+
     mechanics: null,
+
     tier: 1,
-    allocation: [3, 3, 2, 1, 1, 1],
+
+    allocation: [
+      3,
+      3,
+      2,
+      1,
+      1,
+      1,
+    ],
+
     unlocked: true,
+
     maxTier: 3,
+
     roles: {
       mainDPS: "Primary",
       subDPS: "None",
@@ -86,6 +129,7 @@ function emptyTower(): TowerState {
       scaling: "None",
       support: "None",
     },
+
     behavior: {
       burst: "UNKNOWN",
       sustained: "UNKNOWN",
@@ -158,63 +202,147 @@ function candidate(
     provenance: [],
   };
 
+  const allocation: Allocation = [
+    3,
+    3,
+    2,
+    1,
+    1,
+    1,
+  ];
+
   return {
-    allocation: [3, 3, 2, 1, 1, 1],
-    core: ["Light", "Darkness", "Water"],
+    allocation,
+
+    allocationProfile:
+      buildAllocationProfile(
+        allocation,
+      ),
+
+    core: [
+      "Light",
+      "Darkness",
+      "Water",
+    ],
+
     anchor: null,
+
+    anchorProfile:
+      buildAnchorProfile(
+        "Auto",
+      ),
+
     towers: [emptyTower()],
-    legality: gate(legalityPassed),
-    evaluators: {} as CandidateEvaluation["evaluators"],
-    package: packageEvaluation(
-      viability,
-      primaryDps,
-      1,
-      1,
+
+    legality: gate(
+      legalityPassed,
     ),
+
+    evaluators:
+      {} as CandidateEvaluation["evaluators"],
+
+    package:
+      packageEvaluation(
+        viability,
+        primaryDps,
+        1,
+        1,
+      ),
+
     synergy,
+
     opportunity,
+
     redundancy,
+
     antiSynergy,
+
     endgame,
+
     fineScore: 0,
   };
 }
 
 describe("decision engine", () => {
   it("prefers a candidate that passes legality", () => {
-    const legal = candidate(true, false, 0);
-    const illegal = candidate(false, true, 100);
+    const legal =
+      candidate(
+        true,
+        false,
+        0,
+      );
 
-    const result = makeDecision([
-      illegal,
-      legal,
-    ]);
+    const illegal =
+      candidate(
+        false,
+        true,
+        100,
+      );
 
-    expect(result.winner).toBe(legal);
-    expect(result.gates[0].passed).toBe(true);
+    const result =
+      makeDecision([
+        illegal,
+        legal,
+      ]);
+
+    expect(
+      result.winner,
+    ).toBe(legal);
+
+    expect(
+      result.gates[0].passed,
+    ).toBe(true);
   });
 
   it("prefers viability before primary DPS magnitude", () => {
-    const viable = candidate(true, true, 10);
-    const nonViable = candidate(true, false, 100);
+    const viable =
+      candidate(
+        true,
+        true,
+        10,
+      );
 
-    const result = makeDecision([
-      nonViable,
-      viable,
-    ]);
+    const nonViable =
+      candidate(
+        true,
+        false,
+        100,
+      );
 
-    expect(result.winner).toBe(viable);
+    const result =
+      makeDecision([
+        nonViable,
+        viable,
+      ]);
+
+    expect(
+      result.winner,
+    ).toBe(viable);
   });
 
   it("uses primary DPS after the hierarchical gates tie", () => {
-    const lower = candidate(true, true, 20);
-    const higher = candidate(true, true, 40);
+    const lower =
+      candidate(
+        true,
+        true,
+        20,
+      );
 
-    const result = makeDecision([
-      lower,
-      higher,
-    ]);
+    const higher =
+      candidate(
+        true,
+        true,
+        40,
+      );
 
-    expect(result.winner).toBe(higher);
+    const result =
+      makeDecision([
+        lower,
+        higher,
+      ]);
+
+    expect(
+      result.winner,
+    ).toBe(higher);
   });
 });

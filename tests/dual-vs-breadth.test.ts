@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { compareCandidates } from "@/lib/engine/decision-engine";
+
+import {
+  buildAllocationProfile,
+} from "@/lib/engine/allocation-profile";
+
+import {
+  buildAnchorProfile,
+} from "@/lib/engine/anchor-profile";
+
+import {
+  compareCandidates,
+} from "@/lib/engine/decision-engine";
+
+import type { Allocation } from "@/lib/types";
+
 import type {
   CandidateEvaluation,
   DecisionGate,
@@ -23,11 +37,23 @@ function tower(
   type: "Dual" | "Trio" | "Quad",
   tier: number,
 ): TowerState {
+  const allocation: Allocation = [
+    3,
+    3,
+    2,
+    1,
+    1,
+    1,
+  ];
+
   return {
     tower: {
       name,
       type,
-      recipe: ["Light", "Darkness"],
+      recipe: [
+        "Light",
+        "Darkness",
+      ],
       role: "DPS",
       utility: "",
       damage: "Light",
@@ -41,11 +67,22 @@ function tower(
         Earth: 0,
       },
     },
+
     mechanics: null,
+
     tier,
-    allocation: [3, 3, 2, 1, 1, 1],
+
+    allocation,
+
     unlocked: true,
-    maxTier: type === "Dual" ? 3 : type === "Trio" ? 2 : 1,
+
+    maxTier:
+      type === "Dual"
+        ? 3
+        : type === "Trio"
+          ? 2
+          : 1,
+
     roles: {
       mainDPS: "Primary",
       subDPS: "None",
@@ -56,6 +93,7 @@ function tower(
       scaling: "None",
       support: "None",
     },
+
     behavior: {
       burst: "UNKNOWN",
       sustained: "UNKNOWN",
@@ -90,7 +128,8 @@ function candidate(
     provenance: [],
   };
 
-  const opportunity: OpportunityCostEvaluation = {
+  const opportunity:
+    OpportunityCostEvaluation = {
     score: 0,
     opportunityLoss: 0,
     lostDepth: 0,
@@ -103,14 +142,16 @@ function candidate(
     provenance: [],
   };
 
-  const redundancy: RedundancyEvaluation = {
+  const redundancy:
+    RedundancyEvaluation = {
     score: 0,
     raw: 0,
     duplicateRoles: {},
     provenance: [],
   };
 
-  const endgame: EndgameEvaluation = {
+  const endgame:
+    EndgameEvaluation = {
     score: 0,
     totalEssence: 2,
     spent: 0,
@@ -122,109 +163,210 @@ function candidate(
     provenance: [],
   };
 
+  const allocation: Allocation = [
+    3,
+    3,
+    2,
+    1,
+    1,
+    1,
+  ];
+
   return {
-    allocation: [3, 3, 2, 1, 1, 1],
-    core: ["Light", "Darkness", "Water"],
+    allocation,
+
+    allocationProfile:
+      buildAllocationProfile(
+        allocation,
+      ),
+
+    core: [
+      "Light",
+      "Darkness",
+      "Water",
+    ],
+
     anchor: null,
-    towers: [state],
+
+    anchorProfile:
+      buildAnchorProfile(
+        "Auto",
+      ),
+
+    towers: [
+      state,
+    ],
+
     legality: gate(),
-    evaluators: {} as CandidateEvaluation["evaluators"],
+
+    evaluators:
+      {} as CandidateEvaluation["evaluators"],
+
     package: {
-      score: completeness * 100,
+      score:
+        completeness * 100,
+
       viability: true,
+
       primaryDps,
+
       secondaryDps: 0,
+
       primaryDepth,
+
       completeness,
+
       duplicatePenalty: 0,
+
       counts: {
         main: 1,
         sub: 0,
-        control: completeness >= 0.55 ? 1 : 0,
-        cover: completeness >= 0.55 ? 1 : 0,
+        control:
+          completeness >= 0.55
+            ? 1
+            : 0,
+        cover:
+          completeness >= 0.55
+            ? 1
+            : 0,
         amp: 0,
         range: 0,
         scaling: 0,
         support: 0,
         manual: 0,
       },
+
       missing: [],
+
       primaryState: state,
+
       secondPrimary: null,
+
       provenance: [],
     },
+
     synergy,
+
     opportunity,
+
     redundancy,
+
     antiSynergy: {
       score: 0,
       raw: 0,
       reasons: [],
       provenance: [],
     },
+
     endgame,
+
     fineScore: 0,
   };
 }
 
-describe("Dual versus Tri/Quad breadth", () => {
-  it("prefers a deeply invested Dual over a shallow Tri with equal gates", () => {
-    const dual = candidate(
-      tower("Deep Dual", "Dual", 3),
-      1,
-      80,
-      0.8,
+describe(
+  "Dual versus Tri/Quad breadth",
+  () => {
+    it(
+      "prefers a deeply invested Dual over a shallow Tri with equal gates",
+      () => {
+        const dual = candidate(
+          tower(
+            "Deep Dual",
+            "Dual",
+            3,
+          ),
+          1,
+          80,
+          0.8,
+        );
+
+        const tri = candidate(
+          tower(
+            "Shallow Tri",
+            "Trio",
+            1,
+          ),
+          0.5,
+          120,
+          0.8,
+        );
+
+        expect(
+          compareCandidates(
+            tri,
+            dual,
+          ),
+        ).toBeLessThan(0);
+      },
     );
 
-    const tri = candidate(
-      tower("Shallow Tri", "Trio", 1),
-      0.5,
-      120,
-      0.8,
+    it(
+      "prefers a deeply invested Dual over a shallow Quad with equal gates",
+      () => {
+        const dual = candidate(
+          tower(
+            "Deep Dual",
+            "Dual",
+            3,
+          ),
+          1,
+          80,
+          0.8,
+        );
+
+        const quad = candidate(
+          tower(
+            "Shallow Quad",
+            "Quad",
+            1,
+          ),
+          0.33,
+          120,
+          0.8,
+        );
+
+        expect(
+          compareCandidates(
+            quad,
+            dual,
+          ),
+        ).toBeLessThan(0);
+      },
     );
 
-    expect(
-      compareCandidates(tri, dual),
-    ).toBeLessThan(0);
-  });
+    it(
+      "allows breadth to win when the earlier decision criteria are genuinely equal",
+      () => {
+        const dual = candidate(
+          tower(
+            "Deep Dual",
+            "Dual",
+            3,
+          ),
+          1,
+          100,
+          0.8,
+        );
 
-  it("prefers a deeply invested Dual over a shallow Quad with equal gates", () => {
-    const dual = candidate(
-      tower("Deep Dual", "Dual", 3),
-      1,
-      80,
-      0.8,
+        const tri = candidate(
+          tower(
+            "Useful Tri",
+            "Trio",
+            2,
+          ),
+          1,
+          100,
+          0.8,
+        );
+
+        expect(
+          compareCandidates(
+            tri,
+            dual,
+          ),
+        ).toBe(0);
+      },
     );
-
-    const quad = candidate(
-      tower("Shallow Quad", "Quad", 1),
-      0.33,
-      120,
-      0.8,
-    );
-
-    expect(
-      compareCandidates(quad, dual),
-    ).toBeLessThan(0);
-  });
-
-  it("allows breadth to win when the earlier decision criteria are genuinely equal", () => {
-    const dual = candidate(
-      tower("Deep Dual", "Dual", 3),
-      1,
-      100,
-      0.8,
-    );
-
-    const tri = candidate(
-      tower("Useful Tri", "Trio", 2),
-      1,
-      100,
-      0.8,
-    );
-
-    expect(
-      compareCandidates(tri, dual),
-    ).toBe(0);
-  });
-});
+  },
+);

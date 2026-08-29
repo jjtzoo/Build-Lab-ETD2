@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { compareCandidates } from "@/lib/engine/decision-engine";
+
+import {
+  buildAllocationProfile,
+} from "@/lib/engine/allocation-profile";
+
+import {
+  buildAnchorProfile,
+} from "@/lib/engine/anchor-profile";
+
+import {
+  compareCandidates,
+} from "@/lib/engine/decision-engine";
+
 import type {
   CandidateEvaluation,
   DecisionGate,
@@ -15,7 +27,10 @@ function makeTower(): TowerState {
     tower: {
       name: "Primary Tower",
       type: "Dual",
-      recipe: ["Light", "Darkness"],
+      recipe: [
+        "Light",
+        "Darkness",
+      ],
       role: "DPS",
       utility: "",
       damage: "Light",
@@ -29,11 +44,24 @@ function makeTower(): TowerState {
         Earth: 0,
       },
     },
+
     mechanics: null,
+
     tier: 3,
-    allocation: [3, 3, 2, 1, 1, 1],
+
+    allocation: [
+      3,
+      3,
+      2,
+      1,
+      1,
+      1,
+    ],
+
     unlocked: true,
+
     maxTier: 3,
+
     roles: {
       mainDPS: "Primary",
       subDPS: "None",
@@ -44,6 +72,7 @@ function makeTower(): TowerState {
       scaling: "None",
       support: "None",
     },
+
     behavior: {
       burst: "UNKNOWN",
       sustained: "UNKNOWN",
@@ -75,6 +104,7 @@ function makeCandidate(
     primaryDepth: 1,
     completeness: 1,
     duplicatePenalty: 0,
+
     counts: {
       main: 1,
       sub: 0,
@@ -86,9 +116,13 @@ function makeCandidate(
       support: 0,
       manual: 0,
     },
+
     missing: [],
+
     primaryState: tower,
+
     secondPrimary: null,
+
     provenance: [],
   };
 
@@ -140,44 +174,98 @@ function makeCandidate(
     reason: "PASS",
   };
 
+  const allocation = [
+    3,
+    3,
+    2,
+    1,
+    1,
+    1,
+  ] as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+
   return {
-    allocation: [3, 3, 2, 1, 1, 1],
-    core: ["Light", "Darkness", "Water"],
+    allocation,
+
+    allocationProfile:
+      buildAllocationProfile(
+        allocation,
+      ),
+
+    core: [
+      "Light",
+      "Darkness",
+      "Water",
+    ],
+
     anchor: null,
+
+    anchorProfile:
+      buildAnchorProfile(
+        "Auto",
+      ),
+
     towers: [tower],
+
     legality,
-    evaluators: {} as CandidateEvaluation["evaluators"],
+
+    evaluators:
+      {} as CandidateEvaluation["evaluators"],
+
     package: packageEvaluation,
+
     synergy,
+
     opportunity,
+
     redundancy,
+
     antiSynergy: {
       score: 0,
       raw: 0,
       reasons: [],
       provenance: [],
     },
+
     endgame,
+
     fineScore: 0,
   };
 }
 
-describe("primary DPS downgrade protection", () => {
-  it("prefers the candidate with lower opportunity cost when earlier criteria tie", () => {
-    const protectedCandidate = makeCandidate(1);
-    const downgradedCandidate = makeCandidate(5);
+describe(
+  "primary DPS downgrade protection",
+  () => {
+    it(
+      "prefers the candidate with lower opportunity cost when earlier criteria tie",
+      () => {
+        const protectedCandidate =
+          makeCandidate(1);
 
-    expect(
-      compareCandidates(
-        downgradedCandidate,
-        protectedCandidate,
-      ),
-    ).toBeLessThan(0);
+        const downgradedCandidate =
+          makeCandidate(5);
 
-    expect(
-      protectedCandidate.opportunity.opportunityLoss,
-    ).toBeLessThan(
-      downgradedCandidate.opportunity.opportunityLoss,
+        expect(
+          compareCandidates(
+            downgradedCandidate,
+            protectedCandidate,
+          ),
+        ).toBeLessThan(0);
+
+        expect(
+          protectedCandidate.opportunity
+            .opportunityLoss,
+        ).toBeLessThan(
+          downgradedCandidate.opportunity
+            .opportunityLoss,
+        );
+      },
     );
-  });
-});
+  },
+);

@@ -48,6 +48,14 @@ import {
   evaluateEndgame,
 } from "./endgame-evaluator";
 
+import {
+  buildAllocationProfile,
+} from "./allocation-profile";
+
+import {
+  buildAnchorProfile,
+} from "./anchor-profile";
+
 import type {
   CandidateEvaluation,
   DecisionGate,
@@ -98,6 +106,16 @@ export function evaluateCandidate(
   selectedTowers: Tower[],
   anchor: string | null = null,
 ): CandidateEvaluation {
+
+  const allocationProfile =
+    buildAllocationProfile(
+      allocation,
+    );
+
+  const anchorProfile =
+    buildAnchorProfile(
+      anchor ?? "Auto",
+    );
 
   const allocationLegality =
     evaluateLegality(
@@ -208,8 +226,14 @@ export function evaluateCandidate(
 
   return {
     allocation,
+
+    allocationProfile,
+
     core,
+
     anchor,
+
+    anchorProfile,
 
     towers,
 
