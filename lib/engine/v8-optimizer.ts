@@ -20,6 +20,7 @@ import {
 } from "./evaluator-run";
 
 import {
+  compareCandidates,
   makeDecision,
 } from "./decision-engine";
 
@@ -443,6 +444,105 @@ function analyzeMarginalMoves(
   };
 }
 
+function getBestObservedNeighborDelta(
+  candidate: CandidateEvaluation,
+  evaluations: CandidateEvaluation[],
+): number | null {
+  const elements: ElementName[] = [
+    "Light",
+    "Darkness",
+    "Water",
+    "Fire",
+    "Nature",
+    "Earth",
+  ];
+
+  const key = (
+    allocation: Allocation,
+  ) => allocation.join(",");
+
+  const evaluationMap =
+    new Map(
+      evaluations.map(
+        (evaluation) => [
+          key(
+            evaluation.allocation,
+          ),
+          evaluation,
+        ],
+      ),
+    );
+
+  let bestDelta:
+    number | null = null;
+
+  for (
+    const from of elements
+  ) {
+    const fromIndex =
+      elements.indexOf(from);
+
+    if (
+      candidate.allocation[
+        fromIndex
+      ] <= 0
+    ) {
+      continue;
+    }
+
+    for (
+      const to of elements
+    ) {
+      if (
+        from === to
+      ) {
+        continue;
+      }
+
+      const toIndex =
+        elements.indexOf(to);
+
+      if (
+        candidate.allocation[
+          toIndex
+        ] >= 3
+      ) {
+        continue;
+      }
+
+      const target =
+        [
+          ...candidate.allocation,
+        ] as Allocation;
+
+      target[fromIndex] -= 1;
+      target[toIndex] += 1;
+
+      const neighbor =
+        evaluationMap.get(
+          key(target),
+        );
+
+      if (!neighbor) {
+        continue;
+      }
+
+      const delta =
+        neighbor.package.score -
+        candidate.package.score;
+
+      if (
+        bestDelta === null ||
+        delta > bestDelta
+      ) {
+        bestDelta = delta;
+      }
+    }
+  }
+
+  return bestDelta;
+}
+
 export function optimizeV8(
   core: ElementName[],
   anchor = "Auto",
@@ -493,11 +593,18 @@ export function optimizeV8(
       evaluations,
     );
 
+  const refinedWinner =
+    refineExactTiesWithMarginalValue(
+      decision.winner,
+      decision.finalists,
+      evaluations,
+    );
+
   const marginalAnalysis =
     includeMarginalAnalysis &&
-    decision.winner
+    refinedWinner
       ? analyzeMarginalMoves(
-          decision.winner,
+          refinedWinner,
           core,
           anchor,
         )
@@ -521,7 +628,7 @@ export function optimizeV8(
 
   return {
     winner:
-      decision.winner,
+      refinedWinner,
 
     finalists:
       decision.finalists,
@@ -532,4 +639,103 @@ export function optimizeV8(
 
     marginalAnalysis,
   };
+}
+
+function refineExactTiesWithMarginalValue(
+    winner: CandidateEvaluation | null,
+    finalists: CandidateEvaluation[],
+    evaluations: CandidateEvaluation[],
+  ): CandidateEvaluation | null {
+    if (
+      !winner ||
+      finalists.length < 2
+    ) {
+      return winner;
+    }
+
+    let refinedWinner =
+      winner;
+
+    for (
+      const candidate of finalists
+    ) {
+      if (
+        candidate ===
+        refinedWinner
+      ) {
+        continue;
+      }
+
+      /*
+      * Only use marginal value when the existing
+      * hierarchical decision considers both candidates
+      * exactly equal.
+      */
+      if (
+        compareCandidates(
+          refinedWinner,
+          candidate,
+        ) !== 0
+      ) {
+        continue;
+      }
+
+      const currentDelta =
+        getBestObservedNeighborDelta(
+          refinedWinner,
+          evaluations,
+        );
+
+      const candidateDelta =
+        getBestObservedNeighborDelta(
+          candidate,
+          evaluations,
+        );
+
+      /*
+      * No evaluated neighbor means no marginal
+      * evidence, so leave the existing winner alone.
+      */
+      if (
+        currentDelta === null &&
+        candidateDelta === null
+      ) {
+        continue;
+      }
+
+      if (
+        currentDelta === null
+      ) {
+        continue;
+      }
+
+      if (
+        candidateDelta === null
+      ) {
+        refinedWinner =
+          candidate;
+        continue;
+      }
+
+      /*
+      * Lower best-upside neighbor delta means the
+      * current allocation is locally more settled.
+      *
+      * Example:
+      *   A's best neighbor = +0.2
+      *   B's best neighbor = +4.8
+      *
+      * A is the stronger locally-stable allocation
+      * when everything else is tied.
+      */
+      if (
+        candidateDelta <
+        currentDelta
+      ) {
+        refinedWinner =
+          candidate;
+      }
+    }
+
+    return refinedWinner;
 }
