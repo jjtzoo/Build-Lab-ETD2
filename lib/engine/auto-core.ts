@@ -32,7 +32,7 @@ export interface AutoCoreResult {
   result: V8OptimizationResult;
 }
 
-const AUTO_ALLOCATION_LIMIT = 32;
+const AUTO_ALLOCATION_LIMIT = 64;
 
 export function optimizeAutoCore(
   anchor = "Auto",
