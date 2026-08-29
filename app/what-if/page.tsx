@@ -1,13 +1,19 @@
-export default function Page() {
+"use client";
+
+import { useState } from "react";
+
+export default function WhatIfPage() {
+  const [message] = useState(
+    "What If will start from the current Build Lab allocation.",
+  );
+
   return (
-    <main className="shell">
-      <section className="panel">
-        <div className="eyebrow">MODULE</div>
-        <h1>Coming next</h1>
-        <p className="muted">
-          This module is being migrated onto the shared V8 domain model.
-        </p>
-      </section>
-    </main>
+    <section className="panel">
+      <div className="eyebrow">WHAT IF LAB</div>
+
+      <h1>What If</h1>
+
+      <p className="muted">{message}</p>
+    </section>
   );
 }

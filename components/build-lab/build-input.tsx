@@ -1,11 +1,14 @@
 import type { ElementName } from "@/lib/types";
+import { TowerAnchor } from "@/components/build-lab/tower-anchor";
 
 interface BuildInputProps {
   core: ElementName[];
+  anchor: string;
   onCoreChange: (
     index: number,
     value: ElementName,
   ) => void;
+  onAnchorChange: (value: string) => void;
   onOptimize: () => void;
   loading: boolean;
   error: string | null;
@@ -22,7 +25,9 @@ const elements: ElementName[] = [
 
 export function BuildInput({
   core,
+  anchor,
   onCoreChange,
+  onAnchorChange,
   onOptimize,
   loading,
   error,
@@ -53,13 +58,21 @@ export function BuildInput({
             }
           >
             {elements.map((element) => (
-              <option key={element}>
+              <option
+                key={element}
+                value={element}
+              >
                 {element}
               </option>
             ))}
           </select>
         </div>
       ))}
+
+      <TowerAnchor
+        value={anchor}
+        onChange={onAnchorChange}
+      />
 
       <button
         className="primary"

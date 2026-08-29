@@ -35,4 +35,30 @@ describe("V8 optimizer", () => {
     expect(legacy.length).toBeGreaterThan(0);
     expect(v8.evaluations.length).toBeGreaterThan(0);
   });
+
+  it("respects a requested tower anchor", () => {
+    const result = optimizeV8(
+      [
+        "Light",
+        "Darkness",
+        "Water",
+      ],
+      "Nuclear",
+    );
+
+    expect(result.evaluations.length).toBeGreaterThan(
+      0,
+    );
+    expect(result.winner).not.toBeNull();
+
+    expect(
+      result.winner?.anchor,
+    ).toBe("Nuclear");
+
+    expect(
+      result.winner?.towers.some(
+        (tower) => tower.tower.name === "Nuclear",
+      ),
+    ).toBe(true);
+  });
 });

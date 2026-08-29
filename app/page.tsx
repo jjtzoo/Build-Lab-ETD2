@@ -29,7 +29,7 @@ export default function Home() {
     "Darkness",
     "Fire",
   ]);
-
+  const [anchor, setAnchor] = useState("Auto");
   const [winner, setWinner] =
     useState<CandidateEvaluation | null>(null);
 
@@ -75,7 +75,10 @@ export default function Home() {
           headers: {
             "content-type": "application/json",
           },
-          body: JSON.stringify({ core }),
+          body: JSON.stringify({
+            core,
+            anchor,
+          }),
         },
       );
 
@@ -184,7 +187,9 @@ export default function Home() {
       <section className="workspace">
         <BuildInput
           core={core}
+          anchor={anchor}
           onCoreChange={updateCore}
+          onAnchorChange={setAnchor}
           onOptimize={optimize}
           loading={loading}
           error={error}

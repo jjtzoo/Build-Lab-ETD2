@@ -98,6 +98,7 @@ export function evaluateCandidate(
   selectedTowers: Tower[],
   anchor: string | null = null,
 ): CandidateEvaluation {
+
   const allocationLegality =
     evaluateLegality(
       allocation,

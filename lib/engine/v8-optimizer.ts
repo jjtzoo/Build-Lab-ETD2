@@ -2,12 +2,15 @@ import type {
   CandidateEvaluation,
 } from "./types";
 
+import {
+  searchPackage,
+} from "./package-search";
+
 import type {
   ElementName,
 } from "@/lib/types";
 
 import {
-  evaluateAllocation,
   legalAllocations,
 } from "./allocation";
 
@@ -28,18 +31,28 @@ export interface V8OptimizationResult {
 
 export function optimizeV8(
   core: ElementName[],
+  anchor = "Auto",
 ): V8OptimizationResult {
   const evaluations: CandidateEvaluation[] = [];
 
   for (const allocation of legalAllocations(core)) {
-    const legacyCandidate =
-      evaluateAllocation(allocation);
+    const packageResult =
+      searchPackage(
+        allocation,
+        core,
+        anchor,
+      );
+
+    if (!packageResult) {
+      continue;
+    }
 
     const evaluation =
       evaluateCandidate(
         allocation,
         core,
-        legacyCandidate.selected,
+        packageResult.towers,
+        anchor,
       );
 
     evaluations.push(evaluation);
