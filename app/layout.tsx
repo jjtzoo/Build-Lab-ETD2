@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Header } from "@/components/app-shell/header";
 import { Navigation } from "@/components/app-shell/navigation";
 import "./globals.css";
+import { AppStateProvider } from "@/components/app-shell/app-state-provider";
 
 export const metadata: Metadata = {
   title: "Element TD 2 · Build Lab",
@@ -17,11 +18,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <main className="shell">
-          <Header />
-          <Navigation />
-          {children}
-        </main>
+        <AppStateProvider>
+          <main className="shell">
+            <Header />
+            <Navigation />
+            {children}
+          </main>
+        </AppStateProvider>
       </body>
     </html>
   );

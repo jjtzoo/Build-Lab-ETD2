@@ -95,15 +95,55 @@ export function Recommendation({
           }}
         >
           <div className="notice">
-            {winner.anchor
-              ? `Tower Anchor: ${winner.anchor}.`
-              : "No tower anchor selected."}{" "}
+            {winner.anchor && winner.anchor !== "Auto" ? (
+              (() => {
+                const anchorTower = winner.towers.find(
+                  (tower) =>
+                    tower.tower.name === winner.anchor,
+                );
+
+                return anchorTower ? (
+                  <>
+                    <b>Tower Anchor:</b>{" "}
+                    {anchorTower.tower.name} · Level{" "}
+                    {anchorTower.tier}
+                    <br />
+                    <span className="muted">
+                      Anchor is preserved in the selected
+                      package.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <b>Tower Anchor:</b>{" "}
+                    {winner.anchor}
+                    <br />
+                    <span className="muted">
+                      Requested anchor was not found in
+                      the selected package.
+                    </span>
+                  </>
+                );
+              })()
+            ) : (
+              <>
+                <b>Tower Anchor:</b> Auto
+                <br />
+                <span className="muted">
+                  V8 selected the package anchor
+                  automatically.
+                </span>
+              </>
+            )}
+
+            <br />
+
             Primary DPS is{" "}
             {winner.package.primaryState
               ? winner.package.primaryState.tower.name
               : "not established"}
-            .
-          </div>
+  .
+</div>
 
           <div
             className="grid"

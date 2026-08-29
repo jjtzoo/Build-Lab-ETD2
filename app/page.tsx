@@ -9,6 +9,7 @@ import { TowerPackage } from "@/components/build-lab/tower-package";
 import { DecisionEvidence } from "@/components/build-lab/decision-evidence";
 import { Alternatives } from "@/components/build-lab/alternatives";
 import { DebugPanel } from "@/components/build-lab/debug-panel";
+import { useAppState } from "@/components/app-shell/app-state-provider";
 
 function formatScore(score: unknown): string {
   return typeof score === "number" && Number.isFinite(score)
@@ -24,19 +25,21 @@ function roleCount(
 }
 
 export default function Home() {
-  const [core, setCore] = useState<ElementName[]>([
-    "Light",
-    "Darkness",
-    "Fire",
-  ]);
-  const [anchor, setAnchor] = useState("Auto");
-  const [winner, setWinner] =
-    useState<CandidateEvaluation | null>(null);
-
-  const [results, setResults] =
-    useState<CandidateEvaluation[]>([]);
-
-  const [legalCount, setLegalCount] = useState(0);
+  const {
+    core,
+    setCore,
+    anchor,
+    setAnchor,
+    mode,
+    setMode,
+    winner,
+    setWinner,
+    results,
+    setResults,
+    legalCount,
+    setLegalCount,
+  } = useAppState();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] =
     useState<string | null>(null);
@@ -78,6 +81,7 @@ export default function Home() {
           body: JSON.stringify({
             core,
             anchor,
+            mode,
           }),
         },
       );
@@ -108,6 +112,15 @@ export default function Home() {
           ? (data.winner as CandidateEvaluation)
           : nextResults[0] ?? null,
       );
+
+      if (
+        mode === "auto" &&
+        Array.isArray(data.core)
+      ) {
+        setCore(
+          data.core as ElementName[],
+        );
+      }
 
       setLegalCount(
         typeof data.legalCount === "number"
@@ -188,6 +201,8 @@ export default function Home() {
         <BuildInput
           core={core}
           anchor={anchor}
+          mode={mode}
+          onModeChange={setMode}
           onCoreChange={updateCore}
           onAnchorChange={setAnchor}
           onOptimize={optimize}
