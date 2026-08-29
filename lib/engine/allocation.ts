@@ -13,6 +13,18 @@ export function legalAllocations(core: ElementName[]): Allocation[] {
   return out;
 }
 
+export function legalAllocationsForAnchor(
+  core: ElementName[],
+  anchor: string,
+): Allocation[] {
+  return legalAllocations(core).filter(
+    (allocation) =>
+      unlockedTowers(allocation).some(
+        (tower) => tower.name === anchor,
+      ),
+  );
+}
+
 export function unlockedTowers(a: Allocation): Tower[] {
   return TOWERS.filter((tower)=>tower.recipe.every((element)=>a[ELEMENTS.indexOf(element)]>=1));
 }
