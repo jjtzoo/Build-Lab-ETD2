@@ -1,13 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Header } from "@/components/app-shell/header";
-import { Navigation } from "@/components/app-shell/navigation";
 import { BuildInput } from "@/components/build-lab/build-input";
 import type { ElementName } from "@/lib/types";
 import type { CandidateEvaluation } from "@/lib/engine/types";
 import { Recommendation } from "@/components/build-lab/recommendation";
-import { TowerPackage } from "@/components/build-lab/towerpackage";
+import { TowerPackage } from "@/components/build-lab/tower-package";
 import { DecisionEvidence } from "@/components/build-lab/decision-evidence";
 import { Alternatives } from "@/components/build-lab/alternatives";
 import { DebugPanel } from "@/components/build-lab/debug-panel";
@@ -135,8 +133,6 @@ export default function Home() {
 
   return (
     <main className="shell">
-      <Header />
-
       <section className="hero">
         <div className="panel">
           <div className="eyebrow">
@@ -184,8 +180,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      <Navigation />
 
       <section className="workspace">
         <BuildInput
