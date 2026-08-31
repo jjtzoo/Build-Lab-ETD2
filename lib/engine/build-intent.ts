@@ -10,7 +10,7 @@ export type BuildMode =
   | "explore";
 
 export type TowerFocus = {
-  tower: Tower;
+  tower: Tower["name"];
   priority?: TowerPriority;
 };
 
