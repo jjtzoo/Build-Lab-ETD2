@@ -218,7 +218,7 @@ import type {
 
 export interface CandidateEvaluation {
   allocation: Allocation;
-
+  availableTowers?: TowerState[];
   core: ElementName[];
   anchor: string | null;
 

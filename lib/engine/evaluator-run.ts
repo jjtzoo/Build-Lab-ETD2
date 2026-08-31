@@ -237,6 +237,11 @@ export function evaluateCandidate(
 
     towers,
 
+    availableTowers:
+    availableBundles.map(
+      (bundle) => bundle.state,
+    ),
+
     legality,
 
     evaluators: evaluatorEvidence,

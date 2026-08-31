@@ -4,6 +4,14 @@ interface TowerPackageProps {
   winner: CandidateEvaluation | null;
 }
 
+function formatRecipe(
+  recipe: string[],
+): string {
+  return recipe.length > 0
+    ? recipe.join(" + ")
+    : "Recipe unavailable";
+}
+
 export function TowerPackage({
   winner,
 }: TowerPackageProps) {
@@ -26,8 +34,9 @@ export function TowerPackage({
           <h2>Selected Towers</h2>
 
           <div className="sub">
-            Actual tower states contributing
-            to the build.
+            These towers are actually selected
+            and contribute to the recommended
+            package.
           </div>
         </div>
 
@@ -48,14 +57,43 @@ export function TowerPackage({
             key={tower.tower.name}
           >
             <div className="rank">
-              {tower.tower.type} · LEVEL{" "}
-              {tower.tier}
+              SELECTED · {tower.tower.type} ·
+              LEVEL {tower.tier}
             </div>
 
-            <h3>{tower.tower.name}</h3>
+            <h3>
+              {tower.tower.name}
+            </h3>
 
-            <div className="mono muted">
-              {tower.tower.recipe.join(" + ")}
+            <div
+              className="muted"
+              style={{
+                marginTop: 5,
+                fontWeight: 600,
+              }}
+            >
+              {tower.tower.type}
+            </div>
+
+            <div
+              className="mono muted"
+              style={{
+                marginTop: 7,
+              }}
+            >
+              {formatRecipe(
+                tower.tower.recipe,
+              )}
+            </div>
+            
+            <div
+              className="muted"
+              style={{
+                marginTop: 7,
+              }}
+            >
+              Damage Element ·{" "}
+              {tower.tower.damage ?? "Unknown"}
             </div>
 
             <div
@@ -101,6 +139,30 @@ export function TowerPackage({
                 <span className="chip">
                   Amplification ·{" "}
                   {tower.roles.amplification}
+                </span>
+              )}
+
+              {tower.roles.range !==
+                "None" && (
+                <span className="chip">
+                  Range ·{" "}
+                  {tower.roles.range}
+                </span>
+              )}
+
+              {tower.roles.scaling !==
+                "None" && (
+                <span className="chip">
+                  Scaling ·{" "}
+                  {tower.roles.scaling}
+                </span>
+              )}
+
+              {tower.roles.support !==
+                "None" && (
+                <span className="chip">
+                  Support ·{" "}
+                  {tower.roles.support}
                 </span>
               )}
             </div>

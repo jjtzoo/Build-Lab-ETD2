@@ -74,10 +74,10 @@ export function DecisionEvidence({
 
             {winner.synergy.reasons
               .slice(0, 3)
-              .map((reason) => (
+              .map((reason, index) => (
                 <div
                   className="muted"
-                  key={reason}
+                  key={`${reason}-${index}`}
                   style={{
                     marginTop: 7,
                   }}
