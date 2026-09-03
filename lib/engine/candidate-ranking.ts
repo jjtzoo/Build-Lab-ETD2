@@ -4,6 +4,17 @@ import {
   recommendationCategoryFor,
 } from "@/lib/engine/candidate-ranking-config";
 import { evaluateLegalCandidateChanges } from "@/lib/engine/candidate-change";
+import type { BuildIntent } from "@/lib/engine/build-intent";
+import {
+  resolveBuildIntent,
+  type ResolvedBuildIntent,
+} from "@/lib/engine/build-intent-resolver";
+import {
+  evaluateIntentForCandidate,
+  summarizeResolvedIntent,
+  type IntentComponentInput,
+} from "@/lib/engine/intent-ranking";
+import { interpretBuild } from "@/lib/engine/build-interpreter";
 import type {
   BuildState,
   CandidateChangeEvaluation,
@@ -18,6 +29,7 @@ import type {
   RecommendationConfidence,
   RecommendationReason,
   StrategicProfile,
+  IntentSummary,
 } from "@/lib/types";
 
 const RECOMMENDATION_CONFIDENCE_RANK: Readonly<Record<RecommendationConfidence, number>> = {
@@ -376,10 +388,31 @@ function opportunityCostComponents(
   return result ? Object.freeze([result]) : Object.freeze([]);
 }
 
+function intentComponents(
+  inputs: readonly IntentComponentInput[],
+): readonly RankingComponentResult[] {
+  return inputs.flatMap((input) => {
+    const result = component(
+      input.component,
+      input.key,
+      input.direction,
+      input.baseContribution,
+      input.confidence,
+      input.detail,
+    );
+    return result ? [result] : [];
+  });
+}
+
 function rankSingleCandidate(
   change: CandidateChangeEvaluation,
   catalogOrder: number,
+  intent?: ResolvedBuildIntent,
+  intentSummary?: IntentSummary,
 ): Readonly<{ ranked: Omit<RankedCandidate, "rank">; catalogOrder: number }> {
+  const intentEvaluation = intent && intentSummary
+    ? evaluateIntentForCandidate(change, intent, intentSummary)
+    : undefined;
   const components = Object.freeze([
     ...vulnerabilityComponents(change),
     ...gapReliefComponents(change),
@@ -390,6 +423,7 @@ function rankSingleCandidate(
     ...redundancyComponents(change),
     ...newRequirementComponents(change),
     ...opportunityCostComponents(change),
+    ...(intentEvaluation ? intentComponents(intentEvaluation.components) : []),
   ]);
   const contextualValue = components.reduce((total, item) => total + item.contribution, 0);
   const decisiveComponents = components.filter((item) => item.contribution !== 0);
@@ -421,6 +455,7 @@ function rankSingleCandidate(
       tradeoffs,
       warnings,
       change,
+      ...(intentEvaluation ? { intentAlignment: intentEvaluation.alignment } : {}),
     }),
     catalogOrder,
   });
@@ -428,9 +463,21 @@ function rankSingleCandidate(
 
 export function rankCandidateChanges(
   changes: readonly CandidateChangeEvaluation[],
+  intent?: ResolvedBuildIntent,
+  existingIntentSummary?: IntentSummary,
 ): CandidateRanking {
+  const intentSummary = intent
+    ? existingIntentSummary ?? (changes[0]
+      ? summarizeResolvedIntent(changes[0].before, intent)
+      : undefined)
+    : undefined;
   const candidates = changes
-    .map((change, catalogOrder) => rankSingleCandidate(change, catalogOrder))
+    .map((change, catalogOrder) => rankSingleCandidate(
+      change,
+      catalogOrder,
+      intent,
+      intentSummary,
+    ))
     .sort((left, right) => (
       right.ranked.contextualValue - left.ranked.contextualValue
       || RECOMMENDATION_CONFIDENCE_RANK[right.ranked.confidence]
@@ -442,9 +489,19 @@ export function rankCandidateChanges(
   return Object.freeze({
     rankedCandidates: Object.freeze(candidates),
     topRecommendation: candidates[0] ?? null,
+    ...(intentSummary ? { intent: intentSummary } : {}),
   });
 }
 
-export function rankLegalCandidates(state: BuildState): CandidateRanking {
-  return rankCandidateChanges(evaluateLegalCandidateChanges(state));
+export function rankLegalCandidates(
+  state: BuildState,
+  rawIntent?: BuildIntent,
+): CandidateRanking {
+  const intent = rawIntent ? resolveBuildIntent(rawIntent) : undefined;
+  const intentSummary = intent ? summarizeResolvedIntent(
+    interpretBuild(state),
+    intent,
+    state.selectedTowers.map((selected) => selected.towerName),
+  ) : undefined;
+  return rankCandidateChanges(evaluateLegalCandidateChanges(state), intent, intentSummary);
 }

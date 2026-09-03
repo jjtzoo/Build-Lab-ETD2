@@ -9,13 +9,13 @@ import type {
   StrategicProfileKey,
 } from "@/lib/types";
 
-type StrategicProfileDefinition = Readonly<{
+export type StrategicProfileDefinition = Readonly<{
   key: StrategicProfileKey;
   capabilities: readonly CapabilityKey[];
   rationale: string;
 }>;
 
-const PROFILE_DEFINITIONS: readonly StrategicProfileDefinition[] = [
+export const PROFILE_DEFINITIONS: readonly StrategicProfileDefinition[] = [
   { key: "dot", capabilities: ["dot"], rationale: "Damage-over-time evidence indicates a persistent-damage direction." },
   { key: "burst", capabilities: ["burst"], rationale: "Burst evidence indicates immediate-damage windows are part of the build." },
   { key: "sustainedDps", capabilities: ["dot", "uptime", "attackSpeedScaling"], rationale: "Persistent damage, uptime, or attack-speed scaling evidence supports sustained damage." },
@@ -29,6 +29,12 @@ const PROFILE_DEFINITIONS: readonly StrategicProfileDefinition[] = [
   { key: "isolation", capabilities: ["isolation"], rationale: "Isolation evidence indicates target-spacing or isolation-sensitive value." },
   { key: "executionFinisher", capabilities: ["execute", "globalFinisher", "abilityCharge"], rationale: "Execution, finisher, or charge evidence indicates a finishing package." },
 ];
+
+export function capabilitiesForStrategicProfile(
+  key: StrategicProfileKey,
+): readonly CapabilityKey[] {
+  return PROFILE_DEFINITIONS.find((definition) => definition.key === key)?.capabilities ?? [];
+}
 
 function strongestTier(tiers: readonly (AttributeTier | null)[]): AttributeTier | null {
   if (tiers.includes("gold")) return "gold";

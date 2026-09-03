@@ -318,6 +318,41 @@ export type CandidateChangeEvaluation = Readonly<{
   delta: InterpretationDelta;
 }>;
 
+export type IntentAlignmentStatus =
+  | "aligned"
+  | "partially-aligned"
+  | "diverges"
+  | "neutral";
+
+export type IntentConflict = Readonly<{
+  key: string;
+  detail: string;
+}>;
+
+export type ResolvedIntentFocusSummary = Readonly<{
+  towerName: string;
+  priority: "explore" | "balanced" | "maximum-depth";
+  selected: boolean;
+}>;
+
+export type IntentSummary = Readonly<{
+  focusedTowers: readonly ResolvedIntentFocusSummary[];
+  preferredProfiles: readonly StrategicProfileKey[];
+  preferredCapabilities: readonly CapabilityKey[];
+  mode: "normal" | "explore";
+  alignment: IntentAlignmentStatus;
+  conflicts: readonly IntentConflict[];
+  notes: readonly string[];
+}>;
+
+export type CandidateIntentAlignment = Readonly<{
+  status: IntentAlignmentStatus;
+  matchedProfiles: readonly StrategicProfileKey[];
+  matchedCapabilities: readonly CapabilityKey[];
+  supportedFocalTowers: readonly string[];
+  conflicts: readonly IntentConflict[];
+}>;
+
 export type RankingComponent =
   | "vulnerability-relief"
   | "primary-gap-relief"
@@ -330,7 +365,12 @@ export type RankingComponent =
   | "redundancy"
   | "anti-synergy"
   | "new-requirement"
-  | "opportunity-cost";
+  | "opportunity-cost"
+  | "intent-profile-alignment"
+  | "intent-capability-alignment"
+  | "focal-tower-support"
+  | "intent-conflict"
+  | "intent-exploration";
 
 export type RecommendationConfidence = "high" | "medium" | "partial" | "unknown";
 
@@ -369,11 +409,13 @@ export type RankedCandidate = Readonly<{
   tradeoffs: readonly RecommendationReason[];
   warnings: readonly RecommendationReason[];
   change: CandidateChangeEvaluation;
+  intentAlignment?: CandidateIntentAlignment;
 }>;
 
 export type CandidateRanking = Readonly<{
   rankedCandidates: readonly RankedCandidate[];
   topRecommendation: RankedCandidate | null;
+  intent?: IntentSummary;
 }>;
 
 export type SequentialInterpretationSummary = Readonly<{
@@ -393,6 +435,7 @@ export type SerializedRankedCandidate = Readonly<{
   tradeoffs: readonly RecommendationReason[];
   warnings: readonly RecommendationReason[];
   components: readonly RankingComponentResult[];
+  intentAlignment?: CandidateIntentAlignment;
 }>;
 
 export type SequentialRecommendationResponse = Readonly<{
@@ -402,6 +445,7 @@ export type SequentialRecommendationResponse = Readonly<{
   topRecommendation: SerializedRankedCandidate | null;
   candidates: readonly SerializedRankedCandidate[];
   warnings: readonly string[];
+  intent?: IntentSummary;
 }>;
 
 export type Candidate = {

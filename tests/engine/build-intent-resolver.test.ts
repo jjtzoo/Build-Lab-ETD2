@@ -65,6 +65,31 @@ describe("resolveBuildIntent", () => {
     expect(resolved.focusedTowers).toHaveLength(0);
   });
 
+  it("resolves UI profile aliases and canonical capability keys", () => {
+    const resolved = resolveBuildIntent({
+      focusedTowers: [],
+      preferredProfiles: ["aoe-wave-clear", "sustainedDps"],
+      preferredCapabilities: ["dot", "damageAmp", "slow"],
+      mode: "normal",
+    });
+
+    expect(resolved.preferredProfiles).toEqual(["aoeWaveClear", "sustainedDps"]);
+    expect(resolved.preferredCapabilities).toEqual(["dot", "damageAmp", "slow"]);
+  });
+
+  it("rejects unsupported profile and capability values explicitly", () => {
+    expect(() => resolveBuildIntent({
+      focusedTowers: [],
+      preferredProfiles: ["unbounded-score"],
+      mode: "normal",
+    } as unknown as BuildIntent)).toThrow("Unsupported preferred profile");
+    expect(() => resolveBuildIntent({
+      focusedTowers: [],
+      preferredCapabilities: ["inventedCapability"],
+      mode: "normal",
+    } as unknown as BuildIntent)).toThrow("Unsupported preferred capability");
+  });
+
   it("rejects an unknown tower", () => {
     const intent: BuildIntent = {
       focusedTowers: [

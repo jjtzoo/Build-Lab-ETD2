@@ -16,6 +16,25 @@ export const CONTEXTUAL_RANKING_WEIGHTS = Object.freeze({
   constrainedSlotPressure: -2,
 } as const);
 
+/**
+ * Intent is intentionally narrower than vulnerability and primary-gap relief.
+ * Priority scales only preference components, never fact-based components.
+ */
+export const INTENT_RANKING_WEIGHTS = Object.freeze({
+  profileAlignment: 4,
+  capabilityAlignment: 3,
+  focalTowerSupport: 3,
+  focalTowerArchitectureSupport: 2,
+  focalTowerConflict: -3,
+  explorationOption: 1,
+} as const);
+
+export const INTENT_PRIORITY_MULTIPLIERS = Object.freeze({
+  explore: 0.4,
+  balanced: 0.75,
+  "maximum-depth": 1,
+} as const);
+
 export const RANKING_CONFIDENCE_MULTIPLIERS = Object.freeze({
   high: 1,
   medium: 0.75,

@@ -12,6 +12,7 @@ import type {
   SelectedTowerInput,
   SequentialRecommendationResponse,
   SerializedRankedCandidate,
+  StrategicProfileKey,
 } from "@/lib/types";
 
 const elements: ElementName[] = ["Light", "Darkness", "Water", "Fire", "Nature", "Earth"];
@@ -22,6 +23,24 @@ const towerOptions = TOWERS.map((tower) => Object.freeze({
   recipe: tower.recipe,
   maxLevel: getTowerLevelCeiling(tower.name),
 }));
+
+const strategicProfileOptions: readonly Readonly<{
+  key: StrategicProfileKey;
+  label: string;
+}>[] = [
+  { key: "dot", label: "DoT" },
+  { key: "burst", label: "Burst" },
+  { key: "sustainedDps", label: "Sustained DPS" },
+  { key: "aoeWaveClear", label: "AoE / Wave Clear" },
+  { key: "bossSingleTarget", label: "Boss / Single Target" },
+  { key: "control", label: "Control" },
+  { key: "support", label: "Support" },
+  { key: "scaling", label: "Scaling" },
+  { key: "economy", label: "Economy" },
+  { key: "replicationNetwork", label: "Replication / Network" },
+  { key: "isolation", label: "Isolation" },
+  { key: "executionFinisher", label: "Execution / Finisher" },
+];
 
 function emptyAllocation(): ElementAllocation {
   return { Light: 0, Darkness: 0, Water: 0, Fire: 0, Nature: 0, Earth: 0 };
@@ -60,6 +79,7 @@ function RecommendationCard({
         <em>{recommendation.confidence} confidence</em>
       </div>
     </div>
+    {recommendation.intentAlignment && recommendation.intentAlignment.status !== "neutral" && <p className="muted small">Intent alignment: {recommendation.intentAlignment.status.replace("-", " ")}{recommendation.intentAlignment.matchedProfiles.length ? ` · ${recommendation.intentAlignment.matchedProfiles.join(", ")}` : ""}{recommendation.intentAlignment.supportedFocalTowers.length ? ` · supports ${recommendation.intentAlignment.supportedFocalTowers.join(", ")}` : ""}</p>}
     {reasonList("Strengths", recommendation.strengths)}
     {reasonList("Tradeoffs", recommendation.tradeoffs)}
     {reasonList("Warnings", recommendation.warnings)}
@@ -89,6 +109,10 @@ export default function Home() {
   const [elementAllocation, setElementAllocation] = useState<ElementAllocation>(emptyAllocation);
   const [maxTowerSlots, setMaxTowerSlots] = useState(10);
   const [towerToAdd, setTowerToAdd] = useState("Poison");
+  const [focalTower, setFocalTower] = useState("");
+  const [intentPriority, setIntentPriority] = useState<"explore" | "balanced" | "maximum-depth">("balanced");
+  const [preferredProfile, setPreferredProfile] = useState<StrategicProfileKey | "">("");
+  const [intentMode, setIntentMode] = useState<"normal" | "explore">("normal");
   const [recommendationResult, setRecommendationResult] = useState<SequentialRecommendationResponse | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
@@ -181,6 +205,13 @@ export default function Home() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           state: { selectedTowers, elementAllocation, maxTowerSlots },
+          ...(focalTower || preferredProfile || intentMode === "explore" ? {
+            intent: {
+              focusedTowers: focalTower ? [{ tower: focalTower, priority: intentPriority }] : [],
+              ...(preferredProfile ? { preferredProfiles: [preferredProfile] } : {}),
+              mode: intentMode,
+            },
+          } : {}),
           limit: 10,
         }),
       });
@@ -219,12 +250,13 @@ export default function Home() {
       {selectedTowerDetails.length === 0 ? <div className="notice">No towers selected. You can still inspect opening options from the allocated elements.</div> : <div className="selected-towers">{selectedTowerDetails.map(({ selected, tower }) => <div className="selected-tower" key={selected.towerName}><div><b>{selected.towerName}</b><span>{tower?.type} · {tower?.recipe.join(" + ")}</span></div><div className="tower-controls"><label>Level<select className="small-select" value={selected.level} onChange={(event) => updateTowerLevel(selected.towerName, Number(event.target.value))}>{Array.from({ length: tower?.maxLevel ?? 1 }, (_, index) => index + 1).map((level) => <option key={level} value={level}>{level}</option>)}</select></label><button className="remove" onClick={() => removeTower(selected.towerName)}>Remove</button></div></div>)}</div>}
       <div className="field"><label>Maximum tower slots</label><input className="input" type="number" min={0} step={1} value={maxTowerSlots} onChange={(event) => updateSlotLimit(event.target.value)}/></div>
       <div className="field"><label>Element allocation <span>{Object.values(elementAllocation).reduce((total, value) => total + value, 0)} allocated</span></label><div className="element-grid">{elements.map((element) => <label className="element-input" key={element}><span>{element}</span><input className="input" type="number" min={0} step={1} value={elementAllocation[element]} onChange={(event) => updateElement(element, event.target.value)}/></label>)}</div></div>
+      <div className="field"><label>Build intent <span>optional</span></label><p className="muted small">Intent adjusts decision priority; it does not change what the current build objectively contains.</p><label>Focal tower<select className="select" value={focalTower} onChange={(event) => { setFocalTower(event.target.value); markBuildChanged(); }}><option value="">No focal tower</option>{towerOptions.map((tower) => <option key={tower.name} value={tower.name}>{tower.name}</option>)}</select></label><label>Priority<select className="select" value={intentPriority} onChange={(event) => { setIntentPriority(event.target.value as typeof intentPriority); markBuildChanged(); }}><option value="explore">Explore · weak preference</option><option value="balanced">Balanced · shared influence</option><option value="maximum-depth">Maximum depth · strong preference</option></select></label><label>Desired profile<select className="select" value={preferredProfile} onChange={(event) => { setPreferredProfile(event.target.value as StrategicProfileKey | ""); markBuildChanged(); }}><option value="">No requested profile</option>{strategicProfileOptions.map((profile) => <option key={profile.key} value={profile.key}>{profile.label}</option>)}</select></label><label>Intent mode<select className="select" value={intentMode} onChange={(event) => { setIntentMode(event.target.value as typeof intentMode); markBuildChanged(); }}><option value="normal">Normal · preserve coherence</option><option value="explore">Explore · modest breadth</option></select></label></div>
       <button className="primary" onClick={recommendNextTower} disabled={recommendationLoading}>{recommendationLoading ? "Evaluating…" : "Recommend next tower"}</button>
       {recommendationError && <p className="error-message" role="alert">{recommendationError}</p>}
     </aside>
     <section className="recommendation-results">
       {!recommendationResult ? <section className="panel"><div className="eyebrow">SEQUENTIAL ENGINE</div><h2>Next-tower recommendations</h2><p className="muted">The engine evaluates the current build state on the server. Results include build-specific strengths, tradeoffs, and confidence—never a universal tower score.</p>{selectedTowers.length === 0 && <div className="notice">Empty build: add a tower or allocate elements to explore the first legal additions.</div>}</section> : <>
-        <section className="panel interpretation-summary"><div className="section-heading"><div><div className="eyebrow">CURRENT BUILD INTERPRETATION</div><h2>Why the engine is looking for these things</h2></div><span className="engine-version">{recommendationResult.engineVersion}</span></div><div className="summary-grid"><div><h3>Strategic profiles</h3>{recommendationResult.interpretation.strategicProfiles.length ? <div className="chips">{recommendationResult.interpretation.strategicProfiles.map((profile) => <span className="chip" key={profile.key}>{profile.key}</span>)}</div> : <p className="muted small">No active strategic profiles yet.</p>}</div><div><h3>Vulnerabilities</h3>{recommendationResult.interpretation.vulnerabilities.length ? <ul className="compact-list">{recommendationResult.interpretation.vulnerabilities.map((vulnerability) => <li key={vulnerability.capability}>{vulnerability.capability}</li>)}</ul> : <p className="muted small">No meaningful vulnerabilities identified.</p>}</div><div><h3>Relevant gaps</h3>{recommendationResult.interpretation.relevantGaps.length ? <ul className="compact-list">{recommendationResult.interpretation.relevantGaps.map((gap) => <li key={gap.capability}>{gap.capability} · {gap.status}</li>)}</ul> : <p className="muted small">No relevant gaps identified.</p>}</div><div><h3>Compensations</h3>{recommendationResult.interpretation.compensations.length ? <ul className="compact-list">{recommendationResult.interpretation.compensations.map((compensation) => <li key={compensation.gapCapability}>{compensation.gapCapability} via {compensation.compensatingCapabilities.join(", ")}</li>)}</ul> : <p className="muted small">No validated compensations active.</p>}</div></div></section>
+        <section className="panel interpretation-summary"><div className="section-heading"><div><div className="eyebrow">CURRENT BUILD INTERPRETATION</div><h2>Why the engine is looking for these things</h2></div><span className="engine-version">{recommendationResult.engineVersion}</span></div><div className="summary-grid"><div><h3>Strategic profiles</h3>{recommendationResult.interpretation.strategicProfiles.length ? <div className="chips">{recommendationResult.interpretation.strategicProfiles.map((profile) => <span className="chip" key={profile.key}>{profile.key}</span>)}</div> : <p className="muted small">No active strategic profiles yet.</p>}</div><div><h3>Vulnerabilities</h3>{recommendationResult.interpretation.vulnerabilities.length ? <ul className="compact-list">{recommendationResult.interpretation.vulnerabilities.map((vulnerability) => <li key={vulnerability.capability}>{vulnerability.capability}</li>)}</ul> : <p className="muted small">No meaningful vulnerabilities identified.</p>}</div><div><h3>Relevant gaps</h3>{recommendationResult.interpretation.relevantGaps.length ? <ul className="compact-list">{recommendationResult.interpretation.relevantGaps.map((gap) => <li key={gap.capability}>{gap.capability} · {gap.status}</li>)}</ul> : <p className="muted small">No relevant gaps identified.</p>}</div><div><h3>Compensations</h3>{recommendationResult.interpretation.compensations.length ? <ul className="compact-list">{recommendationResult.interpretation.compensations.map((compensation) => <li key={compensation.gapCapability}>{compensation.gapCapability} via {compensation.compensatingCapabilities.join(", ")}</li>)}</ul> : <p className="muted small">No validated compensations active.</p>}</div></div>{recommendationResult.intent && <div className="notice"><b>Player intent · {recommendationResult.intent.alignment.replace("-", " ")}</b><div className="chips">{recommendationResult.intent.focusedTowers.map((focus) => <span className="chip" key={focus.towerName}>{focus.towerName} · {focus.priority}</span>)}{recommendationResult.intent.preferredProfiles.map((profile) => <span className="chip" key={profile}>{profile}</span>)}</div>{recommendationResult.intent.conflicts.map((conflict) => <p className="muted small" key={conflict.key}>{conflict.detail}</p>)}{recommendationResult.intent.notes.map((note) => <p className="muted small" key={note}>{note}</p>)}</div>}</section>
         {recommendationResult.warnings.map((warning) => <div className="notice" key={warning}>{warning}</div>)}
         {recommendationResult.topRecommendation ? <section className="panel"><div className="eyebrow">TOP RECOMMENDATION</div><RecommendationCard recommendation={recommendationResult.topRecommendation} prominent/></section> : <section className="panel"><h2>No legal next tower</h2><p className="muted">Adjust tower slots, selected towers, or element allocation, then try again.</p></section>}
         {recommendationResult.candidates.length > 1 && <section className="panel"><div className="eyebrow">RANKED ALTERNATIVES</div><h2>Other contextual fits</h2><div className="recommendation-list">{recommendationResult.candidates.slice(1).map((item) => <RecommendationCard recommendation={item} key={item.candidate.towerName}/>)}</div></section>}

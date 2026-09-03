@@ -1,4 +1,5 @@
 import { interpretBuild } from "@/lib/engine/build-interpreter";
+import type { BuildIntent } from "@/lib/engine/build-intent";
 import { rankLegalCandidates } from "@/lib/engine/candidate-ranking";
 import type {
   BuildState,
@@ -22,14 +23,16 @@ function serializeCandidate(
     tradeoffs: ranked.tradeoffs,
     warnings: ranked.warnings,
     components: ranked.components,
+    ...(ranked.intentAlignment ? { intentAlignment: ranked.intentAlignment } : {}),
   });
 }
 
 export function createSequentialRecommendationResponse(
   state: BuildState,
   limit: number,
+  intent?: BuildIntent,
 ): SequentialRecommendationResponse {
-  const ranking = rankLegalCandidates(state);
+  const ranking = rankLegalCandidates(state, intent);
   const candidates = Object.freeze(
     ranking.rankedCandidates.slice(0, limit).map(serializeCandidate),
   );
@@ -52,5 +55,6 @@ export function createSequentialRecommendationResponse(
     warnings: Object.freeze(candidates.length === 0
       ? ["No legal next towers are available for the current build state."]
       : []),
+    ...(ranking.intent ? { intent: ranking.intent } : {}),
   });
 }

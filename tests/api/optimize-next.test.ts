@@ -50,6 +50,7 @@ describe("POST /api/optimize/next", () => {
     expect(payload.candidates).toHaveLength(5);
     expect(payload.topRecommendation).toEqual(payload.candidates[0]);
     expect(payload.candidates.every((candidate) => candidate.rank >= 1)).toBe(true);
+    expect(payload.intent).toBeUndefined();
   });
 
   it("returns 400 for an unknown tower", async () => {
@@ -110,6 +111,54 @@ describe("POST /api/optimize/next", () => {
     expect(payload.candidates.map((candidate) => candidate.contextualValue)).toEqual(
       expected.rankedCandidates.slice(0, 20).map((candidate) => candidate.contextualValue),
     );
+  });
+
+  it("rejects invalid or unknown intent values server-side", async () => {
+    const invalidProfile = await nextRecommendationPost(jsonRequest({
+      state: buildState(),
+      intent: {
+        focusedTowers: [],
+        preferredProfiles: ["invented-profile"],
+        mode: "normal",
+      },
+    }));
+    const unknownFocus = await nextRecommendationPost(jsonRequest({
+      state: buildState(),
+      intent: {
+        focusedTowers: [{ tower: "Not A Tower", priority: "balanced" }],
+        mode: "normal",
+      },
+    }));
+
+    expect(invalidProfile.status).toBe(400);
+    expect(unknownFocus.status).toBe(400);
+    await expect(unknownFocus.json()).resolves.toMatchObject({ code: "invalid-intent" });
+  });
+
+  it("returns resolved intent and serialized intent effects for a valid request", async () => {
+    const response = await nextRecommendationPost(jsonRequest({
+      state: buildState(),
+      limit: 20,
+      intent: {
+        focusedTowers: [{ tower: "Haste", priority: "maximum-depth" }],
+        preferredProfiles: ["sustained-dps", "scaling"],
+        preferredCapabilities: ["attackSpeedScaling"],
+        mode: "normal",
+      },
+    }));
+    const payload = await response.json() as SequentialRecommendationResponse;
+    const haste = payload.candidates.find((candidate) => candidate.candidate.towerName === "Haste");
+
+    expect(response.status).toBe(200);
+    expect(payload.intent).toMatchObject({
+      preferredProfiles: ["sustainedDps", "scaling"],
+      preferredCapabilities: ["attackSpeedScaling"],
+    });
+    expect(haste?.intentAlignment?.matchedProfiles).toEqual(expect.arrayContaining(["scaling"]));
+    expect(haste?.components).toEqual(expect.arrayContaining([
+      expect.objectContaining({ component: "intent-profile-alignment", key: "scaling" }),
+      expect.objectContaining({ component: "intent-capability-alignment", key: "attackSpeedScaling" }),
+    ]));
   });
 
   it("preserves the existing allocation explorer endpoint", async () => {

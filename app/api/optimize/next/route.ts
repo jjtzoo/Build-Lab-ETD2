@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
+  INTENT_CAPABILITY_INPUTS,
+  INTENT_PROFILE_INPUTS,
+  type BuildIntent,
+} from "@/lib/engine/build-intent";
+import {
+  BuildIntentValidationError,
+} from "@/lib/engine/build-intent-resolver";
+import {
   BuildStateValidationError,
   createBuildState,
 } from "@/lib/engine/build-state";
@@ -25,8 +33,19 @@ const buildStateRequestSchema = z.object({
   maxTowerSlots: z.number().int().nonnegative(),
 }).strict();
 
+const buildIntentRequestSchema = z.object({
+  focusedTowers: z.array(z.object({
+    tower: z.string().min(1),
+    priority: z.enum(["explore", "balanced", "maximum-depth"]).optional(),
+  }).strict()),
+  preferredProfiles: z.array(z.enum(INTENT_PROFILE_INPUTS)).optional(),
+  preferredCapabilities: z.array(z.enum(INTENT_CAPABILITY_INPUTS)).optional(),
+  mode: z.enum(["normal", "explore"]),
+}).strict();
+
 const nextRecommendationRequestSchema = z.object({
   state: buildStateRequestSchema,
+  intent: buildIntentRequestSchema.optional(),
   limit: z.number().int().min(1).max(20).optional(),
 }).strict();
 
@@ -49,13 +68,23 @@ export async function POST(request: Request) {
   try {
     const state = createBuildState(parsed.data.state);
     return NextResponse.json(
-      createSequentialRecommendationResponse(state, parsed.data.limit ?? 10),
+      createSequentialRecommendationResponse(
+        state,
+        parsed.data.limit ?? 10,
+        parsed.data.intent as BuildIntent | undefined,
+      ),
     );
   } catch (error) {
     if (error instanceof BuildStateValidationError) {
       return NextResponse.json({
         error: error.message,
         code: error.code,
+      }, { status: 400 });
+    }
+    if (error instanceof BuildIntentValidationError) {
+      return NextResponse.json({
+        error: error.message,
+        code: "invalid-intent",
       }, { status: 400 });
     }
     return NextResponse.json(
