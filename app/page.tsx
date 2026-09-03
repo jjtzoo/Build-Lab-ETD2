@@ -1,55 +1,252 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Candidate, ElementName } from "@/lib/types";
 
-const elements: ElementName[] = ["Light","Darkness","Water","Fire","Nature","Earth"];
+import { TOWERS } from "@/lib/data";
+import { getTowerLevelCeiling } from "@/lib/engine/build-state";
+import type {
+  Candidate,
+  ElementAllocation,
+  ElementName,
+  RecommendationReason,
+  SelectedTowerInput,
+  SequentialRecommendationResponse,
+  SerializedRankedCandidate,
+} from "@/lib/types";
+
+const elements: ElementName[] = ["Light", "Darkness", "Water", "Fire", "Nature", "Earth"];
+
+const towerOptions = TOWERS.map((tower) => Object.freeze({
+  name: tower.name,
+  type: tower.type,
+  recipe: tower.recipe,
+  maxLevel: getTowerLevelCeiling(tower.name),
+}));
+
+function emptyAllocation(): ElementAllocation {
+  return { Light: 0, Darkness: 0, Water: 0, Fire: 0, Nature: 0, Earth: 0 };
+}
+
+function reasonList(title: string, reasons: readonly RecommendationReason[]) {
+  if (reasons.length === 0) return null;
+  return <div className="reason-group">
+    <div className="reason-title">{title}</div>
+    <ul className="reason-list">
+      {reasons.map((reason, index) => <li key={`${reason.component}-${reason.key}-${index}`}>
+        {reason.detail}
+      </li>)}
+    </ul>
+  </div>;
+}
+
+function RecommendationCard({
+  recommendation,
+  prominent = false,
+}: {
+  recommendation: SerializedRankedCandidate;
+  prominent?: boolean;
+}) {
+  return <article className={prominent ? "recommendation top-recommendation" : "recommendation"}>
+    <div className="recommendation-head">
+      <div>
+        <div className="rank">#{recommendation.rank} · {recommendation.candidate.type}</div>
+        <h3>{recommendation.candidate.towerName}</h3>
+        <div className="muted small">{recommendation.candidate.recipe.join(" + ")} · Starts level {recommendation.candidate.initialLevel} · Max level {recommendation.candidate.maxLevel}</div>
+      </div>
+      <div className="recommendation-value">
+        <span className={`category category-${recommendation.category}`}>{recommendation.category.replace("-", " ")}</span>
+        <b>{recommendation.contextualValue}</b>
+        <span>CONTEXTUAL VALUE</span>
+        <em>{recommendation.confidence} confidence</em>
+      </div>
+    </div>
+    {reasonList("Strengths", recommendation.strengths)}
+    {reasonList("Tradeoffs", recommendation.tradeoffs)}
+    {reasonList("Warnings", recommendation.warnings)}
+    <details className="component-details">
+      <summary>Ranking component breakdown</summary>
+      <ul className="component-list">
+        {recommendation.components.map((component, index) => <li key={`${component.component}-${component.key}-${index}`}>
+          <span className={component.contribution > 0 ? "positive" : component.contribution < 0 ? "negative" : "neutral"}>
+            {component.contribution > 0 ? "+" : ""}{component.contribution}
+          </span>
+          <span>{component.reason.detail}</span>
+        </li>)}
+      </ul>
+    </details>
+  </article>;
+}
 
 export default function Home() {
-  const [core, setCore] = useState<ElementName[]>(["Light","Darkness","Fire"]);
+  const [core, setCore] = useState<ElementName[]>(["Light", "Darkness", "Fire"]);
   const [results, setResults] = useState<Candidate[]>([]);
   const [legalCount, setLegalCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationError, setAllocationError] = useState<string | null>(null);
   const [tab, setTab] = useState("Build Lab");
 
-  const summary = useMemo(()=>results[0],[results]);
+  const [selectedTowers, setSelectedTowers] = useState<SelectedTowerInput[]>([]);
+  const [elementAllocation, setElementAllocation] = useState<ElementAllocation>(emptyAllocation);
+  const [maxTowerSlots, setMaxTowerSlots] = useState(10);
+  const [towerToAdd, setTowerToAdd] = useState("Poison");
+  const [recommendationResult, setRecommendationResult] = useState<SequentialRecommendationResponse | null>(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
 
-  function updateCore(index:number, value:ElementName){
-    setCore((prev)=>prev.map((x,i)=>i===index?value:x));
+  const summary = useMemo(() => results[0], [results]);
+  const availableTowers = useMemo(() => {
+    const selectedNames = new Set(selectedTowers.map((tower) => tower.towerName));
+    return towerOptions.filter((tower) => !selectedNames.has(tower.name));
+  }, [selectedTowers]);
+  const selectedTowerDetails = useMemo(() => selectedTowers.map((selected) => ({
+    selected,
+    tower: towerOptions.find((tower) => tower.name === selected.towerName),
+  })), [selectedTowers]);
+
+  function updateCore(index: number, value: ElementName) {
+    setCore((previous) => previous.map((element, itemIndex) => itemIndex === index ? value : element));
   }
 
-  async function optimize(){
-    setLoading(true);
-    const res = await fetch("/api/optimize", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({core}) });
-    const data = await res.json();
-    if(res.ok){ setResults(data.results); setLegalCount(data.legalCount); }
-    setLoading(false);
+  async function optimize() {
+    setAllocationLoading(true);
+    setAllocationError(null);
+    try {
+      const response = await fetch("/api/optimize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ core }),
+      });
+      const payload = await response.json().catch(() => null) as {
+        results?: Candidate[];
+        legalCount?: number;
+        error?: string;
+      } | null;
+      if (!response.ok || !payload?.results || typeof payload.legalCount !== "number") {
+        throw new Error(payload?.error ?? "Allocation evaluation failed.");
+      }
+      setResults(payload.results);
+      setLegalCount(payload.legalCount);
+    } catch (error) {
+      setAllocationError(error instanceof Error ? error.message : "Allocation evaluation failed.");
+    } finally {
+      setAllocationLoading(false);
+    }
   }
+
+  function markBuildChanged() {
+    setRecommendationResult(null);
+    setRecommendationError(null);
+  }
+
+  function addTower() {
+    const selected = availableTowers.find((tower) => tower.name === towerToAdd) ?? availableTowers[0];
+    if (!selected) return;
+    setSelectedTowers((previous) => [...previous, { towerName: selected.name, level: 1 }]);
+    setTowerToAdd(availableTowers.find((tower) => tower.name !== selected.name)?.name ?? "");
+    markBuildChanged();
+  }
+
+  function removeTower(towerName: string) {
+    setSelectedTowers((previous) => previous.filter((tower) => tower.towerName !== towerName));
+    markBuildChanged();
+  }
+
+  function updateTowerLevel(towerName: string, level: number) {
+    setSelectedTowers((previous) => previous.map((tower) => (
+      tower.towerName === towerName ? { ...tower, level } : tower
+    )));
+    markBuildChanged();
+  }
+
+  function updateElement(element: ElementName, value: string) {
+    const numericValue = Number(value);
+    if (!Number.isInteger(numericValue) || numericValue < 0) return;
+    setElementAllocation((previous) => ({ ...previous, [element]: numericValue }));
+    markBuildChanged();
+  }
+
+  function updateSlotLimit(value: string) {
+    const numericValue = Number(value);
+    if (!Number.isInteger(numericValue) || numericValue < 0) return;
+    setMaxTowerSlots(numericValue);
+    markBuildChanged();
+  }
+
+  async function recommendNextTower() {
+    setRecommendationLoading(true);
+    setRecommendationError(null);
+    try {
+      const response = await fetch("/api/optimize/next", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          state: { selectedTowers, elementAllocation, maxTowerSlots },
+          limit: 10,
+        }),
+      });
+      const payload = await response.json().catch(() => null) as (
+        SequentialRecommendationResponse & { error?: string; details?: string[] }
+      ) | null;
+      if (!response.ok || !payload || !("candidates" in payload)) {
+        const details = payload?.details?.join(" ");
+        throw new Error(details || payload?.error || "Recommendation evaluation failed.");
+      }
+      setRecommendationResult(payload);
+    } catch (error) {
+      setRecommendationError(error instanceof Error ? error.message : "Recommendation evaluation failed.");
+      setRecommendationResult(null);
+    } finally {
+      setRecommendationLoading(false);
+    }
+  }
+
+  const allocationExplorer = <section className="workspace">
+    <aside className="panel"><h2>Build focus</h2><p className="muted">Core = identity. Allocation = the actual strategy. This original allocation evaluator remains separate from sequential tower recommendations.</p>
+      {core.map((value, index) => <div className="field" key={index}><label>Core element {index + 1}</label><select className="select" value={value} onChange={(event) => updateCore(index, event.target.value as ElementName)}>{elements.map((element) => <option key={element}>{element}</option>)}</select></div>)}
+      <button className="primary" onClick={optimize} disabled={allocationLoading}>{allocationLoading ? "Evaluating…" : "Optimize build"}</button>
+      {allocationError && <p className="error-message" role="alert">{allocationError}</p>}
+      <div style={{ height: 10 }}/><div className="notice">Current evaluator is intentionally a foundation heuristic. UNKNOWN mechanics are not converted into invented facts.</div>
+    </aside>
+    <section className="panel"><div className="section-heading"><div><div className="eyebrow">SERVER EVALUATION</div><h2>Candidate allocations</h2></div>{summary && <div className="recommendation-value"><span>TOP FOUNDATION SCORE</span><b>{summary.score.toFixed(1)}</b></div>}</div>
+      {!results.length ? <div className="notice">Choose your core and run the evaluator to populate candidates.</div> : <div className="grid">{results.slice(0, 12).map((result, index) => <article className="tower" key={result.allocation.join("-")}><div className="rank">#{index + 1} · {result.activeElements} active elements</div><h3 className="mono">{result.allocation.join(" · ")}</h3><div className="score">{result.score.toFixed(1)}</div><div className="bar"><i style={{ width: `${Math.min(100, result.score)}%` }}/></div><div className="chips">{result.selected.map((tower) => <span className="chip" key={tower.name}>{tower.name}</span>)}</div></article>)}</div>}
+    </section>
+  </section>;
+
+  const buildLab = <section className="workspace sequential-workspace">
+    <aside className="panel build-inputs">
+      <div className="eyebrow">CURRENT BUILD</div><h2>Sequential planner</h2><p className="muted">Represent the current build, then ask the server for the next contextual tower recommendation.</p>
+      <div className="field"><label>Add tower</label><div className="inline-field"><select className="select" value={availableTowers.some((tower) => tower.name === towerToAdd) ? towerToAdd : availableTowers[0]?.name ?? ""} onChange={(event) => setTowerToAdd(event.target.value)} disabled={availableTowers.length === 0}>{availableTowers.map((tower) => <option key={tower.name} value={tower.name}>{tower.name} · {tower.type}</option>)}</select><button className="btn" onClick={addTower} disabled={availableTowers.length === 0}>Add</button></div></div>
+      {selectedTowerDetails.length === 0 ? <div className="notice">No towers selected. You can still inspect opening options from the allocated elements.</div> : <div className="selected-towers">{selectedTowerDetails.map(({ selected, tower }) => <div className="selected-tower" key={selected.towerName}><div><b>{selected.towerName}</b><span>{tower?.type} · {tower?.recipe.join(" + ")}</span></div><div className="tower-controls"><label>Level<select className="small-select" value={selected.level} onChange={(event) => updateTowerLevel(selected.towerName, Number(event.target.value))}>{Array.from({ length: tower?.maxLevel ?? 1 }, (_, index) => index + 1).map((level) => <option key={level} value={level}>{level}</option>)}</select></label><button className="remove" onClick={() => removeTower(selected.towerName)}>Remove</button></div></div>)}</div>}
+      <div className="field"><label>Maximum tower slots</label><input className="input" type="number" min={0} step={1} value={maxTowerSlots} onChange={(event) => updateSlotLimit(event.target.value)}/></div>
+      <div className="field"><label>Element allocation <span>{Object.values(elementAllocation).reduce((total, value) => total + value, 0)} allocated</span></label><div className="element-grid">{elements.map((element) => <label className="element-input" key={element}><span>{element}</span><input className="input" type="number" min={0} step={1} value={elementAllocation[element]} onChange={(event) => updateElement(element, event.target.value)}/></label>)}</div></div>
+      <button className="primary" onClick={recommendNextTower} disabled={recommendationLoading}>{recommendationLoading ? "Evaluating…" : "Recommend next tower"}</button>
+      {recommendationError && <p className="error-message" role="alert">{recommendationError}</p>}
+    </aside>
+    <section className="recommendation-results">
+      {!recommendationResult ? <section className="panel"><div className="eyebrow">SEQUENTIAL ENGINE</div><h2>Next-tower recommendations</h2><p className="muted">The engine evaluates the current build state on the server. Results include build-specific strengths, tradeoffs, and confidence—never a universal tower score.</p>{selectedTowers.length === 0 && <div className="notice">Empty build: add a tower or allocate elements to explore the first legal additions.</div>}</section> : <>
+        <section className="panel interpretation-summary"><div className="section-heading"><div><div className="eyebrow">CURRENT BUILD INTERPRETATION</div><h2>Why the engine is looking for these things</h2></div><span className="engine-version">{recommendationResult.engineVersion}</span></div><div className="summary-grid"><div><h3>Strategic profiles</h3>{recommendationResult.interpretation.strategicProfiles.length ? <div className="chips">{recommendationResult.interpretation.strategicProfiles.map((profile) => <span className="chip" key={profile.key}>{profile.key}</span>)}</div> : <p className="muted small">No active strategic profiles yet.</p>}</div><div><h3>Vulnerabilities</h3>{recommendationResult.interpretation.vulnerabilities.length ? <ul className="compact-list">{recommendationResult.interpretation.vulnerabilities.map((vulnerability) => <li key={vulnerability.capability}>{vulnerability.capability}</li>)}</ul> : <p className="muted small">No meaningful vulnerabilities identified.</p>}</div><div><h3>Relevant gaps</h3>{recommendationResult.interpretation.relevantGaps.length ? <ul className="compact-list">{recommendationResult.interpretation.relevantGaps.map((gap) => <li key={gap.capability}>{gap.capability} · {gap.status}</li>)}</ul> : <p className="muted small">No relevant gaps identified.</p>}</div><div><h3>Compensations</h3>{recommendationResult.interpretation.compensations.length ? <ul className="compact-list">{recommendationResult.interpretation.compensations.map((compensation) => <li key={compensation.gapCapability}>{compensation.gapCapability} via {compensation.compensatingCapabilities.join(", ")}</li>)}</ul> : <p className="muted small">No validated compensations active.</p>}</div></div></section>
+        {recommendationResult.warnings.map((warning) => <div className="notice" key={warning}>{warning}</div>)}
+        {recommendationResult.topRecommendation ? <section className="panel"><div className="eyebrow">TOP RECOMMENDATION</div><RecommendationCard recommendation={recommendationResult.topRecommendation} prominent/></section> : <section className="panel"><h2>No legal next tower</h2><p className="muted">Adjust tower slots, selected towers, or element allocation, then try again.</p></section>}
+        {recommendationResult.candidates.length > 1 && <section className="panel"><div className="eyebrow">RANKED ALTERNATIVES</div><h2>Other contextual fits</h2><div className="recommendation-list">{recommendationResult.candidates.slice(1).map((item) => <RecommendationCard recommendation={item} key={item.candidate.towerName}/>)}</div></section>}
+      </>}
+    </section>
+  </section>;
 
   return <main className="shell">
     <header className="top">
       <div className="brand"><div className="logo"/><div><b>ELEMENT TD 2 · BUILD LAB</b><span>FULL-STACK RESEARCH & DECISION PLATFORM</span></div></div>
-      <span className="eyebrow">FOUNDATION v0.1</span>
+      <span className="eyebrow">SEQUENTIAL v1</span>
     </header>
 
     <section className="hero">
-      <div className="panel"><div className="eyebrow">THE BUILD IS THE DATASET</div><h1>Turn Build Lab into a real application.</h1><p className="muted">This is the first vertical slice: the V8 catalog and mechanics records are now separated from the UI, allocation evaluation is server-side, and the architecture is ready for persistent research data, scenario history, and a real decision engine.</p></div>
-      <div className="panel stats"><div className="stat"><b>50</b><span>CATALOG TOWERS</span></div><div className="stat"><b>6</b><span>ELEMENTS</span></div><div className="stat"><b>{legalCount || "—"}</b><span>LEGAL CORE ALLOCATIONS</span></div><div className="stat"><b>{results.length || "—"}</b><span>RETURNED CANDIDATES</span></div></div>
+      <div className="panel"><div className="eyebrow">THE BUILD IS THE DATASET</div><h1>Ask what the build needs next.</h1><p className="muted">Build Lab turns the current tower state into contextual next-tower recommendations. The Allocation Explorer remains available for its original core-allocation workflow.</p></div>
+      <div className="panel stats"><div className="stat"><b>50</b><span>CATALOG TOWERS</span></div><div className="stat"><b>6</b><span>ELEMENTS</span></div><div className="stat"><b>{legalCount || "—"}</b><span>LEGAL CORE ALLOCATIONS</span></div><div className="stat"><b>{recommendationResult?.candidates.length ?? "—"}</b><span>NEXT-TOWER RESULTS</span></div></div>
     </section>
 
-    <nav className="nav">{["Build Lab","What If","Allocation Explorer","Core Explorer","Tower Codex","Research","Debug"].map((x)=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</nav>
+    <nav className="nav">{["Build Lab", "Allocation Explorer", "What If", "Core Explorer", "Tower Codex", "Research", "Debug"].map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}</nav>
 
-    {tab !== "Build Lab" ? <section className="panel"><div className="eyebrow">NEXT MODULE</div><h2 style={{margin:"8px 0"}}>{tab}</h2><p className="muted">The route is reserved in the application shell. We will migrate this module onto the shared domain model instead of duplicating the old HTML/JS logic.</p></section> : <section className="workspace">
-      <aside className="panel"><h2>Build focus</h2><p className="muted">Core = identity. Allocation = the actual 11-point strategy. Anchor, scenarios, evidence and the hierarchical V8 decision engine are the next layers.</p>
-        {core.map((value,i)=><div className="field" key={i}><label>Core element {i+1}</label><select className="select" value={value} onChange={e=>updateCore(i,e.target.value as ElementName)}>{elements.map(e=><option key={e}>{e}</option>)}</select></div>)}
-        <button className="primary" onClick={optimize} disabled={loading}>{loading?"Evaluating…":"Optimize build"}</button>
-        <div style={{height:10}}/><div className="notice">Current evaluator is intentionally a foundation heuristic. The supplied V8 engine remains the source for the next migration pass; UNKNOWN mechanics are not converted into invented facts.</div>
-      </aside>
-      <section className="panel"><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"start"}}><div><div className="eyebrow">SERVER EVALUATION</div><h2 style={{margin:"7px 0"}}>Candidate allocations</h2></div>{summary&&<div style={{textAlign:"right"}}><div className="rank">Top foundation score</div><div className="score">{summary.score.toFixed(1)}</div></div>}</div>
-        {!results.length ? <div className="notice" style={{marginTop:14}}>Choose your core and run the evaluator to populate candidates.</div> : <div className="grid" style={{marginTop:14}}>{results.slice(0,12).map((r,i)=><article className="tower" key={r.allocation.join("-")}><div className="rank">#{i+1} · {r.activeElements} active elements</div><h3 className="mono">{r.allocation.join(" · ")}</h3><div className="score">{r.score.toFixed(1)}</div><div className="bar"><i style={{width:`${Math.min(100,r.score)}%`}}/></div><div className="chips">{r.selected.map(t=><span className="chip" key={t.name}>{t.name}</span>)}</div></article>)}</div>}
-      </section>
-    </section>}
+    {tab === "Build Lab" ? buildLab : tab === "Allocation Explorer" ? allocationExplorer : <section className="panel"><div className="eyebrow">NEXT MODULE</div><h2 style={{ margin: "8px 0" }}>{tab}</h2><p className="muted">The route is reserved in the application shell. It will use the shared domain model rather than duplicate engine logic.</p></section>}
 
-    <footer className="muted" style={{fontSize:11,textAlign:"center",marginTop:18}}>Foundation derived from the supplied Element TD 2 Build Lab V8 independent-evaluation engine.</footer>
+    <footer className="muted footer">Sequential recommendations are build-specific contextual values, not universal tower strength ratings.</footer>
   </main>;
 }

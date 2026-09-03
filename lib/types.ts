@@ -376,6 +376,34 @@ export type CandidateRanking = Readonly<{
   topRecommendation: RankedCandidate | null;
 }>;
 
+export type SequentialInterpretationSummary = Readonly<{
+  strategicProfiles: readonly StrategicProfile[];
+  vulnerabilities: readonly Vulnerability[];
+  relevantGaps: readonly CapabilityGap[];
+  compensations: readonly Compensation[];
+}>;
+
+export type SerializedRankedCandidate = Readonly<{
+  rank: number;
+  candidate: LegalNextCandidate;
+  contextualValue: number;
+  confidence: RecommendationConfidence;
+  category: RecommendationCategory;
+  strengths: readonly RecommendationReason[];
+  tradeoffs: readonly RecommendationReason[];
+  warnings: readonly RecommendationReason[];
+  components: readonly RankingComponentResult[];
+}>;
+
+export type SequentialRecommendationResponse = Readonly<{
+  engineVersion: string;
+  state: BuildState;
+  interpretation: SequentialInterpretationSummary;
+  topRecommendation: SerializedRankedCandidate | null;
+  candidates: readonly SerializedRankedCandidate[];
+  warnings: readonly string[];
+}>;
+
 export type Candidate = {
   allocation: Allocation;
   score: number;
