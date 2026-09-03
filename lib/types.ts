@@ -512,6 +512,16 @@ export type SerializedFuturePathRanking = Readonly<{
   comparison: FuturePathComparison;
 }>;
 
+export type NoLegalCandidateReasonCode =
+  | "no-remaining-tower-slots"
+  | "no-unlocked-catalog-towers"
+  | "all-unlocked-towers-selected";
+
+export type NoLegalCandidateReason = Readonly<{
+  code: NoLegalCandidateReasonCode;
+  message: string;
+}>;
+
 export type SequentialRecommendationResponse = Readonly<{
   engineVersion: string;
   state: BuildState;
@@ -519,6 +529,7 @@ export type SequentialRecommendationResponse = Readonly<{
   topRecommendation: SerializedRankedCandidate | null;
   candidates: readonly SerializedRankedCandidate[];
   warnings: readonly string[];
+  noLegalCandidateReason: NoLegalCandidateReason | null;
   intent?: IntentSummary;
   lookahead?: SerializedFuturePathRanking;
 }>;

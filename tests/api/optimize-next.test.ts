@@ -108,9 +108,40 @@ describe("POST /api/optimize/next", () => {
     expect(response.status).toBe(200);
     expect(payload.topRecommendation).toBeNull();
     expect(payload.candidates).toEqual([]);
-    expect(payload.warnings).toEqual([
-      "No legal next towers are available for the current build state.",
-    ]);
+    expect(payload.noLegalCandidateReason).toMatchObject({
+      code: "no-remaining-tower-slots",
+      message: expect.stringContaining("tower slots are in use"),
+    });
+    expect(payload.warnings).toEqual([payload.noLegalCandidateReason?.message]);
+  });
+
+  it("explains whether elements or selected towers caused an empty candidate set", async () => {
+    const noUnlockedTower = await nextRecommendationPost(jsonRequest({
+      state: buildState({
+        selectedTowers: [],
+        elementAllocation: allocation(),
+      }),
+    }));
+    const allUnlockedSelected = await nextRecommendationPost(jsonRequest({
+      state: buildState({
+        selectedTowers: [{ towerName: "Trickery", level: 1 }],
+        elementAllocation: allocation({ Light: 1, Darkness: 1 }),
+        maxTowerSlots: 2,
+      }),
+    }));
+
+    await expect(noUnlockedTower.json()).resolves.toMatchObject({
+      noLegalCandidateReason: {
+        code: "no-unlocked-catalog-towers",
+        message: expect.stringContaining("Additional element investment"),
+      },
+    });
+    await expect(allUnlockedSelected.json()).resolves.toMatchObject({
+      noLegalCandidateReason: {
+        code: "all-unlocked-towers-selected",
+        message: expect.stringContaining("already selected"),
+      },
+    });
   });
 
   it("serializes the same ranking order produced by the engine", async () => {

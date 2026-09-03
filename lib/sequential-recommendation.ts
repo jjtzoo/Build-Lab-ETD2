@@ -2,6 +2,7 @@ import { interpretBuild } from "@/lib/engine/build-interpreter";
 import type { BuildIntent } from "@/lib/engine/build-intent";
 import { rankLegalCandidates } from "@/lib/engine/candidate-ranking";
 import { rankFuturePaths } from "@/lib/engine/future-path";
+import { explainNoLegalNextCandidate } from "@/lib/engine/legal-candidates";
 import type {
   BuildState,
   FuturePath,
@@ -80,6 +81,9 @@ export function createSequentialRecommendationResponse(
   );
   const topRecommendation = candidates[0] ?? null;
   const interpretation = interpretBuild(state);
+  const noLegalCandidateReason = candidates.length === 0
+    ? explainNoLegalNextCandidate(state)
+    : null;
 
   return Object.freeze({
     engineVersion: SEQUENTIAL_ENGINE_VERSION,
@@ -94,9 +98,8 @@ export function createSequentialRecommendationResponse(
     }),
     topRecommendation,
     candidates,
-    warnings: Object.freeze(candidates.length === 0
-      ? ["No legal next towers are available for the current build state."]
-      : []),
+    warnings: Object.freeze(noLegalCandidateReason ? [noLegalCandidateReason.message] : []),
+    noLegalCandidateReason,
     ...(ranking.intent ? { intent: ranking.intent } : {}),
     ...(lookaheadEnabled ? { lookahead: serializeFuturePathRanking(rankFuturePaths(state, intent)) } : {}),
   });
