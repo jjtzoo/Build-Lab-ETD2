@@ -418,6 +418,52 @@ export type CandidateRanking = Readonly<{
   intent?: IntentSummary;
 }>;
 
+export type FuturePathStep = "first" | "second";
+
+export type FuturePathReason = Readonly<{
+  step: FuturePathStep;
+  reason: RecommendationReason;
+}>;
+
+export type FuturePathExplanation = Readonly<{
+  immediate: string;
+  continuation: string;
+  policy: string;
+}>;
+
+export type FuturePath = Readonly<{
+  rank: number;
+  first: RankedCandidate;
+  stateAfterFirst: BuildState;
+  second: RankedCandidate | null;
+  stateAfterSecond: BuildState | null;
+  continuationStatus: "available" | "unavailable";
+  immediateValue: number;
+  continuationValue: number | null;
+  pathValue: number;
+  confidence: RecommendationConfidence;
+  strengths: readonly FuturePathReason[];
+  tradeoffs: readonly FuturePathReason[];
+  warnings: readonly FuturePathReason[];
+  explanation: FuturePathExplanation;
+}>;
+
+export type FuturePathComparison = Readonly<{
+  immediateTopCandidate: string | null;
+  bestPathFirstCandidate: string | null;
+  differs: boolean;
+  detail: string;
+}>;
+
+export type FuturePathRanking = Readonly<{
+  firstStepLimit: number;
+  futureDiscount: number;
+  immediateTopRecommendation: RankedCandidate | null;
+  paths: readonly FuturePath[];
+  bestPath: FuturePath | null;
+  comparison: FuturePathComparison;
+}>;
+
 export type SequentialInterpretationSummary = Readonly<{
   strategicProfiles: readonly StrategicProfile[];
   vulnerabilities: readonly Vulnerability[];
@@ -438,6 +484,32 @@ export type SerializedRankedCandidate = Readonly<{
   intentAlignment?: CandidateIntentAlignment;
 }>;
 
+export type SerializedFuturePath = Readonly<{
+  rank: number;
+  first: SerializedRankedCandidate;
+  stateAfterFirst: BuildState;
+  second: SerializedRankedCandidate | null;
+  stateAfterSecond: BuildState | null;
+  continuationStatus: "available" | "unavailable";
+  immediateValue: number;
+  continuationValue: number | null;
+  pathValue: number;
+  confidence: RecommendationConfidence;
+  strengths: readonly FuturePathReason[];
+  tradeoffs: readonly FuturePathReason[];
+  warnings: readonly FuturePathReason[];
+  explanation: FuturePathExplanation;
+}>;
+
+export type SerializedFuturePathRanking = Readonly<{
+  firstStepLimit: number;
+  futureDiscount: number;
+  immediateTopRecommendation: SerializedRankedCandidate | null;
+  paths: readonly SerializedFuturePath[];
+  bestPath: SerializedFuturePath | null;
+  comparison: FuturePathComparison;
+}>;
+
 export type SequentialRecommendationResponse = Readonly<{
   engineVersion: string;
   state: BuildState;
@@ -446,6 +518,7 @@ export type SequentialRecommendationResponse = Readonly<{
   candidates: readonly SerializedRankedCandidate[];
   warnings: readonly string[];
   intent?: IntentSummary;
+  lookahead?: SerializedFuturePathRanking;
 }>;
 
 export type Candidate = {

@@ -11,6 +11,7 @@ import type {
   RecommendationReason,
   SelectedTowerInput,
   SequentialRecommendationResponse,
+  SerializedFuturePath,
   SerializedRankedCandidate,
   StrategicProfileKey,
 } from "@/lib/types";
@@ -97,6 +98,44 @@ function RecommendationCard({
   </article>;
 }
 
+function pathReasonList(
+  title: string,
+  path: SerializedFuturePath,
+  kind: "strengths" | "tradeoffs" | "warnings",
+) {
+  const reasons = path[kind];
+  if (reasons.length === 0) return null;
+  return <div className="reason-group">
+    <div className="reason-title">{title}</div>
+    <ul className="reason-list">
+      {reasons.map((item, index) => <li key={`${item.step}-${item.reason.component}-${item.reason.key}-${index}`}>
+        <b>{item.step === "first" ? "First: " : "Second: "}</b>{item.reason.detail}
+      </li>)}
+    </ul>
+  </div>;
+}
+
+function FuturePathCard({ path }: { path: SerializedFuturePath }) {
+  return <article className="recommendation top-recommendation">
+    <div className="recommendation-head">
+      <div>
+        <div className="rank">PATH #{path.rank} · {path.confidence} confidence</div>
+        <h3>{path.first.candidate.towerName} <span className="muted">→</span> {path.second?.candidate.towerName ?? "No legal continuation"}</h3>
+        <div className="muted small">{path.explanation.continuation}</div>
+      </div>
+      <div className="recommendation-value">
+        <b>{path.pathValue}</b>
+        <span>PATH VALUE</span>
+        <em>Now {path.immediateValue} · Then {path.continuationValue ?? "—"}</em>
+      </div>
+    </div>
+    <p className="muted small">{path.explanation.policy}</p>
+    {pathReasonList("Path strengths", path, "strengths")}
+    {pathReasonList("Path tradeoffs", path, "tradeoffs")}
+    {pathReasonList("Path warnings", path, "warnings")}
+  </article>;
+}
+
 export default function Home() {
   const [core, setCore] = useState<ElementName[]>(["Light", "Darkness", "Fire"]);
   const [results, setResults] = useState<Candidate[]>([]);
@@ -113,6 +152,7 @@ export default function Home() {
   const [intentPriority, setIntentPriority] = useState<"explore" | "balanced" | "maximum-depth">("balanced");
   const [preferredProfile, setPreferredProfile] = useState<StrategicProfileKey | "">("");
   const [intentMode, setIntentMode] = useState<"normal" | "explore">("normal");
+  const [twoStepPlanning, setTwoStepPlanning] = useState(false);
   const [recommendationResult, setRecommendationResult] = useState<SequentialRecommendationResponse | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
@@ -212,6 +252,7 @@ export default function Home() {
               mode: intentMode,
             },
           } : {}),
+          ...(twoStepPlanning ? { lookahead: { enabled: true } } : {}),
           limit: 10,
         }),
       });
@@ -251,12 +292,14 @@ export default function Home() {
       <div className="field"><label>Maximum tower slots</label><input className="input" type="number" min={0} step={1} value={maxTowerSlots} onChange={(event) => updateSlotLimit(event.target.value)}/></div>
       <div className="field"><label>Element allocation <span>{Object.values(elementAllocation).reduce((total, value) => total + value, 0)} allocated</span></label><div className="element-grid">{elements.map((element) => <label className="element-input" key={element}><span>{element}</span><input className="input" type="number" min={0} step={1} value={elementAllocation[element]} onChange={(event) => updateElement(element, event.target.value)}/></label>)}</div></div>
       <div className="field"><label>Build intent <span>optional</span></label><p className="muted small">Intent adjusts decision priority; it does not change what the current build objectively contains.</p><label>Focal tower<select className="select" value={focalTower} onChange={(event) => { setFocalTower(event.target.value); markBuildChanged(); }}><option value="">No focal tower</option>{towerOptions.map((tower) => <option key={tower.name} value={tower.name}>{tower.name}</option>)}</select></label><label>Priority<select className="select" value={intentPriority} onChange={(event) => { setIntentPriority(event.target.value as typeof intentPriority); markBuildChanged(); }}><option value="explore">Explore · weak preference</option><option value="balanced">Balanced · shared influence</option><option value="maximum-depth">Maximum depth · strong preference</option></select></label><label>Desired profile<select className="select" value={preferredProfile} onChange={(event) => { setPreferredProfile(event.target.value as StrategicProfileKey | ""); markBuildChanged(); }}><option value="">No requested profile</option>{strategicProfileOptions.map((profile) => <option key={profile.key} value={profile.key}>{profile.label}</option>)}</select></label><label>Intent mode<select className="select" value={intentMode} onChange={(event) => { setIntentMode(event.target.value as typeof intentMode); markBuildChanged(); }}><option value="normal">Normal · preserve coherence</option><option value="explore">Explore · modest breadth</option></select></label></div>
+      <div className="field"><label>Planning horizon <span>optional</span></label><label className="planning-toggle"><input type="checkbox" checked={twoStepPlanning} onChange={(event) => { setTwoStepPlanning(event.target.checked); markBuildChanged(); }}/> Evaluate the best legal next continuation</label><p className="muted small">Evaluates only the top current options, then one legal follow-up for each.</p></div>
       <button className="primary" onClick={recommendNextTower} disabled={recommendationLoading}>{recommendationLoading ? "Evaluating…" : "Recommend next tower"}</button>
       {recommendationError && <p className="error-message" role="alert">{recommendationError}</p>}
     </aside>
     <section className="recommendation-results">
       {!recommendationResult ? <section className="panel"><div className="eyebrow">SEQUENTIAL ENGINE</div><h2>Next-tower recommendations</h2><p className="muted">The engine evaluates the current build state on the server. Results include build-specific strengths, tradeoffs, and confidence—never a universal tower score.</p>{selectedTowers.length === 0 && <div className="notice">Empty build: add a tower or allocate elements to explore the first legal additions.</div>}</section> : <>
         <section className="panel interpretation-summary"><div className="section-heading"><div><div className="eyebrow">CURRENT BUILD INTERPRETATION</div><h2>Why the engine is looking for these things</h2></div><span className="engine-version">{recommendationResult.engineVersion}</span></div><div className="summary-grid"><div><h3>Strategic profiles</h3>{recommendationResult.interpretation.strategicProfiles.length ? <div className="chips">{recommendationResult.interpretation.strategicProfiles.map((profile) => <span className="chip" key={profile.key}>{profile.key}</span>)}</div> : <p className="muted small">No active strategic profiles yet.</p>}</div><div><h3>Vulnerabilities</h3>{recommendationResult.interpretation.vulnerabilities.length ? <ul className="compact-list">{recommendationResult.interpretation.vulnerabilities.map((vulnerability) => <li key={vulnerability.capability}>{vulnerability.capability}</li>)}</ul> : <p className="muted small">No meaningful vulnerabilities identified.</p>}</div><div><h3>Relevant gaps</h3>{recommendationResult.interpretation.relevantGaps.length ? <ul className="compact-list">{recommendationResult.interpretation.relevantGaps.map((gap) => <li key={gap.capability}>{gap.capability} · {gap.status}</li>)}</ul> : <p className="muted small">No relevant gaps identified.</p>}</div><div><h3>Compensations</h3>{recommendationResult.interpretation.compensations.length ? <ul className="compact-list">{recommendationResult.interpretation.compensations.map((compensation) => <li key={compensation.gapCapability}>{compensation.gapCapability} via {compensation.compensatingCapabilities.join(", ")}</li>)}</ul> : <p className="muted small">No validated compensations active.</p>}</div></div>{recommendationResult.intent && <div className="notice"><b>Player intent · {recommendationResult.intent.alignment.replace("-", " ")}</b><div className="chips">{recommendationResult.intent.focusedTowers.map((focus) => <span className="chip" key={focus.towerName}>{focus.towerName} · {focus.priority}</span>)}{recommendationResult.intent.preferredProfiles.map((profile) => <span className="chip" key={profile}>{profile}</span>)}</div>{recommendationResult.intent.conflicts.map((conflict) => <p className="muted small" key={conflict.key}>{conflict.detail}</p>)}{recommendationResult.intent.notes.map((note) => <p className="muted small" key={note}>{note}</p>)}</div>}</section>
+        {recommendationResult.lookahead && <section className="panel"><div className="section-heading"><div><div className="eyebrow">BOUNDED TWO-STEP PLAN</div><h2>Best two-step path</h2></div><span className="engine-version">top {recommendationResult.lookahead.firstStepLimit} · {recommendationResult.lookahead.futureDiscount} future discount</span></div>{recommendationResult.lookahead.comparison.differs && <div className="notice"><b>Immediate top: {recommendationResult.lookahead.comparison.immediateTopCandidate}</b><br/><b>Best two-step first pick: {recommendationResult.lookahead.comparison.bestPathFirstCandidate}</b><p className="muted small">{recommendationResult.lookahead.comparison.detail}</p></div>}{recommendationResult.lookahead.bestPath ? <FuturePathCard path={recommendationResult.lookahead.bestPath}/> : <p className="muted">No legal first-step path is available for this build.</p>}</section>}
         {recommendationResult.warnings.map((warning) => <div className="notice" key={warning}>{warning}</div>)}
         {recommendationResult.topRecommendation ? <section className="panel"><div className="eyebrow">TOP RECOMMENDATION</div><RecommendationCard recommendation={recommendationResult.topRecommendation} prominent/></section> : <section className="panel"><h2>No legal next tower</h2><p className="muted">Adjust tower slots, selected towers, or element allocation, then try again.</p></section>}
         {recommendationResult.candidates.length > 1 && <section className="panel"><div className="eyebrow">RANKED ALTERNATIVES</div><h2>Other contextual fits</h2><div className="recommendation-list">{recommendationResult.candidates.slice(1).map((item) => <RecommendationCard recommendation={item} key={item.candidate.towerName}/>)}</div></section>}

@@ -493,15 +493,24 @@ export function rankCandidateChanges(
   });
 }
 
-export function rankLegalCandidates(
+export function rankLegalCandidatesWithResolvedIntent(
   state: BuildState,
-  rawIntent?: BuildIntent,
+  intent?: ResolvedBuildIntent,
 ): CandidateRanking {
-  const intent = rawIntent ? resolveBuildIntent(rawIntent) : undefined;
   const intentSummary = intent ? summarizeResolvedIntent(
     interpretBuild(state),
     intent,
     state.selectedTowers.map((selected) => selected.towerName),
   ) : undefined;
   return rankCandidateChanges(evaluateLegalCandidateChanges(state), intent, intentSummary);
+}
+
+export function rankLegalCandidates(
+  state: BuildState,
+  rawIntent?: BuildIntent,
+): CandidateRanking {
+  return rankLegalCandidatesWithResolvedIntent(
+    state,
+    rawIntent ? resolveBuildIntent(rawIntent) : undefined,
+  );
 }

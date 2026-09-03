@@ -47,6 +47,9 @@ const nextRecommendationRequestSchema = z.object({
   state: buildStateRequestSchema,
   intent: buildIntentRequestSchema.optional(),
   limit: z.number().int().min(1).max(20).optional(),
+  lookahead: z.object({
+    enabled: z.boolean(),
+  }).strict().optional(),
 }).strict();
 
 function invalidRequest(message: string, details?: readonly string[]) {
@@ -72,6 +75,7 @@ export async function POST(request: Request) {
         state,
         parsed.data.limit ?? 10,
         parsed.data.intent as BuildIntent | undefined,
+        parsed.data.lookahead?.enabled ?? false,
       ),
     );
   } catch (error) {

@@ -51,6 +51,7 @@ describe("POST /api/optimize/next", () => {
     expect(payload.topRecommendation).toEqual(payload.candidates[0]);
     expect(payload.candidates.every((candidate) => candidate.rank >= 1)).toBe(true);
     expect(payload.intent).toBeUndefined();
+    expect(payload.lookahead).toBeUndefined();
   });
 
   it("returns 400 for an unknown tower", async () => {
@@ -159,6 +160,38 @@ describe("POST /api/optimize/next", () => {
       expect.objectContaining({ component: "intent-profile-alignment", key: "scaling" }),
       expect.objectContaining({ component: "intent-capability-alignment", key: "attackSpeedScaling" }),
     ]));
+  });
+
+  it("returns normal one-step data plus structured two-step paths when requested", async () => {
+    const input = buildState({
+      selectedTowers: [{ towerName: "Windstorm", level: 1 }],
+      elementAllocation: allocation({ Light: 1, Darkness: 1, Water: 1, Fire: 1, Earth: 1 }),
+    });
+    const response = await nextRecommendationPost(jsonRequest({
+      state: input,
+      limit: 20,
+      intent: {
+        focusedTowers: [{ tower: "Windstorm", priority: "maximum-depth" }],
+        mode: "normal",
+      },
+      lookahead: { enabled: true },
+    }));
+    const payload = await response.json() as SequentialRecommendationResponse;
+
+    expect(response.status).toBe(200);
+    expect(payload.topRecommendation?.candidate.towerName).toBe("Runic");
+    expect(payload.lookahead?.immediateTopRecommendation).toEqual(payload.topRecommendation);
+    expect(payload.lookahead?.bestPath).toMatchObject({
+      first: { candidate: { towerName: "Flamethrower" } },
+      second: { candidate: { towerName: "Rage" } },
+      immediateValue: 16,
+      continuationValue: 28,
+      pathValue: 30,
+    });
+    expect(payload.lookahead?.comparison).toMatchObject({ differs: true });
+    expect(payload.lookahead?.bestPath?.first.contextualValue).toBe(
+      payload.lookahead?.bestPath?.immediateValue,
+    );
   });
 
   it("preserves the existing allocation explorer endpoint", async () => {
