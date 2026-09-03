@@ -57,6 +57,7 @@ function serializeFuturePathRanking(
   const paths = Object.freeze(ranking.paths.map(serializeFuturePath));
   return Object.freeze({
     firstStepLimit: ranking.firstStepLimit,
+    immediateWeight: ranking.immediateWeight,
     futureDiscount: ranking.futureDiscount,
     immediateTopRecommendation: ranking.immediateTopRecommendation
       ? serializeCandidate(ranking.immediateTopRecommendation)

@@ -457,6 +457,7 @@ export type FuturePathComparison = Readonly<{
 
 export type FuturePathRanking = Readonly<{
   firstStepLimit: number;
+  immediateWeight: number;
   futureDiscount: number;
   immediateTopRecommendation: RankedCandidate | null;
   paths: readonly FuturePath[];
@@ -503,6 +504,7 @@ export type SerializedFuturePath = Readonly<{
 
 export type SerializedFuturePathRanking = Readonly<{
   firstStepLimit: number;
+  immediateWeight: number;
   futureDiscount: number;
   immediateTopRecommendation: SerializedRankedCandidate | null;
   paths: readonly SerializedFuturePath[];

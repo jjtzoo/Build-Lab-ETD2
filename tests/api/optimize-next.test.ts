@@ -86,6 +86,19 @@ describe("POST /api/optimize/next", () => {
     await expect(response.json()).resolves.toMatchObject({ code: "duplicate-tower" });
   });
 
+  it("rejects an invalid element allocation before evaluating the build", async () => {
+    const response = await nextRecommendationPost(jsonRequest({
+      state: buildState({
+        elementAllocation: allocation({ Darkness: -1 }),
+      }),
+    }));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Request must contain a valid build state and an optional limit from 1 to 20.",
+    });
+  });
+
   it("returns an explicit empty response when no next tower slot remains", async () => {
     const response = await nextRecommendationPost(jsonRequest({
       state: buildState({ maxTowerSlots: 1 }),
@@ -192,6 +205,57 @@ describe("POST /api/optimize/next", () => {
     expect(payload.lookahead?.bestPath?.first.contextualValue).toBe(
       payload.lookahead?.bestPath?.immediateValue,
     );
+    expect(payload.lookahead?.immediateWeight).toBe(1);
+  });
+
+  it("returns explicit one-step-only paths when look-ahead has no remaining slot", async () => {
+    const response = await nextRecommendationPost(jsonRequest({
+      state: buildState({ maxTowerSlots: 2 }),
+      lookahead: { enabled: true },
+    }));
+    const payload = await response.json() as SequentialRecommendationResponse;
+
+    expect(response.status).toBe(200);
+    expect(payload.lookahead?.paths).not.toHaveLength(0);
+    expect(payload.lookahead?.paths.every((path) => (
+      path.continuationStatus === "unavailable" && path.second === null
+    ))).toBe(true);
+  });
+
+  it("reports a selected focal tower as selected instead of treating it as an invalid intent", async () => {
+    const response = await nextRecommendationPost(jsonRequest({
+      state: buildState(),
+      intent: {
+        focusedTowers: [{ tower: "Poison", priority: "balanced" }],
+        mode: "normal",
+      },
+    }));
+    const payload = await response.json() as SequentialRecommendationResponse;
+
+    expect(response.status).toBe(200);
+    expect(payload.intent?.focusedTowers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ towerName: "Poison", selected: true }),
+    ]));
+  });
+
+  it("keeps repeated recommendation requests deterministic and stateless", async () => {
+    const requestBody = {
+      state: buildState(),
+      limit: 5,
+      lookahead: { enabled: true },
+    };
+    const [firstResponse, secondResponse] = await Promise.all([
+      nextRecommendationPost(jsonRequest(requestBody)),
+      nextRecommendationPost(jsonRequest(requestBody)),
+    ]);
+    const [first, second] = await Promise.all([
+      firstResponse.json() as Promise<SequentialRecommendationResponse>,
+      secondResponse.json() as Promise<SequentialRecommendationResponse>,
+    ]);
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(second).toEqual(first);
   });
 
   it("preserves the existing allocation explorer endpoint", async () => {

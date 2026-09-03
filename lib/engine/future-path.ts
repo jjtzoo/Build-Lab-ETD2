@@ -150,6 +150,7 @@ export function rankFuturePathsWithResolvedIntent(
 
   return Object.freeze({
     firstStepLimit: LOOKAHEAD_POLICY.firstStepLimit,
+    immediateWeight: LOOKAHEAD_POLICY.immediateWeight,
     futureDiscount: LOOKAHEAD_POLICY.futureDiscount,
     immediateTopRecommendation: firstStepRanking.topRecommendation,
     paths: Object.freeze(paths),
