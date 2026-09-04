@@ -104,13 +104,12 @@ export function labelEngineKey(key: string): string {
 
 /** Replaces canonical identifiers only at the presentation boundary. */
 export function humanizeEngineText(text: string): string {
-  const labels = [
+  const labels = Object.fromEntries([
     ...Object.entries(STRATEGIC_PROFILE_LABELS),
     ...Object.entries(CAPABILITY_LABELS),
-  ].sort(([left], [right]) => right.length - left.length);
-
-  return labels.reduce(
-    (humanized, [key, label]) => humanized.replaceAll(key, label),
-    text,
-  );
+  ]);
+  // Replace complete identifiers in one pass; ordinary prose such as
+  // "supported" and "networked" must not be changed by substring matches.
+  const identifiers = new RegExp(`\\b(${Object.keys(labels).join("|")})\\b`, "g");
+  return text.replace(identifiers, (key) => labels[key]);
 }

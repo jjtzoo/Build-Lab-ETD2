@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CurrentBuild, TowerSelector } from "@/components/CurrentBuild";
+import { ElementBadge } from "@/components/ElementBadge";
+import { RecommendationResults } from "@/components/Recommendations";
 
 import {
   createBuildLabIntent,
@@ -25,10 +28,8 @@ import type {
   Candidate,
   ElementAllocation,
   ElementName,
-  RecommendationReason,
   SelectedTowerInput,
   SequentialRecommendationResponse,
-  SerializedFuturePath,
   SerializedRankedCandidate,
   StrategicProfileKey,
 } from "@/lib/types";
@@ -59,95 +60,6 @@ const strategicProfileOptions: readonly Readonly<{
   { key: "isolation", label: labelStrategicProfile("isolation") },
   { key: "executionFinisher", label: labelStrategicProfile("executionFinisher") },
 ];
-
-function reasonList(title: string, reasons: readonly RecommendationReason[]) {
-  if (reasons.length === 0) return null;
-  return <div className="reason-group">
-    <div className="reason-title">{title}</div>
-    <ul className="reason-list">
-      {reasons.map((reason, index) => <li key={`${reason.component}-${reason.key}-${index}`}>
-        {humanizeEngineText(reason.detail)}
-      </li>)}
-    </ul>
-  </div>;
-}
-
-function RecommendationCard({
-  recommendation,
-  prominent = false,
-}: {
-  recommendation: SerializedRankedCandidate;
-  prominent?: boolean;
-}) {
-  return <article className={prominent ? "recommendation top-recommendation" : "recommendation"}>
-    <div className="recommendation-head">
-      <div>
-        <div className="rank">#{recommendation.rank} · {recommendation.candidate.type}</div>
-        <h3>{recommendation.candidate.towerName}</h3>
-        <div className="muted small">{recommendation.candidate.recipe.join(" + ")} · Starts level {recommendation.candidate.initialLevel} · Max level {recommendation.candidate.maxLevel}</div>
-      </div>
-      <div className="recommendation-value">
-        <span className={`category category-${recommendation.category}`}>{recommendation.category.replace("-", " ")}</span>
-        <b>{recommendation.contextualValue}</b>
-        <span>CONTEXTUAL VALUE</span>
-        <em>{recommendation.confidence} confidence</em>
-      </div>
-    </div>
-    {recommendation.intentAlignment && recommendation.intentAlignment.status !== "neutral" && <p className="muted small">Intent alignment: {recommendation.intentAlignment.status.replace("-", " ")}{recommendation.intentAlignment.matchedProfiles.length ? ` · ${recommendation.intentAlignment.matchedProfiles.map(labelStrategicProfile).join(", ")}` : ""}{recommendation.intentAlignment.supportedFocalTowers.length ? ` · supports ${recommendation.intentAlignment.supportedFocalTowers.join(", ")}` : ""}</p>}
-    {reasonList("Strengths", recommendation.strengths)}
-    {reasonList("Tradeoffs", recommendation.tradeoffs)}
-    {reasonList("Warnings", recommendation.warnings)}
-    <details className="component-details">
-      <summary>Ranking component breakdown</summary>
-      <ul className="component-list">
-        {recommendation.components.map((component, index) => <li key={`${component.component}-${component.key}-${index}`}>
-          <span className={component.contribution > 0 ? "positive" : component.contribution < 0 ? "negative" : "neutral"}>
-            {component.contribution > 0 ? "+" : ""}{component.contribution}
-          </span>
-          <span>{humanizeEngineText(component.reason.detail)}</span>
-        </li>)}
-      </ul>
-    </details>
-  </article>;
-}
-
-function pathReasonList(
-  title: string,
-  path: SerializedFuturePath,
-  kind: "strengths" | "tradeoffs" | "warnings",
-) {
-  const reasons = path[kind];
-  if (reasons.length === 0) return null;
-  return <div className="reason-group">
-    <div className="reason-title">{title}</div>
-    <ul className="reason-list">
-      {reasons.map((item, index) => <li key={`${item.step}-${item.reason.component}-${item.reason.key}-${index}`}>
-        <b>{item.step === "first" ? "First: " : "Second: "}</b>{humanizeEngineText(item.reason.detail)}
-      </li>)}
-    </ul>
-  </div>;
-}
-
-function FuturePathCard({ path }: { path: SerializedFuturePath }) {
-  return <article className="recommendation top-recommendation">
-    <div className="recommendation-head">
-      <div>
-        <div className="rank">TWO-STEP PATH #{path.rank} · {path.confidence} confidence</div>
-        <h3>{path.first.candidate.towerName} <span className="muted">→</span> {path.second?.candidate.towerName ?? "No legal continuation"}</h3>
-        <div className="muted small">{path.explanation.continuation}</div>
-      </div>
-      <div className="recommendation-value">
-        <b>{path.pathValue}</b>
-        <span>PATH VALUE</span>
-        <em>Now {path.immediateValue} · Then {path.continuationValue ?? "—"}</em>
-      </div>
-    </div>
-    <p className="muted small">{path.explanation.policy}</p>
-    {pathReasonList("Path strengths", path, "strengths")}
-    {pathReasonList("Path tradeoffs", path, "tradeoffs")}
-    {pathReasonList("Path warnings", path, "warnings")}
-  </article>;
-}
 
 function DiagnosticComponentList({
   title,
@@ -207,7 +119,6 @@ export default function Home() {
   const [selectedTowers, setSelectedTowers] = useState<SelectedTowerInput[]>([]);
   const [manualElementAllocation, setManualElementAllocation] = useState<ElementAllocation>(emptyElementAllocation);
   const [maxTowerSlots, setMaxTowerSlots] = useState(10);
-  const [towerToAdd, setTowerToAdd] = useState("Poison");
   const [buildDirection, setBuildDirection] = useState<BuildDirection>("engine");
   const [focalTower, setFocalTower] = useState("");
   const [intentPriority, setIntentPriority] = useState<"explore" | "balanced" | "maximum-depth">("balanced");
@@ -217,16 +128,15 @@ export default function Home() {
   const [recommendationResult, setRecommendationResult] = useState<SequentialRecommendationResponse | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
+  const [buildNotice, setBuildNotice] = useState("");
+  useEffect(() => () => activeRequest.current?.abort(), []);
 
   const summary = useMemo(() => results[0], [results]);
   const availableTowers = useMemo(() => {
     const selectedNames = new Set(selectedTowers.map((tower) => tower.towerName));
     return towerOptions.filter((tower) => !selectedNames.has(tower.name));
   }, [selectedTowers]);
-  const selectedTowerDetails = useMemo(() => selectedTowers.map((selected) => ({
-    selected,
-    tower: towerOptions.find((tower) => tower.name === selected.towerName),
-  })), [selectedTowers]);
   const requiredElementAllocation = useMemo(
     () => deriveMinimumElementAllocation(selectedTowers),
     [selectedTowers],
@@ -277,25 +187,30 @@ export default function Home() {
   }
 
   function markBuildChanged() {
+    activeRequest.current?.abort();
+    activeRequest.current = null;
+    setRecommendationLoading(false);
     setRecommendationResult(null);
     setRecommendationError(null);
   }
 
-  function addTower() {
+  function addTower(towerName: string) {
     if (buildAtCapacity) return;
-    const selected = availableTowers.find((tower) => tower.name === towerToAdd) ?? availableTowers[0];
+    const selected = availableTowers.find((tower) => tower.name === towerName);
     if (!selected) return;
     setSelectedTowers((previous) => [...previous, { towerName: selected.name, level: 1 }]);
-    setTowerToAdd(availableTowers.find((tower) => tower.name !== selected.name)?.name ?? "");
+    setBuildNotice(`${selected.name} added to your lineup.`);
     markBuildChanged();
   }
 
   function removeTower(towerName: string) {
+    setBuildNotice(`${towerName} removed from your lineup.`);
     setSelectedTowers((previous) => previous.filter((tower) => tower.towerName !== towerName));
     markBuildChanged();
   }
 
   function updateTowerLevel(towerName: string, level: number) {
+    setBuildNotice(`${towerName} changed to level ${level}.`);
     setSelectedTowers((previous) => previous.map((tower) => (
       tower.towerName === towerName ? { ...tower, level } : tower
     )));
@@ -320,6 +235,9 @@ export default function Home() {
   }
 
   async function recommendNextTower() {
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     setRecommendationLoading(true);
     setRecommendationError(null);
     try {
@@ -331,6 +249,7 @@ export default function Home() {
         mode: intentMode,
       });
       const response = await fetch("/api/optimize/next", {
+        signal: controller.signal,
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -347,12 +266,17 @@ export default function Home() {
         const details = payload?.details?.join(" ");
         throw new Error(details || payload?.error || "Recommendation evaluation failed.");
       }
+      if (controller.signal.aborted) return;
       setRecommendationResult(payload);
     } catch (error) {
+      if (controller.signal.aborted) return;
       setRecommendationError(error instanceof Error ? error.message : "Recommendation evaluation failed.");
       setRecommendationResult(null);
     } finally {
-      setRecommendationLoading(false);
+      if (activeRequest.current === controller) {
+        setRecommendationLoading(false);
+        activeRequest.current = null;
+      }
     }
   }
 
@@ -363,40 +287,41 @@ export default function Home() {
       {allocationError && <p className="error-message" role="alert">{allocationError}</p>}
       <div style={{ height: 10 }}/><div className="notice">Current evaluator is intentionally a foundation heuristic. UNKNOWN mechanics are not converted into invented facts.</div>
     </aside>
-    <section className="panel"><div className="section-heading"><div><div className="eyebrow">SERVER EVALUATION</div><h2>Candidate allocations</h2></div>{summary && <div className="recommendation-value"><span>TOP FOUNDATION SCORE</span><b>{summary.score.toFixed(1)}</b></div>}</div>
+    <section className="panel"><div className="section-heading"><div><div className="eyebrow">SERVER EVALUATION</div><h2>Candidate allocations</h2><p className="muted small">{legalCount || "—"} legal core allocations</p></div>{summary && <div className="recommendation-value"><span>TOP FOUNDATION SCORE</span><b>{summary.score.toFixed(1)}</b></div>}</div>
       {!results.length ? <div className="notice">Choose your core and run the evaluator to populate candidates.</div> : <div className="grid">{results.slice(0, 12).map((result, index) => <article className="tower" key={result.allocation.join("-")}><div className="rank">#{index + 1} · {result.activeElements} active elements</div><h3 className="mono">{result.allocation.join(" · ")}</h3><div className="score">{result.score.toFixed(1)}</div><div className="bar"><i style={{ width: `${Math.min(100, result.score)}%` }}/></div><div className="chips">{result.selected.map((tower) => <span className="chip" key={tower.name}>{tower.name}</span>)}</div></article>)}</div>}
     </section>
   </section>;
 
   const buildLab = <section className="workspace sequential-workspace">
     <aside className="panel build-inputs">
-      <div className="eyebrow">CURRENT BUILD</div><h2>What should your build do next?</h2><p className="muted">Add the towers you already have. Build Lab derives the minimum elements and evaluates the next decision for you.</p>
-      <div className="slot-summary"><b>{selectedTowers.length} / {maxTowerSlots}</b><span>tower slots used</span></div>
-      <div className="field"><label>Add tower</label><div className="inline-field"><select className="select" value={availableTowers.some((tower) => tower.name === towerToAdd) ? towerToAdd : availableTowers[0]?.name ?? ""} onChange={(event) => setTowerToAdd(event.target.value)} disabled={availableTowers.length === 0 || buildAtCapacity}>{availableTowers.map((tower) => <option key={tower.name} value={tower.name}>{tower.name} · {tower.type}</option>)}</select><button className="btn" onClick={addTower} disabled={availableTowers.length === 0 || buildAtCapacity}>Add</button></div>{buildAtCapacity && <p className="muted small">All tower slots are in use.</p>}</div>
-      {selectedTowerDetails.length === 0 ? <div className="notice">Start with the towers already in your build. Their element requirements are filled in automatically.</div> : <div className="selected-towers">{selectedTowerDetails.map(({ selected, tower }) => <div className="selected-tower" key={selected.towerName}><div><b>{selected.towerName}</b><span>{tower?.type} · {tower?.recipe.join(" + ")}</span></div><div className="tower-controls"><label>Level<select className="small-select" value={selected.level} onChange={(event) => updateTowerLevel(selected.towerName, Number(event.target.value))}>{Array.from({ length: tower?.maxLevel ?? 1 }, (_, index) => index + 1).map((level) => <option key={level} value={level}>{level}</option>)}</select></label><button className="remove" onClick={() => removeTower(selected.towerName)}>Remove</button></div></div>)}</div>}
-      <section className="derived-elements" aria-label="Derived elements"><div className="eyebrow">DERIVED ELEMENTS</div>{requiredElements.length ? <div className="derived-element-list">{requiredElements.map((element) => <div key={element}><span>{element}</span><b>{requiredElementAllocation[element]}</b></div>)}</div> : <p className="muted small">Add a tower to see its required elements.</p>}<p className="muted small">Automatically required by your selected towers.</p></section>
-      <div className="field"><label>Build direction</label><select className="select" value={buildDirection} onChange={(event) => { setBuildDirection(event.target.value as BuildDirection); markBuildChanged(); }}><option value="engine">Let engine decide</option><option value="tower">Build around a tower</option><option value="wave-clear">Improve wave clear</option><option value="boss-damage">Improve boss damage</option><option value="control">Improve control</option><option value="explore">Explore alternatives</option></select></div>
-      {buildDirection === "tower" && <div className="field"><label>Build around which tower?</label><select className="select" value={focalTower} onChange={(event) => { setFocalTower(event.target.value); markBuildChanged(); }}><option value="">Choose a tower</option>{towerOptions.map((tower) => <option key={tower.name} value={tower.name}>{tower.name}</option>)}</select></div>}
+      <CurrentBuild selected={selectedTowers} towers={towerOptions} maxSlots={maxTowerSlots} onLevel={updateTowerLevel} onRemove={removeTower}/>
+      <TowerSelector towers={availableTowers} onAdd={addTower} disabled={buildAtCapacity}/>
+      <p className="build-notice" role="status" aria-live="polite">{buildNotice || "Your lineup, your direction."}</p>
+      <div className="direction-section">
+        <label className="eyebrow" htmlFor="build-direction">02 / BUILD DIRECTION</label>
+        <select id="build-direction" className="select" value={buildDirection} onChange={(event) => { setBuildDirection(event.target.value as BuildDirection); markBuildChanged(); }}>
+          <option value="engine">Let engine decide</option><option value="tower">Build around a tower</option><option value="wave-clear">Improve wave clear</option><option value="boss-damage">Improve boss damage</option><option value="control">Improve control</option><option value="explore">Explore alternatives</option>
+        </select>
+        {buildDirection === "tower" && <div className="field focal-field"><label htmlFor="focal-tower">Build around which tower?</label><select id="focal-tower" className="select" value={focalTower} onChange={(event) => { setFocalTower(event.target.value); markBuildChanged(); }}><option value="">Choose a tower</option>{towerOptions.map((tower) => <option key={tower.name} value={tower.name}>{tower.name}</option>)}</select></div>}
+      </div>
+      <section className="derived-elements" aria-label="Derived elements">
+        <div className="eyebrow">03 / DERIVED ELEMENTS</div>
+        <div className="derived-element-list">{requiredElements.length ? requiredElements.map((element) => <ElementBadge key={element} element={element} depth={requiredElementAllocation[element]}/>) : <span className="muted small">Your tower recipes will appear here.</span>}</div>
+        <p className="muted small">Automatically required by your selected towers.</p>
+      </section>
       <details className="advanced-controls"><summary>Advanced build controls</summary><div className="advanced-content">
         <div className="field"><label>Manual element allocation <span>cannot reduce derived levels</span></label><p className="muted small">Optional investment can unlock more catalog towers. The effective allocation stays at or above your selected towers’ requirements.</p><div className="element-grid">{elements.map((element) => <label className="element-input" key={element}><span>{element}</span><input className="input" type="number" min={requiredElementAllocation[element]} step={1} value={effectiveElementAllocation[element]} onChange={(event) => updateElement(element, event.target.value)}/></label>)}</div></div>
-        <div className="field"><label>Maximum tower slots</label><input className="input" type="number" min={0} step={1} value={maxTowerSlots} onChange={(event) => updateSlotLimit(event.target.value)}/></div>
-        <div className="field"><label>Exact intent priority</label><select className="select" value={intentPriority} onChange={(event) => { setIntentPriority(event.target.value as typeof intentPriority); markBuildChanged(); }}><option value="explore">Explore · weak preference</option><option value="balanced">Balanced · shared influence</option><option value="maximum-depth">Maximum depth · strong preference</option></select></div>
-        <div className="field"><label>Exact desired profile</label><select className="select" value={preferredProfile} onChange={(event) => { setPreferredProfile(event.target.value as StrategicProfileKey | ""); markBuildChanged(); }}><option value="">Use build direction default</option>{strategicProfileOptions.map((profile) => <option key={profile.key} value={profile.key}>{profile.label}</option>)}</select></div>
-        <div className="field"><label>Intent mode</label><select className="select" value={intentMode} onChange={(event) => { setIntentMode(event.target.value as typeof intentMode); markBuildChanged(); }}><option value="normal">Normal · preserve coherence</option><option value="explore">Explore · modest breadth</option></select></div>
-        <div className="field"><label>Planning horizon</label><label className="planning-toggle"><input type="checkbox" checked={twoStepPlanning} onChange={(event) => { setTwoStepPlanning(event.target.checked); markBuildChanged(); }}/> Compare the best legal two-step path</label><p className="muted small">Enabled by default. Turn this off for the original one-step API behavior.</p></div>
+        <div className="field"><label htmlFor="maximum-slots">Maximum tower slots</label><input id="maximum-slots" className="input" type="number" min={0} step={1} value={maxTowerSlots} onChange={(event) => updateSlotLimit(event.target.value)}/></div>
+        <div className="field"><label htmlFor="intent-priority">Exact intent priority</label><select id="intent-priority" className="select" value={intentPriority} onChange={(event) => { setIntentPriority(event.target.value as typeof intentPriority); markBuildChanged(); }}><option value="explore">Explore · weak preference</option><option value="balanced">Balanced · shared influence</option><option value="maximum-depth">Maximum depth · strong preference</option></select></div>
+        <div className="field"><label htmlFor="desired-profile">Exact desired profile</label><select id="desired-profile" className="select" value={preferredProfile} onChange={(event) => { setPreferredProfile(event.target.value as StrategicProfileKey | ""); markBuildChanged(); }}><option value="">Use build direction default</option>{strategicProfileOptions.map((profile) => <option key={profile.key} value={profile.key}>{profile.label}</option>)}</select></div>
+        <div className="field"><label htmlFor="intent-mode">Intent mode</label><select id="intent-mode" className="select" value={intentMode} onChange={(event) => { setIntentMode(event.target.value as typeof intentMode); markBuildChanged(); }}><option value="normal">Normal · preserve coherence</option><option value="explore">Explore · modest breadth</option></select></div>
+        <div className="field"><label>Planning horizon</label><label className="planning-toggle"><input type="checkbox" checked={twoStepPlanning} onChange={(event) => { setTwoStepPlanning(event.target.checked); markBuildChanged(); }}/> Compare the best legal two-step path</label><p className="muted small">Enabled by default. Turn this off to focus only on the next tower.</p></div>
       </div></details>
       {buildInputIssue && <p className="error-message" role="alert">{buildInputIssue}</p>}
-      <button className="primary" onClick={recommendNextTower} disabled={recommendationLoading || Boolean(buildInputIssue)}>{recommendationLoading ? "Evaluating recommendations…" : "Recommend next tower"}</button>
-      {recommendationError && <p className="error-message" role="alert">{recommendationError}</p>}
+      <button className="primary" onClick={recommendNextTower} disabled={recommendationLoading || Boolean(buildInputIssue)}>{recommendationLoading ? "Analyzing your build…" : "Recommend next tower"}<span aria-hidden="true"> →</span></button>
     </aside>
-    <section className="recommendation-results">
-      {!recommendationResult ? <section className="panel"><div className="eyebrow">SEQUENTIAL ENGINE</div><h2>Next-tower recommendations</h2><p className="muted">The engine evaluates your current build on the server and explains a useful next decision.</p>{selectedTowers.length === 0 && <div className="notice">Add the towers in your current build, then get a recommendation.</div>}</section> : <>
-        {recommendationResult.topRecommendation ? <section className="panel"><div className="eyebrow">BEST NEXT TOWER</div><h2>Your best next tower</h2><RecommendationCard recommendation={recommendationResult.topRecommendation} prominent/></section> : <section className="panel"><div className="eyebrow">NEXT STEP UNAVAILABLE</div><h2>No legal next tower</h2><p className="muted">{recommendationResult.noLegalCandidateReason?.message ?? "No legal next tower is available for this build."}</p></section>}
-        {recommendationResult.topRecommendation && recommendationResult.lookahead && <section className="panel"><div className="section-heading"><div><div className="eyebrow">BEST TWO-STEP PATH</div><h2>Best two-step continuation</h2></div><span className="engine-version">two-step planning</span></div>{recommendationResult.lookahead.comparison.differs && <div className="notice"><b>Best immediate pick: {recommendationResult.lookahead.comparison.immediateTopCandidate}</b><br/><b>Best planned first pick: {recommendationResult.lookahead.comparison.bestPathFirstCandidate}</b><p className="muted small">{humanizeEngineText(recommendationResult.lookahead.comparison.detail)}</p></div>}{recommendationResult.lookahead.bestPath ? <FuturePathCard path={recommendationResult.lookahead.bestPath}/> : <p className="muted">No legal first-step path is available for this build.</p>}</section>}
-        {(recommendationResult.interpretation.vulnerabilities[0] || recommendationResult.interpretation.relevantGaps.find((gap) => gap.status === "deficient")) && <section className="panel current-concern"><div className="eyebrow">CURRENT BUILD WATCHOUT</div>{recommendationResult.interpretation.vulnerabilities[0] ? <><h2>{labelCapability(recommendationResult.interpretation.vulnerabilities[0].capability)} is the key vulnerability</h2><p className="muted">{humanizeEngineText(recommendationResult.interpretation.vulnerabilities[0].rationale)}</p></> : (() => { const gap = recommendationResult.interpretation.relevantGaps.find((item) => item.status === "deficient"); return gap ? <><h2>{labelCapability(gap.capability)} needs attention</h2><p className="muted">{humanizeEngineText(gap.rationale)}</p></> : null; })()}</section>}
-        <details className="panel interpretation-summary engine-diagnostics"><summary><span><span className="eyebrow">ENGINE DIAGNOSTICS</span><b>Why the engine thinks this</b></span><span className="engine-version">{recommendationResult.engineVersion}</span></summary><div className="summary-grid"><div><h3>Strategic profiles</h3>{recommendationResult.interpretation.strategicProfiles.length ? <div className="chips">{recommendationResult.interpretation.strategicProfiles.map((profile) => <span className="chip" key={profile.key}>{labelStrategicProfile(profile.key)}</span>)}</div> : <p className="muted small">No active strategic profiles yet.</p>}</div><div><h3>Vulnerabilities</h3>{recommendationResult.interpretation.vulnerabilities.length ? <ul className="compact-list">{recommendationResult.interpretation.vulnerabilities.map((vulnerability) => <li key={vulnerability.capability}>{labelCapability(vulnerability.capability)}</li>)}</ul> : <p className="muted small">No meaningful vulnerabilities identified.</p>}</div><div><h3>Relevant gaps</h3>{recommendationResult.interpretation.relevantGaps.length ? <ul className="compact-list">{recommendationResult.interpretation.relevantGaps.map((gap) => <li key={gap.capability}>{labelCapability(gap.capability)} · {gap.status}</li>)}</ul> : <p className="muted small">No relevant gaps identified.</p>}</div><div><h3>Compensations</h3>{recommendationResult.interpretation.compensations.length ? <ul className="compact-list">{recommendationResult.interpretation.compensations.map((compensation) => <li key={compensation.gapCapability}>{labelCapability(compensation.gapCapability)} via {compensation.compensatingCapabilities.map(labelCapability).join(", ")}</li>)}</ul> : <p className="muted small">No validated compensations active.</p>}</div></div>{recommendationResult.intent && <div className="notice"><b>Player intent · {recommendationResult.intent.alignment.replace("-", " ")}</b><div className="chips">{recommendationResult.intent.focusedTowers.map((focus) => <span className="chip" key={focus.towerName}>{focus.towerName} · {focus.priority}</span>)}{recommendationResult.intent.preferredProfiles.map((profile) => <span className="chip" key={profile}>{labelStrategicProfile(profile)}</span>)}</div>{recommendationResult.intent.conflicts.map((conflict) => <p className="muted small" key={conflict.key}>{humanizeEngineText(conflict.detail)}</p>)}{recommendationResult.intent.notes.map((note) => <p className="muted small" key={note}>{humanizeEngineText(note)}</p>)}</div>}</details>
-        {recommendationResult.candidates.length > 1 && <section className="panel"><div className="eyebrow">RANKED ALTERNATIVES</div><h2>Other contextual fits</h2><div className="recommendation-list">{recommendationResult.candidates.slice(1).map((item) => <RecommendationCard recommendation={item} key={item.candidate.towerName}/>)}</div></section>}
-      </>}
+    <section className="recommendation-results" aria-label="Build recommendations">
+      <RecommendationResults result={recommendationResult} loading={recommendationLoading} error={recommendationError} twoStep={twoStepPlanning}/>
     </section>
   </section>;
 
@@ -408,19 +333,18 @@ export default function Home() {
 
   return <main className="shell">
     <header className="top">
-      <div className="brand"><div className="logo"/><div><b>ELEMENT TD 2 · BUILD LAB</b><span>FULL-STACK RESEARCH & DECISION PLATFORM</span></div></div>
-      <span className="eyebrow">SEQUENTIAL v1</span>
+      <div className="brand"><div className="logo" aria-hidden="true">✦</div><div><b>ELEMENT TD 2</b><span>BUILD LAB / STRATEGY COMPANION</span></div></div>
+      <div className="header-status"><span/> YOUR NEXT ADVANTAGE</div>
     </header>
-
     <section className="hero">
-      <div className="panel"><div className="eyebrow">THE BUILD IS THE DATASET</div><h1>Ask what the build needs next.</h1><p className="muted">Build Lab turns the current tower state into contextual next-tower recommendations. The Allocation Explorer remains available for its original core-allocation workflow.</p></div>
-      <div className="panel stats"><div className="stat"><b>50</b><span>CATALOG TOWERS</span></div><div className="stat"><b>6</b><span>ELEMENTS</span></div><div className="stat"><b>{legalCount || "—"}</b><span>LEGAL CORE ALLOCATIONS</span></div><div className="stat"><b>{recommendationResult?.candidates.length ?? "—"}</b><span>NEXT-TOWER RESULTS</span></div></div>
+      <div><span className="eyebrow">SIX ELEMENTS. ENDLESS POSSIBILITIES.</span><h1>Make your next move count.</h1><p className="muted">Shape your lineup. Find the tower that brings it together.</p></div>
+      <div className="hero-index"><b>50</b><span>TOWERS<br/>ONE STRATEGY: YOURS</span></div>
     </section>
 
-    <nav className="nav">{["Build Lab", "Allocation Explorer", "What If", "Core Explorer", "Tower Codex", "Research", "Debug"].map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}</nav>
+    <nav className="nav" aria-label="Build Lab sections">{["Build Lab", "Allocation Explorer", "What If", "Core Explorer", "Tower Codex", "Research", "Debug"].map((item) => <button key={item} aria-current={tab === item ? "page" : undefined} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}</nav>
 
     {tab === "Build Lab" ? buildLab : tab === "Allocation Explorer" ? allocationExplorer : tab === "Debug" ? debugPanel : <section className="panel"><div className="eyebrow">NEXT MODULE</div><h2 style={{ margin: "8px 0" }}>{tab}</h2><p className="muted">The route is reserved in the application shell. It will use the shared domain model rather than duplicate engine logic.</p></section>}
 
-    <footer className="muted footer">Sequential recommendations are build-specific contextual values, not universal tower strength ratings.</footer>
+    <footer className="muted footer"><span>ELEMENT TD 2 / BUILD LAB</span><span>Independent strategy companion · Recommendations are specific to your build.</span></footer>
   </main>;
 }

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Element TD 2 · Build Lab",
-  description: "Full-stack build optimization and mechanics research platform for Element TD 2."
+  description: "Shape your Element TD 2 lineup, discover your best next tower, and plan a stronger continuation."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
