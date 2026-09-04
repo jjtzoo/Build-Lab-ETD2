@@ -1,0 +1,85 @@
+export const MECHANIC_SIGNALS = [
+  // Enemy state
+  "enemy-slow",
+  "damage-taken-amp",
+
+  // Tower enhancement
+  "attack-damage-buff",
+  "attack-speed-buff",
+  "tower-replication",
+
+  // Combat events
+  "nearby-enemy-death",
+
+  // Position / geometry
+  "target-isolation",
+  "enemy-grouping",
+  "enemy-displacement",
+  "path-distance",
+] as const;
+
+export type MechanicSignal =
+  (typeof MECHANIC_SIGNALS)[number];
+
+/**
+ * How important or powerful a mechanic is
+ * for a specific tower.
+ *
+ * 1 = Minor
+ * 2 = Meaningful
+ * 3 = Strong
+ * 4 = Defining
+ */
+export type MechanicStrength = 1 | 2 | 3 | 4;
+
+/**
+ * Describes how a tower benefits from additional
+ * sources of the same mechanic.
+ */
+export type SaturationMode =
+  | "single"
+  | "diminishing"
+  | "repeatable";
+
+/**
+ * A mechanic or condition that a tower creates.
+ */
+export type MechanicSupply = {
+  signal: MechanicSignal;
+  strength: MechanicStrength;
+};
+
+/**
+ * A mechanic or condition that improves another tower.
+ */
+export type MechanicDemand = {
+  signal: MechanicSignal;
+  strength: MechanicStrength;
+  saturation: SaturationMode;
+};
+
+/**
+ * Mechanical interaction profile of a tower.
+ *
+ * provides = what this tower creates
+ * consumes = what this tower benefits from
+ */
+export type TowerMechanics = {
+  provides: readonly MechanicSupply[];
+  consumes: readonly MechanicDemand[];
+};
+
+/**
+ * Describes how one mechanic can produce
+ * or contribute to another mechanic.
+ */
+export type MechanicRelationshipType =
+  | "direct"
+  | "derived"
+  | "conditional";
+
+export type MechanicRelationship = {
+  from: MechanicSignal;
+  to: MechanicSignal;
+  type: MechanicRelationshipType;
+};
