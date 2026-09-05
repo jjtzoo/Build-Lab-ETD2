@@ -680,7 +680,7 @@
       "mechanics": {
         "provides": [
           {
-            "signal": "nearby-enemy-death",
+            "signal": "kill-generation",
             "strength": 4
           }
         ],

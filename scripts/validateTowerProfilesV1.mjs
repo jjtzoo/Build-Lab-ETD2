@@ -72,6 +72,7 @@ const MECHANIC_SIGNALS = new Set([
   "tower-replication",
 
   // Combat events / damage interaction
+  "kill-generation",
   "nearby-enemy-death",
   "damage-echo",
 
