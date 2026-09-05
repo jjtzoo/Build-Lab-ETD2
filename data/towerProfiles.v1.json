@@ -760,7 +760,7 @@
     },
     {
       "towerId": "rage",
-      "coreRoles": ["damage-amp"],
+      "coreRoles": [],
       "offense": {
         "damageShape": "single-target",
         "damageProfile": "dot",

@@ -27,3 +27,31 @@ export const ANCHOR_ASSUMED_LEVEL = {
 
 export type AnchorCombination =
   keyof typeof ANCHOR_ASSUMED_LEVEL;
+
+export const CURATED_ANCHORS: readonly CuratedAnchor[] = [
+  // Dual anchors
+  { towerId: "atom" },
+  { towerId: "poison" },
+  { towerId: "vapor" },
+  { towerId: "infernal" },
+  { towerId: "bloom" },
+  { towerId: "howitzer" },
+  { towerId: "lightning" },
+  { towerId: "disease" },
+  { towerId: "ice" },
+  { towerId: "solar" },
+  { towerId: "mushroom" },
+  { towerId: "geyser" },
+
+  // Trio anchors
+  { towerId: "astral" },
+  { towerId: "runic" },
+  { towerId: "flooding" },
+  { towerId: "flamethrower" },
+  { towerId: "impulse" },
+  { towerId: "laser" },
+  { towerId: "ethereal" },
+  { towerId: "wisp" },
+  { towerId: "haste" },
+  { towerId: "quake" },
+];
