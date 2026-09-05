@@ -88,6 +88,13 @@ const SATURATION_MODES = new Set([
   "repeatable",
 ]);
 
+const towerById = new Map(
+  towerCatalog.towers.map((tower) => [
+    tower.id,
+    tower,
+  ]),
+);
+
 const towerIds = new Set(
   towerCatalog.towers.map((tower) => tower.id),
 );
@@ -174,6 +181,18 @@ for (const profile of profileCatalog.profiles ?? []) {
     ) {
       errors.push(
         `${id}: invalid offensiveElement "${profile.offense.offensiveElement}"`,
+      );
+    }
+
+    const tower = towerById.get(id);
+
+    if (
+      tower &&
+      profile.offense.offensiveElement !==
+        tower.damageElement
+    ) {
+      errors.push(
+        `${id}: offensiveElement "${profile.offense.offensiveElement}" does not match tower damageElement "${tower.damageElement}"`,
       );
     }
 

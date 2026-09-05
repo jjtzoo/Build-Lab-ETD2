@@ -843,7 +843,7 @@
     },
     {
       "towerId": "life-altar",
-      "coreRoles": ["buff"],
+      "coreRoles": [],
       "offense": {
         "damageShape": "aoe",
         "damageProfile": "sustained",

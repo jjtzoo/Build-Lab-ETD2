@@ -11,7 +11,7 @@ describe("findDirectMechanicSynergies", () => {
     const profiles: TowerProfile[] = [
       {
         towerId: "rage",
-        coreRoles: ["damage-amp"],
+        coreRoles: [],
         mechanics: {
           provides: [
             {
