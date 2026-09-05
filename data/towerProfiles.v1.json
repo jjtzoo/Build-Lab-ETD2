@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "profiles": [
+    {
+      "towerId": "mushroom",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Nature"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "enemy-slow",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "blacksmith",
+      "coreRoles": ["buff"],
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "incantation",
+      "coreRoles": ["damage-amp"],
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "damage-taken-amp",
+            "strength": 4
+          }
+        ],
+        "consumes": [
+          {
+            "signal": "target-isolation",
+            "strength": 3,
+            "saturation": "single"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "trickery",
+      "coreRoles": ["buff"],
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "tower-replication",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "ethereal",
+      "coreRoles": ["main-dps"],
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "nearby-enemy-death",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "gravity-cannon",
+      "coreRoles": ["main-dps"],
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "enemy-displacement",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
+    }
+  ]
+}
