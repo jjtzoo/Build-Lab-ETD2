@@ -1,15 +1,19 @@
 export const MECHANIC_SIGNALS = [
   // Enemy state
   "enemy-slow",
+  "enemy-stun",
+  "enemy-stasis",
   "damage-taken-amp",
+  "current-hp-removal",
 
   // Tower enhancement
   "attack-damage-buff",
   "attack-speed-buff",
   "tower-replication",
 
-  // Combat events
+  // Combat events / damage interaction
   "nearby-enemy-death",
+  "damage-echo",
 
   // Position / geometry
   "target-isolation",

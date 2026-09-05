@@ -92,6 +92,778 @@
         ],
         "consumes": []
       }
+    },
+    {
+        "towerId": "nova",
+        "coreRoles": ["slow"],
+        "mechanics": {
+            "provides": [
+            {
+                "signal": "enemy-slow",
+                "strength": 4
+            }
+            ],
+            "consumes": []
+        }
+        },
+        {
+        "towerId": "windstorm",
+        "coreRoles": ["slow"],
+        "mechanics": {
+            "provides": [
+            {
+                "signal": "enemy-slow",
+                "strength": 4
+            },
+            {
+                "signal": "enemy-grouping",
+                "strength": 3
+            }
+            ],
+            "consumes": []
+        }
+        },
+        {
+        "towerId": "muck",
+        "coreRoles": ["slow"],
+        "mechanics": {
+            "provides": [
+            {
+                "signal": "enemy-slow",
+                "strength": 4
+            }
+            ],
+            "consumes": []
+        }
+        },
+        {
+        "towerId": "root",
+        "coreRoles": ["slow"],
+        "mechanics": {
+            "provides": [
+            {
+                "signal": "enemy-slow",
+                "strength": 4
+            }
+            ],
+            "consumes": []
+        }
+    },
+    {
+        "towerId": "jinx",
+        "coreRoles": ["damage-amp"],
+        "mechanics": {
+            "provides": [
+            {
+                "signal": "damage-echo",
+                "strength": 4
+            }
+            ],
+            "consumes": []
+        }
+        },
+        {
+        "towerId": "corrosion",
+        "coreRoles": ["damage-amp"],
+        "mechanics": {
+            "provides": [
+            {
+                "signal": "damage-taken-amp",
+                "strength": 4
+            }
+            ],
+            "consumes": []
+        }
+        },
+        {
+        "towerId": "polar",
+        "coreRoles": ["damage-amp"],
+        "mechanics": {
+            "provides": [
+            {
+                "signal": "current-hp-removal",
+                "strength": 4
+            }
+            ],
+            "consumes": []
+        }
+    },
+    {
+      "towerId": "well",
+      "coreRoles": ["buff"],
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "atom",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "ramp",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Light",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "poison",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "dot",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Darkness"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "vapor",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Water",
+        "scalingTriggers": ["density-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "infernal",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Fire"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "bloom",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Nature",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "howitzer",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Earth",
+        "scalingTriggers": ["distance-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "lightning",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Light"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "disease",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "execute",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Darkness",
+        "scalingTriggers": ["hp-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "ice",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Water"
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "enemy-stun",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "solar",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "dot",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Fire"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "geyser",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "burst",
+        "damageDelivery": "attack-count",
+        "offensiveElement": "Earth"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "astral",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "burst",
+        "damageDelivery": "fixed-cooldown",
+        "offensiveElement": "Light"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "runic",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "burst",
+        "damageDelivery": "fixed-cooldown",
+        "offensiveElement": "Darkness"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "laser",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Light"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "target-isolation",
+            "strength": 4,
+            "saturation": "single"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "wisp",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "ramp",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Water",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "money",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Earth",
+        "scalingTriggers": ["gold-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "flooding",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "ramp",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Water",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "flamethrower",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "burst",
+        "damageDelivery": "triggered",
+        "offensiveElement": "Fire",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "impulse",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Nature",
+        "scalingTriggers": ["distance-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "haste",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "ramp",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Fire",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "golem",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "burst",
+        "damageDelivery": "periodic",
+        "offensiveElement": "Nature"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "quake",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "burst",
+        "damageDelivery": "attack-count",
+        "offensiveElement": "Earth"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "railgun",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "burst",
+        "damageDelivery": "triggered",
+        "offensiveElement": "Light",
+        "scalingTriggers": [
+          "attack-scaling",
+          "density-scaling"
+        ]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "plague",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "dot",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Darkness",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "tsunami",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "burst",
+        "damageDelivery": "triggered",
+        "offensiveElement": "Water",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "obelisk",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "burst",
+        "damageDelivery": "triggered",
+        "offensiveElement": "Fire",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "archdruid",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Nature",
+        "scalingTriggers": ["distance-scaling"]
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "enemy-displacement",
+            "strength": 4
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 4
+          }
+        ],
+        "consumes": [
+          {
+            "signal": "path-distance",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "shredder",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Earth",
+        "scalingTriggers": ["attack-scaling"]
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "nearby-enemy-death",
+            "strength": 4
+          }
+        ],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "singularity",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Light"
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "enemy-grouping",
+            "strength": 4
+          },
+          {
+            "signal": "enemy-displacement",
+            "strength": 3
+          }
+        ],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "doom",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "execute",
+        "damageDelivery": "triggered",
+        "offensiveElement": "Darkness",
+        "scalingTriggers": [
+          "attack-scaling",
+          "duration-scaling"
+        ]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "crystal-spire",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "burst",
+        "damageDelivery": "fixed-cooldown",
+        "offensiveElement": "Water"
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": [
+          {
+            "signal": "tower-replication",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "rage",
+      "coreRoles": ["damage-amp"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "dot",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Fire"
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "damage-taken-amp",
+            "strength": 4
+          },
+          {
+            "signal": "target-isolation",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "tesla-tree",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Nature",
+        "scalingTriggers": ["network-scaling"]
+      },
+      "mechanics": {
+        "provides": [],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "nuclear",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "dot",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Earth",
+        "scalingTriggers": ["hp-scaling"]
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "enemy-slow",
+            "strength": 3
+          }
+        ],
+        "consumes": [
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
+      }
+    },
+    {
+      "towerId": "phantom-zone",
+      "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "hybrid",
+        "damageProfile": "burst",
+        "damageDelivery": "triggered",
+        "offensiveElement": "Darkness"
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "enemy-stasis",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
+    },
+    {
+      "towerId": "life-altar",
+      "coreRoles": ["buff"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Nature"
+      },
+      "mechanics": {
+        "provides": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 4
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4
+          }
+        ],
+        "consumes": []
+      }
     }
+
   ]
 }

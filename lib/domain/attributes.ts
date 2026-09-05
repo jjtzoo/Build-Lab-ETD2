@@ -24,4 +24,17 @@ export type OffensiveAttributes = {
   damageProfile: DamageProfile;
   damageDelivery: DamageDelivery;
   offensiveElement: ElementName;
+
+  scalingTriggers?: readonly ScalingTriggerMechanic[];
 };
+
+export type ScalingTriggerMechanic =
+  | "slow-scaling"
+  | "kill-scaling"
+  | "distance-scaling"
+  | "attack-scaling"
+  | "hp-scaling"
+  | "density-scaling"
+  | "gold-scaling"  
+  | "duration-scaling"  
+  | "network-scaling";
