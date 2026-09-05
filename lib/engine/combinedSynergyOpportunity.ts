@@ -7,6 +7,10 @@ import {
   evaluateDirectSynergyOpportunity,
   type DirectSynergyOpportunityComparison,
 } from "@/lib/engine/synergyOpportunity";
+import {
+  findConditionalMechanicTensions,
+  type ConditionalMechanicTension,
+} from "@/lib/engine/mechanicTension";
 
 export type CombinedSynergyOpportunityComparison = {
   candidateTowerId: TowerProfile["towerId"];
@@ -17,6 +21,12 @@ export type CombinedSynergyOpportunityComparison = {
     before: readonly DerivedMechanicSynergyMatch[];
     after: readonly DerivedMechanicSynergyMatch[];
   };
+  
+  tensions: {
+    before: readonly ConditionalMechanicTension[];
+    after: readonly ConditionalMechanicTension[];
+  };
+
 };
 
 /**
@@ -44,12 +54,24 @@ export function evaluateCombinedSynergyOpportunity(
     candidate,
   ]);
 
+    const tensionsBefore =
+    findConditionalMechanicTensions(selectedProfiles);
+
+  const tensionsAfter = findConditionalMechanicTensions([
+    ...selectedProfiles,
+    candidate,
+  ]);
+
   return {
     candidateTowerId: candidate.towerId,
     direct,
     derived: {
       before: derivedBefore,
       after: derivedAfter,
+    },
+      tensions: {
+      before: tensionsBefore,
+      after: tensionsAfter,
     },
   };
 }

@@ -227,3 +227,98 @@ describe("evaluateCombinedSynergyOpportunity", () => {
     expect(result.derived.after).toEqual([]);
   });
 });
+
+describe("combined opportunity tension findings", () => {
+  const densityConsumer: TowerProfile = {
+    towerId: "density-consumer",
+    coreRoles: ["main-dps"],
+    offense: {
+      damageShape: "aoe",
+      damageProfile: "sustained",
+      damageDelivery: "basic-attack",
+      offensiveElement: "Water",
+      scalingTriggers: ["density-scaling"],
+    },
+    mechanics: {
+      provides: [],
+      consumes: [],
+    },
+  };
+
+  const isolationProvider: TowerProfile = {
+    towerId: "isolation-provider",
+    coreRoles: [],
+    mechanics: {
+      provides: [
+        { signal: "target-isolation", strength: 4 },
+      ],
+      consumes: [],
+    },
+  };
+
+  it("reports a candidate's benefit and potential tension together", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [isolationConsumer, densityConsumer],
+      isolationProvider,
+    );
+
+    expect(result.direct.after).toHaveLength(1);
+    expect(result.direct.after[0]).toMatchObject({
+      providerTowerId: "isolation-provider",
+      consumerTowerId: "isolation-consumer",
+      contribution: "full",
+    });
+
+    expect(result.tensions.before).toEqual([]);
+    expect(result.tensions.after).toEqual([
+      {
+        providerTowerId: "isolation-provider",
+        affectedTowerId: "density-consumer",
+        signal: "target-isolation",
+        affectedScalingTrigger: "density-scaling",
+        relationshipType: "conditional",
+        status: "potential",
+        condition:
+          "Target isolation reduces enemy density where the affected tower deals damage.",
+      },
+    ]);
+  });
+
+  it("finds a tension when the candidate is the affected tower", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [isolationProvider],
+      densityConsumer,
+    );
+
+    expect(result.tensions.before).toEqual([]);
+    expect(result.tensions.after).toHaveLength(1);
+    expect(result.tensions.after[0]).toMatchObject({
+      providerTowerId: "isolation-provider",
+      affectedTowerId: "density-consumer",
+      status: "potential",
+    });
+  });
+
+  it("preserves an existing tension when an unrelated candidate is added", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [isolationProvider, densityConsumer],
+      killProvider,
+    );
+
+    expect(result.tensions.before).toHaveLength(1);
+    expect(result.tensions.after).toEqual(
+      result.tensions.before,
+    );
+  });
+
+  it("reports no tension without an affected density-scaling tower", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [isolationConsumer],
+      isolationProvider,
+    );
+
+    expect(result.direct.after).toHaveLength(1);
+    expect(result.tensions.before).toEqual([]);
+    expect(result.tensions.after).toEqual([]);
+  });
+});
