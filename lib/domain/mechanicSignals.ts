@@ -86,6 +86,27 @@ export type MechanicRelationshipType =
 export type MechanicRelationshipCondition =
   | "deaths-within-consumer-trigger-area";
 
+/**
+ * Whether a required condition holds in the evaluated context.
+ * Missing information must remain unknown.
+ */
+export type MechanicConditionState =
+  | "met"
+  | "unmet"
+  | "unknown";
+
+/**
+ * Conditions are evaluated for a specific provider and consumer.
+ * One provider may satisfy a condition for one consumer
+ * while failing it for another.
+ */
+export type MechanicConditionEvaluation = {
+  providerTowerId: string;
+  consumerTowerId: string;
+  condition: MechanicRelationshipCondition;
+  state: MechanicConditionState;
+};
+
 export type MechanicRelationship = {
   from: MechanicSignal;
   to: MechanicSignal;

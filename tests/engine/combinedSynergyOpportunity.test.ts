@@ -322,3 +322,202 @@ describe("combined opportunity tension findings", () => {
     expect(result.tensions.after).toEqual([]);
   });
 });
+
+describe("condition-aware combined contributions", () => {
+  it.each(["met", "unmet", "unknown"] as const)(
+    "handles a derived condition marked %s",
+    (state) => {
+      const result = evaluateCombinedSynergyOpportunity(
+        [deathConsumer],
+        killProvider,
+        {
+          after: [
+            {
+              providerTowerId: killProvider.towerId,
+              consumerTowerId: deathConsumer.towerId,
+              condition: "deaths-within-consumer-trigger-area",
+              state,
+            },
+          ],
+        },
+      );
+
+      expect(result.evaluatedDerived.after[0].conditionState)
+        .toBe(state);
+
+      expect(result.applicable.after).toHaveLength(
+        state === "met" ? 1 : 0,
+      );
+
+      expect(result.summaries).toHaveLength(
+        state === "met" ? 1 : 0,
+      );
+
+      if (state === "met") {
+        expect(result.summaries[0].status).toBe("new-benefit");
+      }
+    },
+  );
+
+  it("keeps missing condition context unknown", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [deathConsumer],
+      killProvider,
+    );
+
+    expect(result.derived.after).toHaveLength(1);
+    expect(result.evaluatedDerived.after[0].conditionState)
+      .toBe("unknown");
+    expect(result.applicable.after).toEqual([]);
+  });
+
+  it.each([
+    ["single", "ignored"],
+    ["diminishing", "diminished"],
+    ["repeatable", "full"],
+  ] as const)(
+    "saturates direct and derived supply together under %s",
+    (saturation, existingContribution) => {
+      const consumer: TowerProfile = {
+        ...deathConsumer,
+        mechanics: {
+          provides: [],
+          consumes: [
+            {
+              signal: "nearby-enemy-death",
+              strength: 3,
+              saturation,
+            },
+          ],
+        },
+      };
+
+      const existing: TowerProfile = {
+        towerId: "existing-direct",
+        coreRoles: [],
+        mechanics: {
+          provides: [
+            { signal: "nearby-enemy-death", strength: 2 },
+          ],
+          consumes: [],
+        },
+      };
+
+      const result = evaluateCombinedSynergyOpportunity(
+        [consumer, existing],
+        killProvider,
+        {
+          after: [
+            {
+              providerTowerId: killProvider.towerId,
+              consumerTowerId: consumer.towerId,
+              condition: "deaths-within-consumer-trigger-area",
+              state: "met",
+            },
+          ],
+        },
+      );
+
+      expect(result.applicable.after).toHaveLength(2);
+      expect(result.applicable.after).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            providerTowerId: killProvider.towerId,
+            effectiveStrength: 3,
+            relationshipType: "derived",
+            contribution: "full",
+          }),
+          expect.objectContaining({
+            providerTowerId: "existing-direct",
+            contribution: existingContribution,
+          }),
+        ]),
+      );
+    },
+  );
+
+  it("does not count alternate paths from one provider twice", () => {
+    const candidate: TowerProfile = {
+      ...killProvider,
+      mechanics: {
+        provides: [
+          { signal: "kill-generation", strength: 4 },
+          { signal: "nearby-enemy-death", strength: 4 },
+        ],
+        consumes: [],
+      },
+    };
+
+    const result = evaluateCombinedSynergyOpportunity(
+      [deathConsumer],
+      candidate,
+      {
+        after: [
+          {
+            providerTowerId: candidate.towerId,
+            consumerTowerId: deathConsumer.towerId,
+            condition: "deaths-within-consumer-trigger-area",
+            state: "met",
+          },
+        ],
+      },
+    );
+
+    expect(result.direct.after).toHaveLength(1);
+    expect(result.derived.after).toHaveLength(1);
+    expect(result.applicable.after).toHaveLength(1);
+    expect(result.summaries[0].additionalFullContributionCount)
+      .toBe(1);
+  });
+
+  it("uses separate before and after condition context", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [killProvider, deathConsumer],
+      isolationConsumer,
+      {
+        before: [
+          {
+            providerTowerId: killProvider.towerId,
+            consumerTowerId: deathConsumer.towerId,
+            condition: "deaths-within-consumer-trigger-area",
+            state: "met",
+          },
+        ],
+        after: [
+          {
+            providerTowerId: killProvider.towerId,
+            consumerTowerId: deathConsumer.towerId,
+            condition: "deaths-within-consumer-trigger-area",
+            state: "unmet",
+          },
+        ],
+      },
+    );
+
+    expect(result.applicable.before).toHaveLength(1);
+    expect(result.applicable.after).toEqual([]);
+    expect(result.summaries[0].status).toBe("changed-benefit");
+  });
+
+  it("does not carry before context into after implicitly", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [killProvider, deathConsumer],
+      isolationConsumer,
+      {
+        before: [
+          {
+            providerTowerId: killProvider.towerId,
+            consumerTowerId: deathConsumer.towerId,
+            condition: "deaths-within-consumer-trigger-area",
+            state: "met",
+          },
+        ],
+      },
+    );
+
+    expect(result.evaluatedDerived.before[0].conditionState)
+      .toBe("met");
+    expect(result.evaluatedDerived.after[0].conditionState)
+      .toBe("unknown");
+  });
+});

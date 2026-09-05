@@ -5,6 +5,7 @@ import type { TowerProfile } from "@/lib/domain/towerProfile";
 import { findDerivedMechanicSynergies } from "@/lib/engine/derivedMechanicSynergy";
 import profileCatalog from "@/data/towerProfiles.v1.json";
 import { findDirectMechanicSynergies } from "@/lib/engine/mechanicSynergy";
+import { evaluateDerivedSynergyConditions } from "@/lib/engine/derivedSynergyConditions";
 
 // Synthetic profiles test the relationship independently
 // of the pending Shredder profile change.
@@ -284,5 +285,156 @@ describe("canonical Shredder–Ethereal relationship", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("derived synergy condition evaluation", () => {
+  function getMatches() {
+    return findDerivedMechanicSynergies([
+      provider,
+      consumer,
+    ]);
+  }
+
+  it("defaults missing condition information to unknown", () => {
+    const result = evaluateDerivedSynergyConditions(
+      getMatches(),
+    );
+
+    expect(result[0].conditionState).toBe("unknown");
+    expect(result[0].conditions).toEqual([
+      {
+        condition: "deaths-within-consumer-trigger-area",
+        state: "unknown",
+      },
+    ]);
+  });
+
+  it("recognizes an explicitly met condition", () => {
+    const result = evaluateDerivedSynergyConditions(
+      getMatches(),
+      [
+        {
+          providerTowerId: provider.towerId,
+          consumerTowerId: consumer.towerId,
+          condition: "deaths-within-consumer-trigger-area",
+          state: "met",
+        },
+      ],
+    );
+
+    expect(result[0].conditionState).toBe("met");
+  });
+
+  it("recognizes an explicitly unmet condition", () => {
+    const result = evaluateDerivedSynergyConditions(
+      getMatches(),
+      [
+        {
+          providerTowerId: provider.towerId,
+          consumerTowerId: consumer.towerId,
+          condition: "deaths-within-consumer-trigger-area",
+          state: "unmet",
+        },
+      ],
+    );
+
+    expect(result[0].conditionState).toBe("unmet");
+  });
+
+  it("does not share condition states across different tower pairs", () => {
+    const secondProvider: TowerProfile = {
+      ...provider,
+      towerId: "second-provider",
+    };
+
+    const secondConsumer: TowerProfile = {
+      ...consumer,
+      towerId: "second-consumer",
+    };
+
+    const matches = findDerivedMechanicSynergies([
+      provider,
+      secondProvider,
+      consumer,
+      secondConsumer,
+    ]);
+
+    const result = evaluateDerivedSynergyConditions(
+      matches,
+      [
+        {
+          providerTowerId: provider.towerId,
+          consumerTowerId: consumer.towerId,
+          condition: "deaths-within-consumer-trigger-area",
+          state: "met",
+        },
+      ],
+    );
+
+    expect(result).toHaveLength(4);
+
+    const met = result.filter(
+      (entry) => entry.conditionState === "met",
+    );
+
+    expect(met).toHaveLength(1);
+    expect(met[0].match).toMatchObject({
+      providerTowerId: provider.towerId,
+      consumerTowerId: consumer.towerId,
+    });
+
+    expect(
+      result.filter(
+        (entry) => entry.conditionState === "unknown",
+      ),
+    ).toHaveLength(3);
+  });
+
+  it("rejects contradictory states for the same condition and pair", () => {
+    expect(() =>
+      evaluateDerivedSynergyConditions(getMatches(), [
+        {
+          providerTowerId: provider.towerId,
+          consumerTowerId: consumer.towerId,
+          condition: "deaths-within-consumer-trigger-area",
+          state: "met",
+        },
+        {
+          providerTowerId: provider.towerId,
+          consumerTowerId: consumer.towerId,
+          condition: "deaths-within-consumer-trigger-area",
+          state: "unmet",
+        },
+      ]),
+    ).toThrow("Conflicting condition states");
+  });
+
+  it("treats an interaction with no required conditions as met", () => {
+    const matches = getMatches().map((match) => ({
+      ...match,
+      conditions: [],
+    }));
+
+    const result = evaluateDerivedSynergyConditions(matches);
+
+    expect(result[0].conditionState).toBe("met");
+    expect(result[0].conditions).toEqual([]);
+  });
+
+  it("does not mutate the original match when evaluating conditions", () => {
+    const matches = getMatches();
+    const original = structuredClone(matches);
+
+    evaluateDerivedSynergyConditions(matches, [
+      {
+        providerTowerId: provider.towerId,
+        consumerTowerId: consumer.towerId,
+        condition: "deaths-within-consumer-trigger-area",
+        state: "met",
+      },
+    ]);
+
+    expect(matches).toEqual(original);
   });
 });
