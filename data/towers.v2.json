@@ -1,0 +1,1063 @@
+{
+  "schemaVersion": 2,
+  "elements": [
+    "Light",
+    "Darkness",
+    "Water",
+    "Fire",
+    "Nature",
+    "Earth"
+  ],
+  "towers": [
+    {
+      "id": "trickery",
+      "name": "Trickery",
+      "combination": "Dual",
+      "recipe": [
+        "Light",
+        "Darkness"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          450,
+          1800,
+          7200
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "ice",
+      "name": "Ice",
+      "combination": "Dual",
+      "recipe": [
+        "Light",
+        "Water"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          850,
+          3400,
+          13600
+        ],
+        "attackSpeed": 1,
+        "range": 900,
+        "aoe": 100
+      }
+    },
+    {
+      "id": "lightning",
+      "name": "Lightning",
+      "combination": "Dual",
+      "recipe": [
+        "Light",
+        "Fire"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          180,
+          720,
+          2880
+        ],
+        "attackSpeed": 1.5,
+        "range": 1150,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "bloom",
+      "name": "Bloom",
+      "combination": "Dual",
+      "recipe": [
+        "Light",
+        "Nature"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          355,
+          1420,
+          5680
+        ],
+        "attackSpeed": 1.5,
+        "range": 750,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "atom",
+      "name": "Atom",
+      "combination": "Dual",
+      "recipe": [
+        "Light",
+        "Earth"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          315,
+          1260,
+          5040
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "poison",
+      "name": "Poison",
+      "combination": "Dual",
+      "recipe": [
+        "Darkness",
+        "Water"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          130,
+          520,
+          2080
+        ],
+        "attackSpeed": 0.66,
+        "range": 900,
+        "aoe": 300
+      }
+    },
+    {
+      "id": "infernal",
+      "name": "Infernal",
+      "combination": "Dual",
+      "recipe": [
+        "Darkness",
+        "Fire"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          800,
+          3200,
+          12800
+        ],
+        "attackSpeed": 1.5,
+        "range": 750,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "disease",
+      "name": "Disease",
+      "combination": "Dual",
+      "recipe": [
+        "Darkness",
+        "Nature"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          150,
+          600,
+          2400
+        ],
+        "attackSpeed": 3,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "howitzer",
+      "name": "Howitzer",
+      "combination": "Dual",
+      "recipe": [
+        "Darkness",
+        "Earth"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          190,
+          760,
+          3040
+        ],
+        "attackSpeed": 1,
+        "range": 1500,
+        "aoe": 50
+      }
+    },
+    {
+      "id": "vapor",
+      "name": "Vapor",
+      "combination": "Dual",
+      "recipe": [
+        "Water",
+        "Fire"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          1150,
+          4600,
+          18400
+        ],
+        "attackSpeed": 0.66,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "well",
+      "name": "Well",
+      "combination": "Dual",
+      "recipe": [
+        "Water",
+        "Nature"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          450,
+          1800,
+          7200
+        ],
+        "attackSpeed": 1.5,
+        "range": 1150,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "geyser",
+      "name": "Geyser",
+      "combination": "Dual",
+      "recipe": [
+        "Water",
+        "Earth"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          1100,
+          4400,
+          17600
+        ],
+        "attackSpeed": 1,
+        "range": 750,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "blacksmith",
+      "name": "Blacksmith",
+      "combination": "Dual",
+      "recipe": [
+        "Fire",
+        "Earth"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          450,
+          1800,
+          7200
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "solar",
+      "name": "Solar",
+      "combination": "Dual",
+      "recipe": [
+        "Fire",
+        "Nature"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          240,
+          960,
+          3840
+        ],
+        "attackSpeed": 1,
+        "range": 750,
+        "aoe": 100
+      }
+    },
+    {
+      "id": "mushroom",
+      "name": "Mushroom",
+      "combination": "Dual",
+      "recipe": [
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 3,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          490,
+          1960,
+          7840
+        ],
+        "attackSpeed": 1,
+        "range": 750,
+        "aoe": 300
+      }
+    },
+    {
+      "id": "astral",
+      "name": "Astral",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          2250,
+          9000
+        ],
+        "attackSpeed": 1,
+        "range": 1500,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "runic",
+      "name": "Runic",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          1150,
+          4600
+        ],
+        "attackSpeed": 1,
+        "range": 1150,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "jinx",
+      "name": "Jinx",
+      "combination": "Trio",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Nature"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          1100,
+          4400
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "laser",
+      "name": "Laser",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          7000,
+          28000
+        ],
+        "attackSpeed": 1,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "windstorm",
+      "name": "Windstorm",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          350,
+          1400
+        ],
+        "attackSpeed": 0.2,
+        "range": 1125,
+        "aoe": 400
+      }
+    },
+    {
+      "id": "wisp",
+      "name": "Wisp",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Water",
+        "Nature"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          950,
+          3800
+        ],
+        "attackSpeed": 1,
+        "range": 900,
+        "aoe": 500
+      }
+    },
+    {
+      "id": "polar",
+      "name": "Polar",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Water",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          500,
+          2000
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 300
+      }
+    },
+    {
+      "id": "nova",
+      "name": "Nova",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Nature"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          300,
+          1200
+        ],
+        "attackSpeed": 0.66,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "money",
+      "name": "Money",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          3300,
+          13200
+        ],
+        "attackSpeed": 1,
+        "range": 1150,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "incantation",
+      "name": "Incantation",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          475,
+          1900
+        ],
+        "attackSpeed": 3,
+        "range": 900,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "corrosion",
+      "name": "Corrosion",
+      "combination": "Trio",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          150,
+          600
+        ],
+        "attackSpeed": 1,
+        "range": 900,
+        "aoe": 300
+      }
+    },
+    {
+      "id": "flooding",
+      "name": "Flooding",
+      "combination": "Trio",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Nature"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          470,
+          1880
+        ],
+        "attackSpeed": 3,
+        "range": 1125,
+        "aoe": 300
+      }
+    },
+    {
+      "id": "muck",
+      "name": "Muck",
+      "combination": "Trio",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          450,
+          1800
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 300
+      }
+    },
+    {
+      "id": "ethereal",
+      "name": "Ethereal",
+      "combination": "Trio",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Nature"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          900,
+          3600
+        ],
+        "attackSpeed": 3,
+        "range": 1500,
+        "aoe": 100
+      }
+    },
+    {
+      "id": "flamethrower",
+      "name": "Flamethrower",
+      "combination": "Trio",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          400,
+          1600
+        ],
+        "attackSpeed": 1.5,
+        "range": 750,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "root",
+      "name": "Root",
+      "combination": "Trio",
+      "recipe": [
+        "Darkness",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          100,
+          400
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "impulse",
+      "name": "Impulse",
+      "combination": "Trio",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          3000,
+          12000
+        ],
+        "attackSpeed": 1,
+        "range": 1500,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "haste",
+      "name": "Haste",
+      "combination": "Trio",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          1000,
+          4000
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "golem",
+      "name": "Golem",
+      "combination": "Trio",
+      "recipe": [
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          2800,
+          11200
+        ],
+        "attackSpeed": 3,
+        "range": 1150,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "quake",
+      "name": "Quake",
+      "combination": "Trio",
+      "recipe": [
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 2,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          2000,
+          8000
+        ],
+        "attackSpeed": 1.5,
+        "range": 750,
+        "aoe": 100
+      }
+    },
+    {
+      "id": "singularity",
+      "name": "Singularity",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Fire"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          12000
+        ],
+        "attackSpeed": 0.33,
+        "range": 900,
+        "aoe": 400
+      }
+    },
+    {
+      "id": "railgun",
+      "name": "Railgun",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Nature"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Light",
+      "stats": {
+        "damage": [
+          1000
+        ],
+        "attackSpeed": 1,
+        "range": 750,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "phantom-zone",
+      "name": "Phantom Zone",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Water",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          16000
+        ],
+        "attackSpeed": 0.33,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "doom",
+      "name": "Doom",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire",
+        "Nature"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          2000
+        ],
+        "attackSpeed": 1.5,
+        "range": 750,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "rage",
+      "name": "Rage",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Fire",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          4500
+        ],
+        "attackSpeed": 1,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "nuclear",
+      "name": "Nuclear",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Darkness",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          10000
+        ],
+        "attackSpeed": 0.33,
+        "range": 750,
+        "aoe": 400
+      }
+    },
+    {
+      "id": "tesla-tree",
+      "name": "Tesla Tree",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          8000
+        ],
+        "attackSpeed": 1.5,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "obelisk",
+      "name": "Obelisk",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Fire",
+      "stats": {
+        "damage": [
+          7500
+        ],
+        "attackSpeed": 1,
+        "range": 900,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "life-altar",
+      "name": "Life Altar",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          8500
+        ],
+        "attackSpeed": 1,
+        "range": 900,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "archdruid",
+      "name": "Archdruid",
+      "combination": "Quad",
+      "recipe": [
+        "Light",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Nature",
+      "stats": {
+        "damage": [
+          15000
+        ],
+        "attackSpeed": 0.33,
+        "range": 900,
+        "aoe": 300
+      }
+    },
+    {
+      "id": "plague",
+      "name": "Plague",
+      "combination": "Quad",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire",
+        "Nature"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Darkness",
+      "stats": {
+        "damage": [
+          800
+        ],
+        "attackSpeed": 1,
+        "range": 750,
+        "aoe": 100
+      }
+    },
+    {
+      "id": "crystal-spire",
+      "name": "Crystal Spire",
+      "combination": "Quad",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Fire",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          36000
+        ],
+        "attackSpeed": 0.5,
+        "range": 625,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "gravity-cannon",
+      "name": "Gravity Cannon",
+      "combination": "Quad",
+      "recipe": [
+        "Darkness",
+        "Water",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          8000
+        ],
+        "attackSpeed": 1,
+        "range": 1500,
+        "aoe": 0
+      }
+    },
+    {
+      "id": "shredder",
+      "name": "Shredder",
+      "combination": "Quad",
+      "recipe": [
+        "Darkness",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Earth",
+      "stats": {
+        "damage": [
+          13000
+        ],
+        "attackSpeed": 0.66,
+        "range": 900,
+        "aoe": 200
+      }
+    },
+    {
+      "id": "tsunami",
+      "name": "Tsunami",
+      "combination": "Quad",
+      "recipe": [
+        "Water",
+        "Fire",
+        "Nature",
+        "Earth"
+      ],
+      "maxLevel": 1,
+      "damageElement": "Water",
+      "stats": {
+        "damage": [
+          7500
+        ],
+        "attackSpeed": 1,
+        "range": 1150,
+        "aoe": 0
+      }
+    }
+  ]
+}
