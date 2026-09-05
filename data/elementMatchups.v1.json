@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "elements": [
+    "Light",
+    "Darkness",
+    "Water",
+    "Fire",
+    "Nature",
+    "Earth"
+  ],
+  "matchups": {
+    "Light": {
+      "Light": 1,
+      "Darkness": 2,
+      "Water": 1,
+      "Fire": 1,
+      "Nature": 1,
+      "Earth": 0.5
+    },
+    "Darkness": {
+      "Light": 0.5,
+      "Darkness": 1,
+      "Water": 2,
+      "Fire": 1,
+      "Nature": 1,
+      "Earth": 1
+    },
+    "Water": {
+      "Light": 1,
+      "Darkness": 0.5,
+      "Water": 1,
+      "Fire": 2,
+      "Nature": 1,
+      "Earth": 1
+    },
+    "Fire": {
+      "Light": 1,
+      "Darkness": 1,
+      "Water": 0.5,
+      "Fire": 1,
+      "Nature": 2,
+      "Earth": 1
+    },
+    "Nature": {
+      "Light": 1,
+      "Darkness": 1,
+      "Water": 1,
+      "Fire": 0.5,
+      "Nature": 1,
+      "Earth": 2
+    },
+    "Earth": {
+      "Light": 2,
+      "Darkness": 1,
+      "Water": 1,
+      "Fire": 1,
+      "Nature": 0.5,
+      "Earth": 1
+    }
+  }
+}
