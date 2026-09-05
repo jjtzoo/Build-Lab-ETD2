@@ -38,7 +38,7 @@ describe("evaluateRangeCoverage", () => {
   it("counts multiple longer-range contributors", () => {
     const result = evaluateRangeCoverage(
       750,
-      [900, 1150, 1500],
+      [900, 1125, 1500],
     );
 
     expect(result).toEqual({

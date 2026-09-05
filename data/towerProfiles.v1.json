@@ -69,6 +69,13 @@
     {
       "towerId": "ethereal",
       "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "aoe",
+        "damageProfile": "ramp",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Darkness",
+        "scalingTriggers": ["kill-scaling"]
+      },
       "mechanics": {
         "provides": [],
         "consumes": [
@@ -83,6 +90,12 @@
     {
       "towerId": "gravity-cannon",
       "coreRoles": ["main-dps"],
+      "offense": {
+        "damageShape": "single-target",
+        "damageProfile": "sustained",
+        "damageDelivery": "basic-attack",
+        "offensiveElement": "Earth"
+      },
       "mechanics": {
         "provides": [
           {

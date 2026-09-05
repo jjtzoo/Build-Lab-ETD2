@@ -68,7 +68,7 @@
           2880
         ],
         "attackSpeed": 1.5,
-        "range": 1150,
+        "range": 1125,
         "aoe": 0
       }
     },
@@ -236,7 +236,7 @@
           7200
         ],
         "attackSpeed": 1.5,
-        "range": 1150,
+        "range": 1125,
         "aoe": 0
       }
     },
@@ -362,7 +362,7 @@
           4600
         ],
         "attackSpeed": 1,
-        "range": 1150,
+        "range": 1125,
         "aoe": 200
       }
     },
@@ -509,7 +509,7 @@
           13200
         ],
         "attackSpeed": 1,
-        "range": 1150,
+        "range": 1125,
         "aoe": 0
       }
     },
@@ -719,7 +719,7 @@
           11200
         ],
         "attackSpeed": 3,
-        "range": 1150,
+        "range": 1125,
         "aoe": 0
       }
     },
@@ -1055,7 +1055,7 @@
           7500
         ],
         "attackSpeed": 1,
-        "range": 1150,
+        "range": 1125,
         "aoe": 0
       }
     }
