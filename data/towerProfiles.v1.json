@@ -83,6 +83,21 @@
             "signal": "nearby-enemy-death",
             "strength": 4,
             "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "tower-replication",
+            "strength": 3,
+            "saturation": "repeatable"
           }
         ]
       }
@@ -526,7 +541,10 @@
         "damageProfile": "burst",
         "damageDelivery": "triggered",
         "offensiveElement": "Fire",
-        "scalingTriggers": ["attack-scaling"]
+        "scalingTriggers": [
+          "attack-scaling",
+          "density-scaling"
+        ]
       },
       "mechanics": {
         "provides": [],
@@ -535,6 +553,21 @@
             "signal": "attack-speed-buff",
             "strength": 4,
             "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
           }
         ]
       }
@@ -565,9 +598,25 @@
         "scalingTriggers": ["attack-scaling"]
       },
       "mechanics": {
-        "provides": [],
-        "consumes": []
-      }
+      "provides": [],
+      "consumes": [
+        {
+          "signal": "attack-speed-buff",
+          "strength": 4,
+          "saturation": "repeatable"
+        },
+        {
+          "signal": "attack-damage-buff",
+          "strength": 2,
+          "saturation": "repeatable"
+        },
+        {
+          "signal": "enemy-slow",
+          "strength": 3,
+          "saturation": "diminishing"
+        }
+      ]
+    }
     },
     {
       "towerId": "golem",
@@ -658,6 +707,26 @@
           {
             "signal": "attack-speed-buff",
             "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "tower-replication",
+            "strength": 4,
             "saturation": "repeatable"
           }
         ]
@@ -916,7 +985,10 @@
         "damageProfile": "dot",
         "damageDelivery": "basic-attack",
         "offensiveElement": "Earth",
-        "scalingTriggers": ["hp-scaling"]
+        "scalingTriggers": [
+          "hp-scaling",
+          "density-scaling"
+        ]
       },
       "mechanics": {
         "provides": [
@@ -927,9 +999,24 @@
         ],
         "consumes": [
           {
-            "signal": "enemy-grouping",
+            "signal": "attack-speed-buff",
             "strength": 4,
             "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
           }
         ]
       }

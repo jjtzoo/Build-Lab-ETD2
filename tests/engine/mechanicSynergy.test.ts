@@ -440,3 +440,319 @@ describe("findDirectMechanicSynergies", () => {
     ]);
   });
 });
+
+describe("canonical Flamethrower synergy profile", () => {
+  const flamethrower = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "flamethrower",
+  );
+
+  if (!flamethrower) {
+    throw new Error("Canonical Flamethrower profile must exist.");
+  }
+
+  it("models Flamethrower as density-scaling", () => {
+    expect(flamethrower.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "density-scaling",
+      ]),
+    );
+  });
+
+  it("curates Flamethrower's deliberate support synergies", () => {
+    expect(flamethrower.mechanics.consumes).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 2,
+        saturation: "repeatable",
+      },
+      {
+        signal: "enemy-grouping",
+        strength: 4,
+        saturation: "diminishing",
+      },
+      {
+        signal: "enemy-slow",
+        strength: 3,
+        saturation: "diminishing",
+      },
+    ]);
+  });
+
+  it("does not assume Flamethrower replication synergy", () => {
+    expect(
+      flamethrower.mechanics.consumes.some(
+        (demand) => demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("canonical Haste synergy profile", () => {
+  const haste = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "haste",
+  );
+
+  if (!haste) {
+    throw new Error("Canonical Haste profile must exist.");
+  }
+
+  it("curates Haste around attack-speed ramp and sustained targeting", () => {
+    expect(haste.mechanics.consumes).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 2,
+        saturation: "repeatable",
+      },
+      {
+        signal: "enemy-slow",
+        strength: 3,
+        saturation: "diminishing",
+      },
+    ]);
+  });
+
+  it("does not infer grouping synergy for single-target Haste", () => {
+    expect(
+      haste.mechanics.consumes.some(
+        (demand) => demand.signal === "enemy-grouping",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not assume special replication synergy for Haste", () => {
+    expect(
+      haste.mechanics.consumes.some(
+        (demand) => demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("canonical Ethereal synergy profile", () => {
+  const ethereal = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "ethereal",
+  );
+
+  if (!ethereal) {
+    throw new Error("Canonical Ethereal profile must exist.");
+  }
+
+  it("keeps nearby enemy deaths as Ethereal's defining synergy", () => {
+    expect(ethereal.mechanics.consumes).toContainEqual({
+      signal: "nearby-enemy-death",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("curates Ethereal's damage-window support", () => {
+    expect(ethereal.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-damage-buff",
+          strength: 2,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("retains verified replication synergy for Ethereal", () => {
+    expect(ethereal.mechanics.consumes).toContainEqual({
+      signal: "tower-replication",
+      strength: 3,
+      saturation: "repeatable",
+    });
+  });
+
+  it("does not turn grouping or slow into direct Ethereal synergy", () => {
+    expect(
+      ethereal.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "enemy-slow",
+      ),
+    ).toBe(false);
+  });
+});
+
+[
+  {
+    "signal": "attack-speed-buff",
+    "strength": 3,
+    "saturation": "repeatable"
+  },
+  {
+    "signal": "attack-damage-buff",
+    "strength": 2,
+    "saturation": "repeatable"
+  },
+  {
+    "signal": "enemy-grouping",
+    "strength": 4,
+    "saturation": "diminishing"
+  },
+  {
+    "signal": "enemy-slow",
+    "strength": 3,
+    "saturation": "diminishing"
+  },
+  {
+    "signal": "tower-replication",
+    "strength": 4,
+    "saturation": "repeatable"
+  }
+]
+
+describe("canonical Railgun synergy profile", () => {
+  const railgun = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "railgun",
+  );
+
+  if (!railgun) {
+    throw new Error("Canonical Railgun profile must exist.");
+  }
+
+  it("keeps density scaling as part of Railgun's defining mechanic", () => {
+    expect(railgun.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "density-scaling",
+      ]),
+    );
+  });
+
+  it("treats grouping as a defining Railgun synergy", () => {
+    expect(railgun.mechanics.consumes).toContainEqual({
+      signal: "enemy-grouping",
+      strength: 4,
+      saturation: "diminishing",
+    });
+  });
+
+  it("curates Railgun's attack-speed and slow support", () => {
+    expect(railgun.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("keeps attack damage secondary to Railgun's charge mechanic", () => {
+    expect(railgun.mechanics.consumes).toContainEqual({
+      signal: "attack-damage-buff",
+      strength: 2,
+      saturation: "repeatable",
+    });
+  });
+
+  it("recognizes Railgun as a defining replication beneficiary", () => {
+    expect(railgun.mechanics.consumes).toContainEqual({
+      signal: "tower-replication",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("does not model target isolation as a Railgun benefit", () => {
+    expect(
+      railgun.mechanics.consumes.some(
+        (demand) => demand.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("canonical Nuclear synergy profile", () => {
+  const nuclear = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "nuclear",
+  );
+
+  if (!nuclear) {
+    throw new Error("Canonical Nuclear profile must exist.");
+  }
+
+  it("models Nuclear as both HP-scaling and density-scaling", () => {
+    expect(nuclear.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "hp-scaling",
+        "density-scaling",
+      ]),
+    );
+  });
+
+  it("retains Nuclear's built-in slow contribution", () => {
+    expect(nuclear.mechanics.provides).toContainEqual({
+      signal: "enemy-slow",
+      strength: 3,
+    });
+  });
+
+  it("treats attack speed as defining Nuclear mutation support", () => {
+    expect(nuclear.mechanics.consumes).toContainEqual({
+      signal: "attack-speed-buff",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("treats grouping as defining but diminishing Nuclear support", () => {
+    expect(nuclear.mechanics.consumes).toContainEqual({
+      signal: "enemy-grouping",
+      strength: 4,
+      saturation: "diminishing",
+    });
+  });
+
+  it("curates Nuclear's secondary damage and slow support", () => {
+    expect(nuclear.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 2,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("does not infer replication or isolation as Nuclear benefits", () => {
+    expect(
+      nuclear.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "tower-replication" ||
+          demand.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+});
