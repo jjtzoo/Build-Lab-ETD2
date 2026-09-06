@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { ELEMENTS, TOWERS } from "@/lib/data";
+import {
+  type ElementAllocation,
+} from "@/lib/domain/elements";
+
 import type {
-  Allocation,
-  ElementName,
+  CombinationClass,
   Tower,
-} from "@/lib/types";
+} from "@/lib/domain/tower";
+
+import {
+  TOWERS,
+} from "@/lib/domain/towerCatalog";
 
 import {
   availableTowers,
@@ -13,69 +19,62 @@ import {
   maxReachableTowerLevel,
 } from "@/lib/engine/allocation";
 
-function emptyAllocation(): Allocation {
-  return [0, 0, 0, 0, 0, 0];
-}
-
-function allocationWith(
-  values: Partial<Record<ElementName, number>>,
-): Allocation {
-  const allocation = emptyAllocation();
-
-  for (const [element, level] of Object.entries(values)) {
-    const index = ELEMENTS.indexOf(
-      element as ElementName,
-    );
-
-    allocation[index] = level ?? 0;
-  }
-
-  return allocation;
+function emptyAllocation(): ElementAllocation {
+  return {
+    Light: 0,
+    Darkness: 0,
+    Water: 0,
+    Fire: 0,
+    Nature: 0,
+    Earth: 0,
+  };
 }
 
 function allocationForTower(
   tower: Tower,
   level: number,
-): Allocation {
-  const allocation = emptyAllocation();
+): ElementAllocation {
+  const allocation =
+    emptyAllocation();
 
   for (const element of tower.recipe) {
-    allocation[ELEMENTS.indexOf(element)] = level;
+    allocation[element] = level;
   }
 
   return allocation;
 }
 
-function towerOfType(
-  type: Tower["type"],
-): Tower {
+function towerOfCombination<
+  T extends CombinationClass,
+>(
+  combination: T,
+): Extract<Tower, { combination: T }> {
   const tower = TOWERS.find(
-    (candidate) => candidate.type === type,
+    (candidate) =>
+      candidate.combination === combination,
   );
 
   if (!tower) {
     throw new Error(
-      `Expected at least one ${type} tower in canonical data.`,
+      `Expected canonical ${combination} tower.`,
     );
   }
 
-  return tower;
+  return tower as Extract<
+    Tower,
+    { combination: T }
+  >;
 }
 
 describe("tower access", () => {
   it("keeps a tower unavailable when a required element is missing", () => {
-    const tower = towerOfType("Dual");
+    const tower =
+      towerOfCombination("Dual");
 
-    const allocation = allocationForTower(
-      tower,
-      1,
-    );
+    const allocation =
+      allocationForTower(tower, 1);
 
-    const missingElement = tower.recipe[0];
-
-    allocation[
-      ELEMENTS.indexOf(missingElement)
-    ] = 0;
+    allocation[tower.recipe[0]] = 0;
 
     expect(
       maxReachableTowerLevel(
@@ -93,14 +92,14 @@ describe("tower access", () => {
   });
 
   it("derives Dual level from the shallowest recipe element", () => {
-    const tower = towerOfType("Dual");
+    const tower =
+      towerOfCombination("Dual");
 
-    const [first, second] = tower.recipe;
+    const allocation =
+      emptyAllocation();
 
-    const allocation = allocationWith({
-      [first]: 3,
-      [second]: 2,
-    });
+    allocation[tower.recipe[0]] = 3;
+    allocation[tower.recipe[1]] = 2;
 
     expect(
       maxReachableTowerLevel(
@@ -111,7 +110,8 @@ describe("tower access", () => {
   });
 
   it("allows a Dual tower to reach level 3 at 3-3", () => {
-    const tower = towerOfType("Dual");
+    const tower =
+      towerOfCombination("Dual");
 
     expect(
       maxReachableTowerLevel(
@@ -121,46 +121,37 @@ describe("tower access", () => {
     ).toBe(3);
   });
 
-  it("derives Trio level from the shallowest of its three elements", () => {
-    const tower = towerOfType("Trio");
+  it("derives Trio level from the shallowest recipe element", () => {
+    const tower =
+      towerOfCombination("Trio");
 
-    const [
-      first,
-      second,
-      third,
-    ] = tower.recipe;
+    const allocation =
+      emptyAllocation();
 
-    const levelOneAllocation =
-      allocationWith({
-        [first]: 2,
-        [second]: 2,
-        [third]: 1,
-      });
+    allocation[tower.recipe[0]] = 2;
+    allocation[tower.recipe[1]] = 2;
+    allocation[tower.recipe[2]] = 1;
 
     expect(
       maxReachableTowerLevel(
         tower,
-        levelOneAllocation,
+        allocation,
       ),
     ).toBe(1);
 
-    const levelTwoAllocation =
-      allocationWith({
-        [first]: 2,
-        [second]: 2,
-        [third]: 2,
-      });
+    allocation[tower.recipe[2]] = 2;
 
     expect(
       maxReachableTowerLevel(
         tower,
-        levelTwoAllocation,
+        allocation,
       ),
     ).toBe(2);
   });
 
   it("caps Quad towers at level 1", () => {
-    const tower = towerOfType("Quad");
+    const tower =
+      towerOfCombination("Quad");
 
     expect(
       maxReachableTowerLevel(
@@ -171,7 +162,8 @@ describe("tower access", () => {
   });
 
   it("returns level-aware available tower entries", () => {
-    const tower = towerOfType("Dual");
+    const tower =
+      towerOfCombination("Dual");
 
     const allocation =
       allocationForTower(tower, 2);
@@ -181,7 +173,7 @@ describe("tower access", () => {
 
     const entry = available.find(
       ({ tower: candidate }) =>
-        candidate.name === tower.name,
+        candidate.id === tower.id,
     );
 
     expect(entry).toBeDefined();

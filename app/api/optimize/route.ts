@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { optimize } from "@/lib/engine/allocation";
-import type { ElementName } from "@/lib/types";
 
-const elements = ["Light","Darkness","Water","Fire","Nature","Earth"] as const;
-
-export async function POST(request: Request) {
-  const body = await request.json().catch(()=>null) as { core?: unknown } | null;
-  const core = Array.isArray(body?.core) ? body.core : [];
-  if (core.length !== 3 || new Set(core).size !== 3 || core.some((x)=>!elements.includes(x as ElementName))) {
-    return NextResponse.json({ error: "Choose exactly three distinct core elements." }, { status: 400 });
-  }
-  const results = optimize(core as ElementName[]);
-  return NextResponse.json({ results: results.slice(0, 20), legalCount: results.length });
+/**
+ * The legacy allocation heuristic has been removed.
+ *
+ * Step 9 is currently building the canonical planner:
+ * legal allocation paths -> role feasibility -> coverage/synergy -> ranking.
+ *
+ * Do not expose a fake optimizer result while that planner is incomplete.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: "Build Lab planner is not implemented yet.",
+    },
+    {
+      status: 501,
+    },
+  );
 }
