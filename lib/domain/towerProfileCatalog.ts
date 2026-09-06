@@ -1,5 +1,4 @@
-import towerProfileCatalogData
-  from "@/data/towerProfiles.v1.json";
+import towerProfileCatalogData from "@/data/towerProfiles.v1.json";
 
 import type { TowerId } from "./tower";
 import type { TowerProfile } from "./towerProfile";
@@ -10,7 +9,7 @@ export type TowerProfileCatalog = {
 };
 
 export const TOWER_PROFILE_CATALOG =
-  towerProfileCatalogData as TowerProfileCatalog;
+  towerProfileCatalogData as unknown as TowerProfileCatalog;
 
 export const TOWER_PROFILES =
   TOWER_PROFILE_CATALOG.profiles;

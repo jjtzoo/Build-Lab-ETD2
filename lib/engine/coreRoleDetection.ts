@@ -13,6 +13,22 @@ export type CoreRoleStatus = {
   satisfied: boolean;
 };
 
+import type { ElementAllocation } from "@/lib/domain/elements";
+
+import type {
+  CombinationClass,
+  Tower,
+  TowerId,
+} from "@/lib/domain/tower";
+
+import {
+  getTowerProfile,
+} from "@/lib/domain/towerProfileCatalog";
+
+import {
+  availableTowers,
+} from "@/lib/engine/allocation";
+
 /**
  * Count how many selected towers can satisfy each core role.
  *
@@ -107,5 +123,138 @@ export function hasCompleteCorePackage(
 ): boolean {
   return getCoreRoleStatus(profiles).every(
     (item) => item.satisfied,
+  );
+}
+
+export type CoreRoleLevelCandidate = {
+  towerId: TowerId;
+  towerName: string;
+  combination: CombinationClass;
+  reachableLevel: number;
+  targetLevel: number;
+  atTargetLevel: boolean;
+};
+
+export type CoreRoleFeasibility = {
+  role: CoreRole;
+  available: boolean;
+  developed: boolean;
+  candidates: readonly CoreRoleLevelCandidate[];
+};
+
+/**
+ * Desired tower depth for satisfying a core role.
+ *
+ * Main DPS, Slow and Damage Amp are planned toward the
+ * tower's relevant normal maximum level.
+ *
+ * Buff is normally sufficient at Level 2, unless the tower's
+ * canonical maximum level is lower than 2.
+ *
+ * This describes role development only.
+ * It does not select or rank a tower.
+ */
+function targetLevelForRole(
+  role: CoreRole,
+  tower: Tower,
+): number {
+  if (role === "buff") {
+    return Math.min(2, tower.maxLevel);
+  }
+
+  return tower.maxLevel;
+}
+
+/**
+ * Evaluates which currently accessible towers can satisfy
+ * each required core role and at what reachable level.
+ *
+ * available:
+ *   at least one tower for the role can currently be built.
+ *
+ * developed:
+ *   at least one candidate has reached the desired role depth.
+ *
+ * Availability and planner selection remain separate.
+ */
+export function getCoreRoleFeasibility(
+  allocation: ElementAllocation,
+): readonly CoreRoleFeasibility[] {
+  const available =
+    availableTowers(allocation);
+
+  return CORE_ROLE_PRIORITY.map((role) => {
+    const candidates: CoreRoleLevelCandidate[] = [];
+
+    for (const entry of available) {
+      const profile =
+        getTowerProfile(entry.tower.id);
+
+      if (!profile.coreRoles.includes(role)) {
+        continue;
+      }
+
+      const targetLevel =
+        targetLevelForRole(
+          role,
+          entry.tower,
+        );
+
+      candidates.push({
+        towerId: entry.tower.id,
+        towerName: entry.tower.name,
+        combination:
+          entry.tower.combination,
+        reachableLevel:
+          entry.maxLevel,
+        targetLevel,
+        atTargetLevel:
+          entry.maxLevel >= targetLevel,
+      });
+    }
+
+    return {
+      role,
+      available:
+        candidates.length > 0,
+      developed:
+        candidates.some(
+          (candidate) =>
+            candidate.atTargetLevel,
+        ),
+      candidates,
+    };
+  });
+}
+
+/**
+ * True when every mandatory core role has at least one
+ * accessible candidate.
+ *
+ * This intentionally does NOT require target development.
+ */
+export function hasFeasibleCorePackage(
+  allocation: ElementAllocation,
+): boolean {
+  return getCoreRoleFeasibility(
+    allocation,
+  ).every(
+    (status) => status.available,
+  );
+}
+
+/**
+ * True when every mandatory core role has at least one
+ * candidate developed to the role's desired depth.
+ *
+ * This is stronger than simple role availability.
+ */
+export function hasDevelopedCorePackage(
+  allocation: ElementAllocation,
+): boolean {
+  return getCoreRoleFeasibility(
+    allocation,
+  ).every(
+    (status) => status.developed,
   );
 }
