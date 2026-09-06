@@ -1660,3 +1660,225 @@ describe("curated Plague through Singularity synergy batch", () => {
     ).toBe(false);
   });
 });
+
+describe("curated Archdruid through Life Altar synergy batch", () => {
+  function profile(towerId: string): TowerProfile {
+    const result = (profileCatalog.profiles as readonly TowerProfile[]).find(
+      (entry) => entry.towerId === towerId,
+    );
+
+    if (!result) {
+      throw new Error(`Canonical ${towerId} profile must exist.`);
+    }
+
+    return result;
+  }
+
+  it("keeps Archdruid path-distance defining while adding attack scaling", () => {
+    const archdruid = profile("archdruid");
+
+    expect(archdruid.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "distance-scaling",
+        "attack-scaling",
+      ]),
+    );
+
+    expect(archdruid.mechanics.consumes).toContainEqual({
+      signal: "path-distance",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("curates Archdruid's attack support without consuming its own grouping", () => {
+    const archdruid = profile("archdruid");
+
+    expect(archdruid.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+
+    expect(
+      archdruid.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps Doom attack and duration scaling", () => {
+    const doom = profile("doom");
+
+    expect(doom.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "duration-scaling",
+      ]),
+    );
+
+    expect(doom.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-damage-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("does not invent grouping or replication synergy for Doom", () => {
+    const doom = profile("doom");
+
+    expect(
+      doom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps Tesla Tree network-scaled and highly buff-responsive", () => {
+    const tesla = profile("tesla-tree");
+
+    expect(tesla.offense?.scalingTriggers).toEqual([
+      "network-scaling",
+    ]);
+
+    expect(tesla.mechanics.consumes).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not treat replication as Tesla network scaling", () => {
+    const tesla = profile("tesla-tree");
+
+    expect(
+      tesla.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "tower-replication" ||
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "enemy-slow",
+      ),
+    ).toBe(false);
+  });
+
+  it("makes Phantom Zone both a stasis and isolation provider", () => {
+    const phantom = profile("phantom-zone");
+
+    expect(phantom.offense?.scalingTriggers).toContain(
+      "attack-scaling",
+    );
+
+    expect(phantom.mechanics.provides).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "enemy-stasis",
+          strength: 4,
+        },
+        {
+          signal: "target-isolation",
+          strength: 4,
+        },
+      ]),
+    );
+  });
+
+  it("curates Phantom Zone around stasis frequency rather than density", () => {
+    const phantom = profile("phantom-zone");
+
+    expect(phantom.mechanics.consumes).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 2,
+        saturation: "repeatable",
+      },
+    ]);
+
+    expect(
+      phantom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+
+  it("makes Life Altar a deliberate kill-generation consumer", () => {
+    const lifeAltar = profile("life-altar");
+
+    expect(lifeAltar.mechanics.provides).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 4,
+        },
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+        },
+      ]),
+    );
+
+    expect(lifeAltar.mechanics.consumes).toEqual([
+      {
+        signal: "kill-generation",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("recognizes Shredder's generated kills as Life Altar support", () => {
+    const matches = findDirectMechanicSynergies([
+      profile("shredder"),
+      profile("life-altar"),
+    ]);
+
+    expect(matches).toContainEqual(
+      expect.objectContaining({
+        providerTowerId: "shredder",
+        consumerTowerId: "life-altar",
+        signal: "kill-generation",
+        effectiveStrength: 3,
+      }),
+    );
+  });
+});

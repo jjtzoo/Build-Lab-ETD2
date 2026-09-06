@@ -1111,7 +1111,10 @@
         "damageProfile": "sustained",
         "damageDelivery": "basic-attack",
         "offensiveElement": "Nature",
-        "scalingTriggers": ["distance-scaling"]
+        "scalingTriggers": [
+          "distance-scaling",
+          "attack-scaling"
+        ]
       },
       "mechanics": {
         "provides": [
@@ -1128,6 +1131,16 @@
           {
             "signal": "path-distance",
             "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
             "saturation": "repeatable"
           }
         ]
@@ -1232,6 +1245,11 @@
             "signal": "attack-damage-buff",
             "strength": 4,
             "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
           }
         ]
       }
@@ -1301,7 +1319,18 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -1355,16 +1384,34 @@
         "damageShape": "hybrid",
         "damageProfile": "burst",
         "damageDelivery": "triggered",
-        "offensiveElement": "Darkness"
+        "offensiveElement": "Darkness",
+        "scalingTriggers": [
+          "attack-scaling"
+        ]
       },
       "mechanics": {
         "provides": [
           {
             "signal": "enemy-stasis",
             "strength": 4
+          },
+          {
+            "signal": "target-isolation",
+            "strength": 4
           }
         ],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -1387,7 +1434,13 @@
             "strength": 4
           }
         ],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "kill-generation",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     }
 
