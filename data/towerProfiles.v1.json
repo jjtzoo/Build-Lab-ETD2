@@ -561,11 +561,31 @@
         "damageShape": "hybrid",
         "damageProfile": "burst",
         "damageDelivery": "attack-count",
-        "offensiveElement": "Earth"
+        "offensiveElement": "Earth",
+        "scalingTriggers": [
+          "attack-scaling",
+          "density-scaling"
+        ]
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -675,7 +695,23 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -690,7 +726,18 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -701,11 +748,35 @@
         "damageProfile": "ramp",
         "damageDelivery": "basic-attack",
         "offensiveElement": "Water",
-        "scalingTriggers": ["attack-scaling"]
+        "scalingTriggers": [
+          "attack-scaling",
+          "density-scaling"
+        ]
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -759,7 +830,18 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {

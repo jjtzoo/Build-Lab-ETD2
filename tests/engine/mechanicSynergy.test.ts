@@ -1230,3 +1230,204 @@ describe("curated Howitzer through Solar synergy batch", () => {
     );
   });
 });
+
+describe("curated Geyser through Impulse synergy batch", () => {
+  function profile(towerId: string) {
+    const result = profileCatalog.profiles.find(
+      (entry) => entry.towerId === towerId,
+    );
+
+    if (!result) {
+      throw new Error(`Canonical ${towerId} profile must exist.`);
+    }
+
+    return result;
+  }
+
+  it("models Geyser around attack-count AoE generation", () => {
+    const geyser = profile("geyser");
+
+    expect(geyser.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "density-scaling",
+      ]),
+    );
+
+    expect(geyser.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-grouping",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("keeps Geyser damage amplification below its attack-count mechanic", () => {
+    const geyser = profile("geyser");
+
+    expect(geyser.mechanics.consumes).toContainEqual({
+      signal: "attack-damage-buff",
+      strength: 3,
+      saturation: "repeatable",
+    });
+  });
+
+  it("models Wisp around sustained ramp with shrinking coverage", () => {
+    const wisp = profile("wisp");
+
+    expect(wisp.offense?.scalingTriggers).toContain("attack-scaling");
+
+    expect(wisp.mechanics.consumes).toEqual([
+      {
+        signal: "enemy-grouping",
+        strength: 4,
+        saturation: "diminishing",
+      },
+      {
+        signal: "enemy-slow",
+        strength: 3,
+        saturation: "diminishing",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not model attack speed as unconditional Wisp synergy", () => {
+    const wisp = profile("wisp");
+
+    expect(
+      wisp.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "attack-speed-buff" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps Money's defining economy dependency as gold scaling", () => {
+    const money = profile("money");
+
+    expect(money.offense?.scalingTriggers).toEqual([
+      "gold-scaling",
+    ]);
+
+    expect(money.mechanics.consumes).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-speed-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not invent tower-based economy synergy for Money", () => {
+    const money = profile("money");
+
+    expect(
+      money.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "enemy-slow" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+
+  it("models Flooding as attack and density scaling", () => {
+    const flooding = profile("flooding");
+
+    expect(flooding.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "density-scaling",
+      ]),
+    );
+
+    expect(flooding.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-grouping",
+          strength: 4,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("curates Flooding's target-uptime and direct-damage support", () => {
+    const flooding = profile("flooding");
+
+    expect(flooding.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("keeps Impulse explicitly distance-scaled", () => {
+    const impulse = profile("impulse");
+
+    expect(impulse.offense?.scalingTriggers).toEqual([
+      "distance-scaling",
+    ]);
+
+    expect(impulse.mechanics.consumes).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-speed-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not confuse Impulse distance with other mechanic signals", () => {
+    const impulse = profile("impulse");
+
+    expect(
+      impulse.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-slow" ||
+          demand.signal === "target-isolation" ||
+          demand.signal === "path-distance" ||
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+});
