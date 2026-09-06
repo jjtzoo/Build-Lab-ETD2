@@ -2242,3 +2242,165 @@ describe("curated Nova through Jinx synergy batch", () => {
     ).toBe(false);
   });
 });
+
+describe("curated Polar through Mushroom synergy batch", () => {
+  function profile(towerId: string): TowerProfile {
+    const result = (profileCatalog.profiles as readonly TowerProfile[]).find(
+      (entry) => entry.towerId === towerId,
+    );
+
+    if (!result) {
+      throw new Error(`Canonical ${towerId} profile must exist.`);
+    }
+
+    return result;
+  }
+
+  it("keeps current HP removal as Polar's defining contribution", () => {
+    const polar = profile("polar");
+
+    expect(polar.mechanics.provides).toEqual([
+      {
+        signal: "current-hp-removal",
+        strength: 4,
+      },
+    ]);
+
+    expect(polar.mechanics.consumes).toContainEqual({
+      signal: "enemy-grouping",
+      strength: 3,
+      saturation: "diminishing",
+    });
+  });
+
+  it("does not make Polar dependent on generic attack support", () => {
+    const polar = profile("polar");
+
+    expect(
+      polar.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "attack-speed-buff" ||
+          demand.signal === "attack-damage-buff" ||
+          demand.signal === "tower-replication" ||
+          demand.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps Trickery as the defining replication provider", () => {
+    const trickery = profile("trickery");
+
+    expect(trickery.mechanics.provides).toEqual([
+      {
+        signal: "tower-replication",
+        strength: 4,
+      },
+    ]);
+
+    expect(trickery.mechanics.consumes).toEqual([]);
+  });
+
+  it("keeps Well as the defining attack-speed provider", () => {
+    const well = profile("well");
+
+    expect(well.mechanics.provides).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+      },
+    ]);
+
+    expect(well.mechanics.consumes).toEqual([]);
+  });
+
+  it("keeps Blacksmith as the defining attack-damage provider", () => {
+    const blacksmith = profile("blacksmith");
+
+    expect(blacksmith.mechanics.provides).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 4,
+      },
+    ]);
+
+    expect(blacksmith.mechanics.consumes).toEqual([]);
+  });
+
+  it("models Mushroom explicitly as slow-scaling damage", () => {
+    const mushroom = profile("mushroom");
+
+    expect(mushroom.offense?.scalingTriggers).toContain(
+      "slow-scaling",
+    );
+
+    expect(mushroom.mechanics.consumes).toContainEqual({
+      signal: "enemy-slow",
+      strength: 4,
+      saturation: "diminishing",
+    });
+  });
+
+  it("gives Mushroom diminishing benefit from additional slows", () => {
+    const matches = applyMechanicSaturation(
+      findDirectMechanicSynergies([
+        profile("mushroom"),
+        profile("nova"),
+        profile("windstorm"),
+      ]),
+    ).filter(
+      (match) =>
+        match.consumerTowerId === "mushroom" &&
+        match.signal === "enemy-slow",
+    );
+
+    expect(matches).toHaveLength(2);
+
+    expect(
+      matches.map((match) => match.contribution),
+    ).toEqual([
+      "full",
+      "diminished",
+    ]);
+  });
+
+  it("curates grouping as secondary Mushroom AoE support", () => {
+    const mushroom = profile("mushroom");
+
+    expect(mushroom.mechanics.consumes).toContainEqual({
+      signal: "enemy-grouping",
+      strength: 3,
+      saturation: "diminishing",
+    });
+  });
+
+  it("curates Mushroom's direct buffs below its slow mechanic", () => {
+    const mushroom = profile("mushroom");
+
+    expect(mushroom.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-speed-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("does not invent isolation or replication synergy for Mushroom", () => {
+    const mushroom = profile("mushroom");
+
+    expect(
+      mushroom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "target-isolation" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+});

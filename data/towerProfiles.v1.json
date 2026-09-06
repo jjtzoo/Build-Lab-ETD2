@@ -8,7 +8,10 @@
         "damageShape": "aoe",
         "damageProfile": "sustained",
         "damageDelivery": "basic-attack",
-        "offensiveElement": "Nature"
+        "offensiveElement": "Nature",
+        "scalingTriggers": [
+          "slow-scaling"
+        ]
       },
       "mechanics": {
         "provides": [],
@@ -16,6 +19,21 @@
           {
             "signal": "enemy-slow",
             "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
             "saturation": "repeatable"
           }
         ]
@@ -256,7 +274,13 @@
                 "strength": 4
             }
             ],
-            "consumes": []
+            "consumes": [
+              {
+                "signal": "enemy-grouping",
+                "strength": 3,
+                "saturation": "diminishing"
+              }
+            ]
         }
     },
     {
