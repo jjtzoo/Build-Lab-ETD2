@@ -173,6 +173,12 @@ select {
   align-items: center;
   min-width: 0;
 }
+.carousel-slot {
+  min-width: 0;
+}
+.carousel-slot > .anchor-card {
+  width: 100%;
+}
 .anchor-card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -194,6 +200,15 @@ select {
   box-shadow:
     inset 0 1px 0 #a1aaa333,
     0 18px 35px #00000020;
+}
+.selected .tower-art {
+  width: 264px;
+  height: 352px;
+  justify-self: center;
+  align-self: center;
+}
+.selected .tower-art img {
+  object-fit: contain;
 }
 .tower-art {
   position: relative;
@@ -884,6 +899,10 @@ footer {
     grid-template-columns: 1fr;
     grid-template-rows: 244px auto;
     padding: 8px;
+  }
+  .selected .tower-art {
+    width: 168px;
+    height: 224px;
   }
   .anchor-copy {
     padding: 16px 14px 12px;

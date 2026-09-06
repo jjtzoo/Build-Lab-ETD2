@@ -105,7 +105,8 @@ function TowerArt({
           src={src}
           alt={decorative ? "" : `${tower.name} tower`}
           fill
-          sizes="(max-width: 767px) 55vw, (max-width: 1200px) 34vw, 390px"
+          quality={90}
+          sizes="(max-width: 767px) 168px, (max-width: 1199px) 230px, 264px"
           priority={tower.id === "laser"}
         />
       ) : (
@@ -216,22 +217,22 @@ export function BuildLab({
     : {
         layout: {
           type: "spring" as const,
-          stiffness: 230,
-          damping: 27,
-          mass: 1.08,
+          stiffness: 205,
+          damping: 24,
+          mass: 1.18,
         },
-        opacity: { duration: 0.2 },
+        opacity: { duration: 0.18 },
         scale: {
           type: "spring" as const,
-          stiffness: 250,
-          damping: 26,
-          mass: 1.05,
+          stiffness: 220,
+          damping: 25,
+          mass: 1.1,
         },
         x: {
           type: "spring" as const,
-          stiffness: 230,
-          damping: 27,
-          mass: 1.08,
+          stiffness: 205,
+          damping: 24,
+          mass: 1.18,
         },
       };
   const transitionText = (step: Step) => {
@@ -303,7 +304,7 @@ export function BuildLab({
           }}
           tabIndex={0}
         >
-          <AnimatePresence initial={false} mode="popLayout" custom={direction}>
+          <AnimatePresence initial={false} mode="popLayout">
             {[-1, 0, 1].map((offset) => {
               const item =
                 anchors[(index + offset + anchors.length) % anchors.length];
@@ -312,78 +313,73 @@ export function BuildLab({
                 : {
                     initial: {
                       opacity: 0,
-                      x: direction * 88,
-                      scale: 0.88,
+                      x: offset === 0 ? direction * 64 : offset * 48,
+                      scale: 0.9,
                     },
                     animate: {
-                      opacity: offset === 0 ? 1 : 0.62,
+                      opacity: offset === 0 ? 1 : 0.76,
                       x: 0,
-                      scale: offset === 0 ? 1 : 0.92,
+                      scale: offset === 0 ? 1 : 0.95,
                     },
                     exit: {
                       opacity: 0,
-                      x: direction * -88,
-                      scale: 0.86,
+                      x: direction * -72,
+                      scale: 0.9,
                     },
                   };
 
-              return offset === 0 ? (
-                <motion.article
+              return (
+                <motion.div
                   key={item.id}
-                  layout
-                  layoutId={`anchor-${item.id}`}
-                  className="anchor-card selected"
+                  layout={reduce ? false : "position"}
+                  className="carousel-slot"
                   initial={motionState?.initial ?? false}
                   animate={motionState?.animate}
                   exit={motionState?.exit}
                   transition={carouselTransition}
-                  aria-live="polite"
                 >
-                  <TowerArt tower={item} assets={assets} />
-                  <div className="anchor-copy">
-                    <div className="anchor-meta">
-                      <span>Selected anchor</span>
-                      <span className="level">LV {item.level}</span>
-                    </div>
-                    <div className="anchor-title">
-                      <span className="tower-class">
-                        {item.combination} tower
+                  {offset === 0 ? (
+                    <article className="anchor-card selected" aria-live="polite">
+                      <TowerArt tower={item} assets={assets} />
+                      <div className="anchor-copy">
+                        <div className="anchor-meta">
+                          <span>Selected anchor</span>
+                          <span className="level">LV {item.level}</span>
+                        </div>
+                        <div className="anchor-title">
+                          <span className="tower-class">
+                            {item.combination} tower
+                          </span>
+                          <h2>{item.name}</h2>
+                        </div>
+                        <Recipe elements={item.recipe} assets={assets} />
+                        <div className="anchor-facts">
+                          <span>{readable(item.shape)}</span>
+                          <span>
+                            Range <b>{item.stats.range}</b>
+                          </span>
+                          <span data-element={item.damageElement}>
+                            {item.damageElement} damage
+                          </span>
+                        </div>
+                      </div>
+                    </article>
+                  ) : (
+                    <button
+                      className={`anchor-card preview preview-${offset < 0 ? "left" : "right"}`}
+                      onClick={() => select(index + offset)}
+                      aria-label={`Select ${item.name}, level ${item.level}`}
+                    >
+                      <TowerArt tower={item} assets={assets} decorative />
+                      <span className="anchor-meta">
+                        {offset < 0 ? "Previous" : "Next"}
+                        <span className="level">LV {item.level}</span>
                       </span>
-                      <h2>{item.name}</h2>
-                    </div>
-                    <Recipe elements={item.recipe} assets={assets} />
-                    <div className="anchor-facts">
-                      <span>{readable(item.shape)}</span>
-                      <span>
-                        Range <b>{item.stats.range}</b>
-                      </span>
-                      <span data-element={item.damageElement}>
-                        {item.damageElement} damage
-                      </span>
-                    </div>
-                  </div>
-                </motion.article>
-              ) : (
-                <motion.button
-                  key={item.id}
-                  layout
-                  layoutId={`anchor-${item.id}`}
-                  className={`anchor-card preview preview-${offset < 0 ? "left" : "right"}`}
-                  initial={motionState?.initial ?? false}
-                  animate={motionState?.animate}
-                  exit={motionState?.exit}
-                  transition={carouselTransition}
-                  onClick={() => select(index + offset)}
-                  aria-label={`Select ${item.name}, level ${item.level}`}
-                >
-                  <TowerArt tower={item} assets={assets} decorative />
-                  <span className="anchor-meta">
-                    {offset < 0 ? "Previous" : "Next"}
-                    <span className="level">LV {item.level}</span>
-                  </span>
-                  <span className="preview-name">{item.name}</span>
-                  <Recipe elements={item.recipe} assets={assets} />
-                </motion.button>
+                      <span className="preview-name">{item.name}</span>
+                      <Recipe elements={item.recipe} assets={assets} />
+                    </button>
+                  )}
+                </motion.div>
               );
             })}
           </AnimatePresence>
