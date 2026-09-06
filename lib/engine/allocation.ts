@@ -153,6 +153,53 @@ export function unlockedTowers(
   );
 }
 
+export const MAX_ELEMENT_LEVEL = 3;
+export const MAX_KEYSTONES = 11;
+
+export function totalKeystones(
+  allocation: Allocation,
+): number {
+  return allocation.reduce(
+    (sum, level) => sum + level,
+    0,
+  );
+}
+
+/**
+ * Returns every allocation reachable by spending exactly
+ * one normal element keystone.
+ *
+ * Rules:
+ * - exactly one element increases by 1
+ * - no element may exceed Level 3
+ * - total normal keystones may not exceed 11
+ *
+ * Pure Essence / Periodic Essence access is intentionally
+ * outside this normal allocation transition.
+ */
+export function legalNextAllocations(
+  allocation: Allocation,
+): Allocation[] {
+  if (totalKeystones(allocation) >= MAX_KEYSTONES) {
+    return [];
+  }
+
+  const next: Allocation[] = [];
+
+  for (let index = 0; index < allocation.length; index++) {
+    if (allocation[index] >= MAX_ELEMENT_LEVEL) {
+      continue;
+    }
+
+    const candidate = [...allocation] as Allocation;
+    candidate[index] += 1;
+
+    next.push(candidate);
+  }
+
+  return next;
+}
+
 /**
  * LEGACY allocation explorer.
  *
