@@ -2070,3 +2070,175 @@ describe("curated Gravity Cannon through Corrosion synergy batch", () => {
     ).toBe(false);
   });
 });
+
+
+describe("curated Nova through Jinx synergy batch", () => {
+  function profile(towerId: string): TowerProfile {
+    const result = (profileCatalog.profiles as readonly TowerProfile[]).find(
+      (entry) => entry.towerId === towerId,
+    );
+
+    if (!result) {
+      throw new Error(`Canonical ${towerId} profile must exist.`);
+    }
+
+    return result;
+  }
+
+  it("keeps Nova as pure distributed slow without grouping", () => {
+    const nova = profile("nova");
+
+    expect(nova.mechanics.provides).toEqual([
+      {
+        signal: "enemy-slow",
+        strength: 4,
+      },
+    ]);
+
+    expect(nova.mechanics.consumes).toEqual([]);
+  });
+
+  it("does not turn Nova into a grouping or isolation provider", () => {
+    const nova = profile("nova");
+
+    expect(
+      nova.mechanics.provides.some(
+        (supply) =>
+          supply.signal === "enemy-grouping" ||
+          supply.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps Windstorm as the slow tower that also groups", () => {
+    const windstorm = profile("windstorm");
+
+    expect(windstorm.mechanics.provides).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "enemy-slow",
+          strength: 4,
+        },
+        {
+          signal: "enemy-grouping",
+          strength: 3,
+        },
+      ]),
+    );
+
+    expect(windstorm.mechanics.consumes).toEqual([]);
+  });
+
+  it("keeps Root focused on line-delivered slow rather than grouping", () => {
+    const root = profile("root");
+
+    expect(root.mechanics.provides).toEqual([
+      {
+        signal: "enemy-slow",
+        strength: 4,
+      },
+    ]);
+
+    expect(root.mechanics.consumes).toEqual([]);
+  });
+
+  it("keeps Muck a defining slow provider", () => {
+    const muck = profile("muck");
+
+    expect(muck.mechanics.provides).toEqual([
+      {
+        signal: "enemy-slow",
+        strength: 4,
+      },
+    ]);
+  });
+
+  it("makes grouping a meaningful Muck AoE-coverage synergy", () => {
+    const muck = profile("muck");
+
+    expect(muck.mechanics.consumes).toEqual([
+      {
+        signal: "enemy-grouping",
+        strength: 3,
+        saturation: "diminishing",
+      },
+    ]);
+
+    expect(
+      muck.mechanics.provides.some(
+        (supply) => supply.signal === "enemy-grouping",
+      ),
+    ).toBe(false);
+  });
+
+  it("recognizes Windstorm grouping as direct Muck support", () => {
+    const matches = findDirectMechanicSynergies([
+      profile("windstorm"),
+      profile("muck"),
+    ]);
+
+    expect(matches).toContainEqual(
+      expect.objectContaining({
+        providerTowerId: "windstorm",
+        consumerTowerId: "muck",
+        signal: "enemy-grouping",
+        effectiveStrength: 3,
+      }),
+    );
+  });
+
+  it("keeps damage echo as Jinx's defining provided mechanic", () => {
+    const jinx = profile("jinx");
+
+    expect(jinx.mechanics.provides).toContainEqual({
+      signal: "damage-echo",
+      strength: 4,
+    });
+  });
+
+  it("makes incoming damage amplification a defining Jinx synergy", () => {
+    const jinx = profile("jinx");
+
+    expect(jinx.mechanics.consumes).toEqual([
+      {
+        signal: "damage-taken-amp",
+        strength: 4,
+        saturation: "diminishing",
+      },
+      {
+        signal: "enemy-grouping",
+        strength: 3,
+        saturation: "diminishing",
+      },
+    ]);
+
+    const matches = findDirectMechanicSynergies([
+      profile("corrosion"),
+      jinx,
+    ]);
+
+    expect(matches).toContainEqual(
+      expect.objectContaining({
+        providerTowerId: "corrosion",
+        consumerTowerId: "jinx",
+        signal: "damage-taken-amp",
+        effectiveStrength: 4,
+      }),
+    );
+  });
+
+  it("does not make Jinx dependent on generic attack support", () => {
+    const jinx = profile("jinx");
+
+    expect(
+      jinx.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "attack-speed-buff" ||
+          demand.signal === "attack-damage-buff" ||
+          demand.signal === "enemy-slow" ||
+          demand.signal === "target-isolation" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+});

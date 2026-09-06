@@ -176,7 +176,13 @@
                 "strength": 4
             }
             ],
-            "consumes": []
+            "consumes": [
+              {
+                "signal": "enemy-grouping",
+                "strength": 3,
+                "saturation": "diminishing"
+              }
+            ]
         }
         },
         {
@@ -202,7 +208,18 @@
                 "strength": 4
             }
             ],
-            "consumes": []
+            "consumes": [
+              {
+                "signal": "damage-taken-amp",
+                "strength": 4,
+                "saturation": "diminishing"
+              },
+              {
+                "signal": "enemy-grouping",
+                "strength": 3,
+                "saturation": "diminishing"
+              }
+            ]
         }
         },
         {
