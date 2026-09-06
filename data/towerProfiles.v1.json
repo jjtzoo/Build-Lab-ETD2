@@ -399,7 +399,23 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "enemy-grouping",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -409,11 +425,28 @@
         "damageShape": "hybrid",
         "damageProfile": "sustained",
         "damageDelivery": "basic-attack",
-        "offensiveElement": "Light"
+        "offensiveElement": "Light",
+        "scalingTriggers": ["density-scaling"]
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "enemy-grouping",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -428,7 +461,23 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "current-hp-removal",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -447,7 +496,18 @@
             "strength": 4
           }
         ],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -457,11 +517,41 @@
         "damageShape": "aoe",
         "damageProfile": "dot",
         "damageDelivery": "basic-attack",
-        "offensiveElement": "Fire"
+        "offensiveElement": "Fire",
+        "scalingTriggers": [
+          "attack-scaling",
+          "density-scaling"
+        ]
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+        {
+          "signal": "attack-speed-buff",
+          "strength": 4,
+          "saturation": "repeatable"
+        },
+        {
+          "signal": "enemy-grouping",
+          "strength": 4,
+          "saturation": "diminishing"
+        },
+        {
+          "signal": "enemy-slow",
+          "strength": 3,
+          "saturation": "diminishing"
+        },
+        {
+          "signal": "attack-damage-buff",
+          "strength": 2,
+          "saturation": "repeatable"
+        },
+        {
+          "signal": "tower-replication",
+          "strength": 4,
+          "saturation": "repeatable"
+        }
+      ]
       }
     },
     {

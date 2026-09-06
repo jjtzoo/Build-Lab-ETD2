@@ -1039,53 +1039,194 @@ describe("canonical Bloom synergy profile", () => {
   });
 });
 
-describe("canonical Bloom synergy profile", () => {
-  const bloom = profileCatalog.profiles.find(
-    (profile) => profile.towerId === "bloom",
-  );
+describe("curated Howitzer through Solar synergy batch", () => {
+  function profile(towerId: string) {
+    const result = profileCatalog.profiles.find(
+      (entry) => entry.towerId === towerId,
+    );
 
-  if (!bloom) {
-    throw new Error("Canonical Bloom profile must exist.");
+    if (!result) {
+      throw new Error(`Canonical ${towerId} profile must exist.`);
+    }
+
+    return result;
   }
 
-  it("models Bloom as front-loaded burst rather than sustained uptime DPS", () => {
-    expect(bloom.offense?.damageProfile).toBe("burst");
-  });
+  it("curates Howitzer around distance-aware AoE rather than uptime", () => {
+    const howitzer = profile("howitzer");
 
-  it("does not misrepresent Bloom's rest-dependent mechanic as attack-scaling", () => {
-    expect(bloom.offense?.scalingTriggers ?? []).not.toContain(
-      "attack-scaling",
+    expect(howitzer.offense?.scalingTriggers).toContain(
+      "distance-scaling",
     );
-  });
 
-  it("keeps attack damage as strong straightforward Bloom support", () => {
-    expect(bloom.mechanics.consumes).toEqual([
+    expect(howitzer.mechanics.consumes).toEqual([
+      {
+        signal: "enemy-grouping",
+        strength: 3,
+        saturation: "diminishing",
+      },
       {
         signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-speed-buff",
         strength: 3,
         saturation: "repeatable",
       },
     ]);
   });
 
-  it("does not model attack speed or slow as unconditional Bloom synergies", () => {
+  it("does not invent slow or isolation synergy for Howitzer", () => {
+    const howitzer = profile("howitzer");
+
     expect(
-      bloom.mechanics.consumes.some(
+      howitzer.mechanics.consumes.some(
         (demand) =>
-          demand.signal === "attack-speed-buff" ||
-          demand.signal === "enemy-slow",
+          demand.signal === "enemy-slow" ||
+          demand.signal === "target-isolation",
       ),
     ).toBe(false);
   });
 
-  it("does not infer grouping, replication, or isolation as Bloom benefits", () => {
-    expect(
-      bloom.mechanics.consumes.some(
-        (demand) =>
-          demand.signal === "enemy-grouping" ||
-          demand.signal === "tower-replication" ||
-          demand.signal === "target-isolation",
-      ),
-    ).toBe(false);
+  it("models Lightning as density-dependent chain damage", () => {
+    const lightning = profile("lightning");
+
+    expect(lightning.offense?.scalingTriggers).toContain(
+      "density-scaling",
+    );
+
+    expect(lightning.mechanics.consumes).toContainEqual({
+      signal: "enemy-grouping",
+      strength: 3,
+      saturation: "diminishing",
+    });
+  });
+
+  it("keeps Lightning's direct buffs below a defining mechanic score", () => {
+    const lightning = profile("lightning");
+
+    expect(lightning.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-speed-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("makes current HP removal a defining Disease synergy", () => {
+    const disease = profile("disease");
+
+    expect(disease.offense?.scalingTriggers).toContain("hp-scaling");
+
+    expect(disease.mechanics.consumes).toContainEqual({
+      signal: "current-hp-removal",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("curates Disease's normal attack amplification below HP shaving", () => {
+    const disease = profile("disease");
+
+    expect(disease.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-speed-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("retains Ice as a defining stun provider", () => {
+    const ice = profile("ice");
+
+    expect(ice.mechanics.provides).toContainEqual({
+      signal: "enemy-stun",
+      strength: 4,
+    });
+  });
+
+  it("does not overrate attack speed through Ice's stun cooldown", () => {
+    const ice = profile("ice");
+
+    expect(ice.mechanics.consumes).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-speed-buff",
+        strength: 2,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("models Solar as attack and density scaling", () => {
+    const solar = profile("solar");
+
+    expect(solar.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "density-scaling",
+      ]),
+    );
+
+    expect(solar.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-grouping",
+          strength: 4,
+          saturation: "diminishing",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("recognizes Solar replication while keeping direct damage secondary", () => {
+    const solar = profile("solar");
+
+    expect(solar.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "tower-replication",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-damage-buff",
+          strength: 2,
+          saturation: "repeatable",
+        },
+      ]),
+    );
   });
 });
