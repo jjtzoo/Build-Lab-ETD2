@@ -92,9 +92,10 @@ export type CorePackageEvidence = {
 };
 
 function resolveSelectedTowers(
-  candidate: CorePackageCandidate,
+  selectedTowerIds:
+    readonly TowerId[],
 ): readonly SelectedTower[] {
-  return candidate.selectedTowerIds.map(
+  return selectedTowerIds.map(
     (towerId) => ({
       tower:
         getTower(towerId),
@@ -138,19 +139,29 @@ function getAnchor(
  *
  * This function does not rank the package.
  */
-export function evaluateCorePackageEvidence(
-  candidate: CorePackageCandidate,
+/**
+ * Evaluates coverage and mechanic evidence for any
+ * explicitly selected tower package.
+ *
+ * The anchor must be present in selectedTowerIds.
+ *
+ * No ranking occurs here.
+ */
+export function evaluateSelectedPackageEvidence(
+  anchorTowerId: TowerId,
+  selectedTowerIds:
+    readonly TowerId[],
   matchups: ElementMatchupTable,
 ): CorePackageEvidence {
   const selected =
     resolveSelectedTowers(
-      candidate,
+      selectedTowerIds,
     );
 
   const anchor =
     getAnchor(
       selected,
-      candidate.anchorTowerId,
+      anchorTowerId,
     );
 
   const anchorOffense =
@@ -158,7 +169,7 @@ export function evaluateCorePackageEvidence(
 
   if (!anchorOffense) {
     throw new Error(
-      `Anchor is missing canonical offense profile: ${candidate.anchorTowerId}`,
+      `Anchor is missing canonical offense profile: ${anchorTowerId}`,
     );
   }
 
@@ -166,7 +177,7 @@ export function evaluateCorePackageEvidence(
     selected.filter(
       (entry) =>
         entry.tower.id !==
-          candidate.anchorTowerId &&
+          anchorTowerId &&
         entry.profile.offense !==
           undefined,
     );
@@ -197,14 +208,12 @@ export function evaluateCorePackageEvidence(
     );
 
   return {
-    anchorTowerId:
-      candidate.anchorTowerId,
+    anchorTowerId,
 
-    selectedTowerIds:
-      candidate.selectedTowerIds,
+    selectedTowerIds,
 
     offensiveContributorTowerIds: [
-      candidate.anchorTowerId,
+      anchorTowerId,
       ...supportingOffense.map(
         (entry) =>
           entry.tower.id,
@@ -237,4 +246,18 @@ export function evaluateCorePackageEvidence(
         profiles,
       ),
   };
+}
+
+/**
+ * Core-package convenience wrapper.
+ */
+export function evaluateCorePackageEvidence(
+  candidate: CorePackageCandidate,
+  matchups: ElementMatchupTable,
+): CorePackageEvidence {
+  return evaluateSelectedPackageEvidence(
+    candidate.anchorTowerId,
+    candidate.selectedTowerIds,
+    matchups,
+  );
 }
