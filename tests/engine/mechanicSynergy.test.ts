@@ -756,3 +756,336 @@ describe("canonical Nuclear synergy profile", () => {
     ).toBe(false);
   });
 });
+
+describe("canonical Atom synergy profile", () => {
+  const atom = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "atom",
+  );
+
+  if (!atom) {
+    throw new Error("Canonical Atom profile must exist.");
+  }
+
+  it("treats attack speed as defining Atom ramp support", () => {
+    expect(atom.mechanics.consumes).toContainEqual({
+      signal: "attack-speed-buff",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("curates Atom's attack-damage and target-uptime support", () => {
+    expect(atom.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("keeps grouping secondary to Atom's focused ramp", () => {
+    expect(atom.mechanics.consumes).toContainEqual({
+      signal: "enemy-grouping",
+      strength: 2,
+      saturation: "diminishing",
+    });
+
+    expect(atom.offense?.scalingTriggers).not.toContain(
+      "density-scaling",
+    );
+  });
+
+  it("does not infer replication or isolation as Atom benefits", () => {
+    expect(
+      atom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "tower-replication" ||
+          demand.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("canonical Poison synergy profile", () => {
+  const poison = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "poison",
+  );
+
+  if (!poison) {
+    throw new Error("Canonical Poison profile must exist.");
+  }
+
+  it("models Poison as attack-scaling through independent DoT stacks", () => {
+    expect(poison.offense?.scalingTriggers).toContain(
+      "attack-scaling",
+    );
+  });
+
+  it("treats attack speed as defining Poison stack support", () => {
+    expect(poison.mechanics.consumes).toContainEqual({
+      signal: "attack-speed-buff",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("recognizes Poison as a defining replication beneficiary", () => {
+    expect(poison.mechanics.consumes).toContainEqual({
+      signal: "tower-replication",
+      strength: 4,
+      saturation: "repeatable",
+    });
+  });
+
+  it("curates Poison's grouping and slow support", () => {
+    expect(poison.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "enemy-grouping",
+          strength: 3,
+          saturation: "diminishing",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("keeps attack damage secondary to Poison's DoT stacking", () => {
+    expect(poison.mechanics.consumes).toContainEqual({
+      signal: "attack-damage-buff",
+      strength: 2,
+      saturation: "repeatable",
+    });
+
+    expect(poison.offense?.scalingTriggers).not.toContain(
+      "density-scaling",
+    );
+  });
+});
+
+describe("canonical Vapor synergy profile", () => {
+  const vapor = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "vapor",
+  );
+
+  if (!vapor) {
+    throw new Error("Canonical Vapor profile must exist.");
+  }
+
+  it("keeps density scaling as Vapor's defining mechanic", () => {
+    expect(vapor.offense?.scalingTriggers).toContain(
+      "density-scaling",
+    );
+
+    expect(vapor.offense?.scalingTriggers).not.toContain(
+      "attack-scaling",
+    );
+  });
+
+  it("treats grouping as defining Vapor support", () => {
+    expect(vapor.mechanics.consumes).toContainEqual({
+      signal: "enemy-grouping",
+      strength: 4,
+      saturation: "diminishing",
+    });
+  });
+
+  it("curates slow as strong density-maintenance support", () => {
+    expect(vapor.mechanics.consumes).toContainEqual({
+      signal: "enemy-slow",
+      strength: 3,
+      saturation: "diminishing",
+    });
+  });
+
+  it("curates Vapor's direct attack buffs below its density mechanic", () => {
+    expect(vapor.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-speed-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("does not infer replication or isolation as Vapor benefits", () => {
+    expect(
+      vapor.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "tower-replication" ||
+          demand.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("canonical Infernal synergy profile", () => {
+  const infernal = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "infernal",
+  );
+
+  if (!infernal) {
+    throw new Error("Canonical Infernal profile must exist.");
+  }
+
+  it("curates Infernal's direct sustained attack buffs", () => {
+    expect(infernal.mechanics.consumes).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-speed-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not treat slow as required target-uptime support for Infernal", () => {
+    expect(
+      infernal.mechanics.consumes.some(
+        (demand) => demand.signal === "enemy-slow",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not infer grouping, isolation, or replication as Infernal benefits", () => {
+    expect(
+      infernal.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "target-isolation" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not label Infernal's persistence mechanic as attack-scaling", () => {
+    expect(infernal.offense?.scalingTriggers ?? []).not.toContain(
+      "attack-scaling",
+    );
+  });
+});
+
+describe("canonical Bloom synergy profile", () => {
+  const bloom = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "bloom",
+  );
+
+  if (!bloom) {
+    throw new Error("Canonical Bloom profile must exist.");
+  }
+
+  it("models Bloom as front-loaded burst rather than sustained uptime DPS", () => {
+    expect(bloom.offense?.damageProfile).toBe("burst");
+  });
+
+  it("does not misrepresent Bloom's rest-dependent mechanic as attack-scaling", () => {
+    expect(bloom.offense?.scalingTriggers ?? []).not.toContain(
+      "attack-scaling",
+    );
+  });
+
+  it("keeps attack damage as strong straightforward Bloom support", () => {
+    expect(bloom.mechanics.consumes).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not model attack speed or slow as unconditional Bloom synergies", () => {
+    expect(
+      bloom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "attack-speed-buff" ||
+          demand.signal === "enemy-slow",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not infer grouping, replication, or isolation as Bloom benefits", () => {
+    expect(
+      bloom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "tower-replication" ||
+          demand.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("canonical Bloom synergy profile", () => {
+  const bloom = profileCatalog.profiles.find(
+    (profile) => profile.towerId === "bloom",
+  );
+
+  if (!bloom) {
+    throw new Error("Canonical Bloom profile must exist.");
+  }
+
+  it("models Bloom as front-loaded burst rather than sustained uptime DPS", () => {
+    expect(bloom.offense?.damageProfile).toBe("burst");
+  });
+
+  it("does not misrepresent Bloom's rest-dependent mechanic as attack-scaling", () => {
+    expect(bloom.offense?.scalingTriggers ?? []).not.toContain(
+      "attack-scaling",
+    );
+  });
+
+  it("keeps attack damage as strong straightforward Bloom support", () => {
+    expect(bloom.mechanics.consumes).toEqual([
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not model attack speed or slow as unconditional Bloom synergies", () => {
+    expect(
+      bloom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "attack-speed-buff" ||
+          demand.signal === "enemy-slow",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not infer grouping, replication, or isolation as Bloom benefits", () => {
+    expect(
+      bloom.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "tower-replication" ||
+          demand.signal === "target-isolation",
+      ),
+    ).toBe(false);
+  });
+});

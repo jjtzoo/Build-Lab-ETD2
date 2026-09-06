@@ -241,7 +241,28 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 2,
+            "saturation": "diminishing"
+          }
+        ]
       }
     },
     {
@@ -251,11 +272,38 @@
         "damageShape": "aoe",
         "damageProfile": "dot",
         "damageDelivery": "basic-attack",
-        "offensiveElement": "Darkness"
+        "offensiveElement": "Darkness",
+        "scalingTriggers": ["attack-scaling"]
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "tower-replication",
+            "strength": 4,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -270,7 +318,28 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -284,7 +353,18 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
@@ -292,14 +372,19 @@
       "coreRoles": ["main-dps"],
       "offense": {
         "damageShape": "aoe",
-        "damageProfile": "sustained",
+        "damageProfile": "burst",
         "damageDelivery": "basic-attack",
-        "offensiveElement": "Nature",
-        "scalingTriggers": ["attack-scaling"]
+        "offensiveElement": "Nature"
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          }
+        ]
       }
     },
     {
