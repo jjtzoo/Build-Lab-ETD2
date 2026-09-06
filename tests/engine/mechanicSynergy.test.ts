@@ -1882,3 +1882,191 @@ describe("curated Archdruid through Life Altar synergy batch", () => {
     );
   });
 });
+
+describe("curated Gravity Cannon through Corrosion synergy batch", () => {
+  function profile(towerId: string): TowerProfile {
+    const result = (profileCatalog.profiles as readonly TowerProfile[]).find(
+      (entry) => entry.towerId === towerId,
+    );
+
+    if (!result) {
+      throw new Error(`Canonical ${towerId} profile must exist.`);
+    }
+
+    return result;
+  }
+
+  it("makes Gravity Cannon a defining displacement and isolation provider", () => {
+    const gravity = profile("gravity-cannon");
+
+    expect(gravity.mechanics.provides).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "enemy-displacement",
+          strength: 4,
+        },
+        {
+          signal: "target-isolation",
+          strength: 4,
+        },
+      ]),
+    );
+  });
+
+  it("curates Gravity Cannon around attack-driven control", () => {
+    const gravity = profile("gravity-cannon");
+
+    expect(gravity.mechanics.consumes).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+
+    expect(
+      gravity.mechanics.provides.some(
+        (supply) =>
+          supply.signal === "enemy-grouping" ||
+          supply.signal === "enemy-slow",
+      ),
+    ).toBe(false);
+  });
+
+  it("recognizes Gravity Cannon isolation for Laser", () => {
+    const matches = findDirectMechanicSynergies([
+      profile("gravity-cannon"),
+      profile("laser"),
+    ]);
+
+    expect(matches).toContainEqual(
+      expect.objectContaining({
+        providerTowerId: "gravity-cannon",
+        consumerTowerId: "laser",
+        signal: "target-isolation",
+        effectiveStrength: 4,
+      }),
+    );
+  });
+
+  it("recognizes Gravity Cannon isolation for Incantation", () => {
+    const matches = findDirectMechanicSynergies([
+      profile("gravity-cannon"),
+      profile("incantation"),
+    ]);
+
+    expect(matches).toContainEqual(
+      expect.objectContaining({
+        providerTowerId: "gravity-cannon",
+        consumerTowerId: "incantation",
+        signal: "target-isolation",
+        effectiveStrength: 3,
+      }),
+    );
+  });
+
+  it("keeps Rage focused on amp and isolation rather than generic consumers", () => {
+    const rage = profile("rage");
+
+    expect(rage.mechanics.provides).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "damage-taken-amp",
+          strength: 4,
+        },
+        {
+          signal: "target-isolation",
+          strength: 4,
+        },
+      ]),
+    );
+
+    expect(rage.mechanics.consumes).toEqual([]);
+  });
+
+  it("keeps isolation as Laser's defining synergy", () => {
+    const laser = profile("laser");
+
+    expect(laser.mechanics.consumes).toContainEqual({
+      signal: "target-isolation",
+      strength: 4,
+      saturation: "single",
+    });
+  });
+
+  it("adds strong but secondary direct buffs to Laser", () => {
+    const laser = profile("laser");
+
+    expect(laser.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "attack-speed-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("keeps Incantation centered entirely on conditional isolation", () => {
+    const incantation = profile("incantation");
+
+    expect(incantation.mechanics.provides).toContainEqual({
+      signal: "damage-taken-amp",
+      strength: 4,
+    });
+
+    expect(incantation.mechanics.consumes).toEqual([
+      {
+        signal: "target-isolation",
+        strength: 3,
+        saturation: "single",
+      },
+    ]);
+  });
+
+  it("curates Corrosion around broad AoE amp coverage", () => {
+    const corrosion = profile("corrosion");
+
+    expect(corrosion.mechanics.provides).toContainEqual({
+      signal: "damage-taken-amp",
+      strength: 4,
+    });
+
+    expect(corrosion.mechanics.consumes).toEqual([
+      {
+        signal: "enemy-grouping",
+        strength: 3,
+        saturation: "diminishing",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 2,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not make Corrosion isolation or attack-speed dependent", () => {
+    const corrosion = profile("corrosion");
+
+    expect(
+      corrosion.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "target-isolation" ||
+          demand.signal === "attack-speed-buff" ||
+          demand.signal === "tower-replication",
+      ),
+    ).toBe(false);
+  });
+});
