@@ -1,5 +1,6 @@
 import type {
   MechanicConditionEvaluation,
+  MechanicConditionState,
   MechanicStrength,
 } from "@/lib/domain/mechanicSignals";
 import type { TowerProfile } from "@/lib/domain/towerProfile";
@@ -34,13 +35,23 @@ export type SynergyComparisonContext = {
   after?: readonly MechanicConditionEvaluation[];
 };
 
+export type EvaluatedDirectSynergy = {
+  match: MechanicSynergyMatch;
+  condition: "replication-applicable" | null;
+  conditionState: MechanicConditionState;
+};
+
 export type CombinedSynergyOpportunityComparison = {
   candidateTowerId: TowerProfile["towerId"];
 
-  // Direct-only evidence, retained for inspection.
+  // Direct-only matching evidence, not the final applicable totals.
   direct: DirectSynergyOpportunityComparison;
 
-  // Raw potential chains, retained for explanations.
+  evaluatedDirect: {
+    before: readonly EvaluatedDirectSynergy[];
+    after: readonly EvaluatedDirectSynergy[];
+  };
+
   derived: {
     before: readonly DerivedMechanicSynergyMatch[];
     after: readonly DerivedMechanicSynergyMatch[];
@@ -51,7 +62,6 @@ export type CombinedSynergyOpportunityComparison = {
     after: readonly EvaluatedDerivedSynergy[];
   };
 
-  // Direct and condition-met derived supply saturated together.
   applicable: {
     before: readonly SaturatedMechanicSynergyMatch[];
     after: readonly SaturatedMechanicSynergyMatch[];
@@ -65,17 +75,55 @@ export type CombinedSynergyOpportunityComparison = {
   };
 };
 
+function evaluateDirectConditions(
+  matches: readonly SaturatedMechanicSynergyMatch[],
+  evaluations: readonly MechanicConditionEvaluation[],
+): readonly EvaluatedDirectSynergy[] {
+  return matches.map(({ contribution, ...match }) => {
+    void contribution;
+
+    if (match.signal !== "tower-replication") {
+      return {
+        match,
+        condition: null,
+        conditionState: "met",
+      };
+    }
+
+    const matchingStates = new Set(
+      evaluations
+        .filter(
+          (entry) =>
+            entry.providerTowerId === match.providerTowerId &&
+            entry.consumerTowerId === match.consumerTowerId &&
+            entry.condition === "replication-applicable",
+        )
+        .map((entry) => entry.state),
+    );
+
+    if (matchingStates.size > 1) {
+      throw new Error(
+        "Conflicting condition states for replication applicability",
+      );
+    }
+
+    const conditionState = [...matchingStates][0] ?? "unknown";
+
+    return {
+      match,
+      condition: "replication-applicable",
+      conditionState,
+    };
+  });
+}
+
 function combineApplicableContributions(
-  direct: readonly SaturatedMechanicSynergyMatch[],
+  direct: readonly EvaluatedDirectSynergy[],
   derived: readonly EvaluatedDerivedSynergy[],
 ): readonly SaturatedMechanicSynergyMatch[] {
-  // Remove direct-only saturation before evaluating the whole package.
-  const matches: MechanicSynergyMatch[] = direct.map(
-    ({ contribution, ...match }) => {
-      void contribution;
-      return match;
-    },
-  );
+  const matches: MechanicSynergyMatch[] = direct
+    .filter((entry) => entry.conditionState === "met")
+    .map((entry) => entry.match);
 
   for (const entry of derived) {
     if (entry.conditionState !== "met") {
@@ -99,8 +147,8 @@ function combineApplicableContributions(
     });
   }
 
-  // One provider's supply to the same consumer/signal counts once.
-  // Alternate paths remain available in the raw evidence above.
+  // Alternate paths from the same provider count once per
+  // consumer and signal. Raw evidence preserves those paths.
   const uniqueSupply = new Map<string, MechanicSynergyMatch>();
 
   for (const match of matches) {
@@ -124,27 +172,23 @@ function combineApplicableContributions(
 }
 
 /**
- * Evaluates one candidate without selecting it.
- *
- * Condition context is supplied separately for before and after:
- * adding a tower may change placement or targeting.
- * Missing information stays unknown.
- *
- * Role completion, keystone ranking, and damage estimates
- * remain outside this evaluator.
+ * Compares one candidate without selecting it.
+ * Before and after context are explicit and independent.
+ * Missing required condition information stays unknown.
  */
 export function evaluateCombinedSynergyOpportunity(
   selectedProfiles: readonly TowerProfile[],
   candidate: TowerProfile,
   context: SynergyComparisonContext = {},
 ): CombinedSynergyOpportunityComparison {
-  // Also validates selected IDs and candidate uniqueness.
   const direct = evaluateDirectSynergyOpportunity(
     selectedProfiles,
     candidate,
   );
 
   const afterProfiles = [...selectedProfiles, candidate];
+  const beforeContext = context.before ?? [];
+  const afterContext = context.after ?? [];
 
   const derivedBefore =
     findDerivedMechanicSynergies(selectedProfiles);
@@ -153,26 +197,31 @@ export function evaluateCombinedSynergyOpportunity(
 
   const evaluatedBefore = evaluateDerivedSynergyConditions(
     derivedBefore,
-    context.before ?? [],
+    beforeContext,
   );
-
   const evaluatedAfter = evaluateDerivedSynergyConditions(
     derivedAfter,
-    context.after ?? [],
+    afterContext,
+  );
+
+  const directBefore = evaluateDirectConditions(
+    direct.before,
+    beforeContext,
+  );
+  const directAfter = evaluateDirectConditions(
+    direct.after,
+    afterContext,
   );
 
   const applicableBefore = combineApplicableContributions(
-    direct.before,
+    directBefore,
     evaluatedBefore,
   );
-
   const applicableAfter = combineApplicableContributions(
-    direct.after,
+    directAfter,
     evaluatedAfter,
   );
 
-  // This existing helper compares contribution snapshots;
-  // its algorithm also works for the combined applicable supply.
   const summaries = summarizeDirectSynergyOpportunity({
     candidateTowerId: candidate.towerId,
     before: applicableBefore,
@@ -182,6 +231,10 @@ export function evaluateCombinedSynergyOpportunity(
   return {
     candidateTowerId: candidate.towerId,
     direct,
+    evaluatedDirect: {
+      before: directBefore,
+      after: directAfter,
+    },
     derived: {
       before: derivedBefore,
       after: derivedAfter,

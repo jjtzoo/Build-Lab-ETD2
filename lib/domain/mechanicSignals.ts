@@ -84,7 +84,8 @@ export type MechanicRelationshipType =
   | "conditional";
 
 export type MechanicRelationshipCondition =
-  | "deaths-within-consumer-trigger-area";
+  | "deaths-within-consumer-trigger-area"
+  | "replication-applicable";
 
 /**
  * Whether a required condition holds in the evaluated context.

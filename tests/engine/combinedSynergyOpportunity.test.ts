@@ -521,3 +521,162 @@ describe("condition-aware combined contributions", () => {
       .toBe("unknown");
   });
 });
+
+describe("replication applicability", () => {
+  const replicator: TowerProfile = {
+    towerId: "replicator",
+    coreRoles: ["buff"],
+    mechanics: {
+      provides: [
+        { signal: "tower-replication", strength: 4 },
+      ],
+      consumes: [],
+    },
+  };
+
+  const compatibleConsumer: TowerProfile = {
+    towerId: "compatible-consumer",
+    coreRoles: ["main-dps"],
+    mechanics: {
+      provides: [],
+      consumes: [
+        {
+          signal: "tower-replication",
+          strength: 4,
+          saturation: "repeatable",
+        },
+      ],
+    },
+  };
+
+  it.each(["met", "unmet", "unknown"] as const)(
+    "counts replication only when applicability is met: %s",
+    (state) => {
+      const result = evaluateCombinedSynergyOpportunity(
+        [compatibleConsumer],
+        replicator,
+        {
+          after: [
+            {
+              providerTowerId: replicator.towerId,
+              consumerTowerId: compatibleConsumer.towerId,
+              condition: "replication-applicable",
+              state,
+            },
+          ],
+        },
+      );
+
+      expect(result.direct.after).toHaveLength(1);
+      expect(result.evaluatedDirect.after[0]).toMatchObject({
+        condition: "replication-applicable",
+        conditionState: state,
+      });
+      expect(result.applicable.after).toHaveLength(
+        state === "met" ? 1 : 0,
+      );
+      expect(result.summaries).toHaveLength(
+        state === "met" ? 1 : 0,
+      );
+    },
+  );
+
+  it("preserves a potential replication match without context", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [compatibleConsumer],
+      replicator,
+    );
+
+    expect(result.direct.after).toHaveLength(1);
+    expect(result.evaluatedDirect.after[0].conditionState)
+      .toBe("unknown");
+    expect(result.applicable.after).toEqual([]);
+  });
+
+  it("does not share applicability between consumers", () => {
+    const secondConsumer: TowerProfile = {
+      ...compatibleConsumer,
+      towerId: "second-consumer",
+    };
+
+    const result = evaluateCombinedSynergyOpportunity(
+      [compatibleConsumer, secondConsumer],
+      replicator,
+      {
+        after: [
+          {
+            providerTowerId: replicator.towerId,
+            consumerTowerId: compatibleConsumer.towerId,
+            condition: "replication-applicable",
+            state: "met",
+          },
+        ],
+      },
+    );
+
+    expect(result.direct.after).toHaveLength(2);
+    expect(result.applicable.after).toHaveLength(1);
+    expect(result.applicable.after[0].consumerTowerId)
+      .toBe(compatibleConsumer.towerId);
+  });
+
+  it("does not infer compatibility from fixed-cooldown delivery", () => {
+    const unclassified: TowerProfile = {
+      towerId: "unclassified",
+      coreRoles: ["main-dps"],
+      offense: {
+        damageShape: "aoe",
+        damageProfile: "burst",
+        damageDelivery: "fixed-cooldown",
+        offensiveElement: "Light",
+      },
+      mechanics: {
+        provides: [],
+        consumes: [],
+      },
+    };
+
+    const result = evaluateCombinedSynergyOpportunity(
+      [unclassified],
+      replicator,
+      {
+        after: [
+          {
+            providerTowerId: replicator.towerId,
+            consumerTowerId: unclassified.towerId,
+            condition: "replication-applicable",
+            state: "met",
+          },
+        ],
+      },
+    );
+
+    expect(result.direct.after).toEqual([]);
+    expect(result.applicable.after).toEqual([]);
+  });
+
+  it("rejects contradictory replication context", () => {
+    expect(() =>
+      evaluateCombinedSynergyOpportunity(
+        [compatibleConsumer],
+        replicator,
+        {
+          after: [
+            {
+              providerTowerId: replicator.towerId,
+              consumerTowerId: compatibleConsumer.towerId,
+              condition: "replication-applicable",
+              state: "met",
+            },
+            {
+              providerTowerId: replicator.towerId,
+              consumerTowerId: compatibleConsumer.towerId,
+              condition: "replication-applicable",
+              state: "unmet",
+            },
+          ],
+        },
+      ),
+    ).toThrow("Conflicting condition states");
+  });
+});
