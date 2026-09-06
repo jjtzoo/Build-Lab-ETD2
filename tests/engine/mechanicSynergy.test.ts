@@ -1431,3 +1431,232 @@ describe("curated Geyser through Impulse synergy batch", () => {
     ).toBe(false);
   });
 });
+
+
+describe("curated Plague through Singularity synergy batch", () => {
+  function profile(towerId: string) {
+    const result = profileCatalog.profiles.find(
+      (entry) => entry.towerId === towerId,
+    );
+
+    if (!result) {
+      throw new Error(`Canonical ${towerId} profile must exist.`);
+    }
+
+    return result;
+  }
+
+  it("models Plague as attack and density scaling", () => {
+    const plague = profile("plague");
+
+    expect(plague.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "density-scaling",
+      ]),
+    );
+
+    expect(plague.mechanics.consumes).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "tower-replication",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 2,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not force grouping or slow into Plague's contagious chain", () => {
+    const plague = profile("plague");
+
+    expect(
+      plague.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "enemy-grouping" ||
+          demand.signal === "enemy-slow",
+      ),
+    ).toBe(false);
+  });
+
+  it("curates Tsunami around charge generation and verified replication", () => {
+    const tsunami = profile("tsunami");
+
+    expect(tsunami.offense?.scalingTriggers).toEqual([
+      "attack-scaling",
+    ]);
+
+    expect(tsunami.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "tower-replication",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 3,
+          saturation: "diminishing",
+        },
+        {
+          signal: "attack-damage-buff",
+          strength: 2,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("models Obelisk around attack-speed and channel-duration scaling", () => {
+    const obelisk = profile("obelisk");
+
+    expect(obelisk.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "duration-scaling",
+      ]),
+    );
+
+    expect(obelisk.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-speed-buff",
+          strength: 4,
+          saturation: "repeatable",
+        },
+        {
+          signal: "enemy-slow",
+          strength: 4,
+          saturation: "diminishing",
+        },
+        {
+          signal: "enemy-grouping",
+          strength: 3,
+          saturation: "diminishing",
+        },
+      ]),
+    );
+  });
+
+  it("retains Obelisk's direct damage and replication opportunities", () => {
+    const obelisk = profile("obelisk");
+
+    expect(obelisk.mechanics.consumes).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "attack-damage-buff",
+          strength: 3,
+          saturation: "repeatable",
+        },
+        {
+          signal: "tower-replication",
+          strength: 4,
+          saturation: "repeatable",
+        },
+      ]),
+    );
+  });
+
+  it("keeps Shredder as a defining kill-generation provider", () => {
+    const shredder = profile("shredder");
+
+    expect(shredder.mechanics.provides).toContainEqual({
+      signal: "kill-generation",
+      strength: 4,
+    });
+
+    expect(shredder.mechanics.consumes).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not over-model Shredder replication or grouping", () => {
+    const shredder = profile("shredder");
+
+    expect(
+      shredder.mechanics.consumes.some(
+        (demand) =>
+          demand.signal === "tower-replication" ||
+          demand.signal === "enemy-grouping",
+      ),
+    ).toBe(false);
+  });
+
+  it("models Singularity as attack and density scaling", () => {
+    const singularity = profile("singularity");
+
+    expect(singularity.offense?.scalingTriggers).toEqual(
+      expect.arrayContaining([
+        "attack-scaling",
+        "density-scaling",
+      ]),
+    );
+
+    expect(singularity.mechanics.provides).toEqual(
+      expect.arrayContaining([
+        {
+          signal: "enemy-grouping",
+          strength: 4,
+        },
+        {
+          signal: "enemy-displacement",
+          strength: 3,
+        },
+      ]),
+    );
+  });
+
+  it("curates Singularity's attack speed, damage, and replication support", () => {
+    const singularity = profile("singularity");
+
+    expect(singularity.mechanics.consumes).toEqual([
+      {
+        signal: "attack-speed-buff",
+        strength: 4,
+        saturation: "repeatable",
+      },
+      {
+        signal: "attack-damage-buff",
+        strength: 3,
+        saturation: "repeatable",
+      },
+      {
+        signal: "tower-replication",
+        strength: 4,
+        saturation: "repeatable",
+      },
+    ]);
+  });
+
+  it("does not make Singularity consume the grouping it provides", () => {
+    const singularity = profile("singularity");
+
+    expect(
+      singularity.mechanics.consumes.some(
+        (demand) => demand.signal === "enemy-grouping",
+      ),
+    ).toBe(false);
+  });
+});
