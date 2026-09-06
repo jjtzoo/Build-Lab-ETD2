@@ -18,6 +18,7 @@ import {
 } from "@/lib/engine/derivedSynergyConditions";
 import {
   applyMechanicSaturation,
+  findDirectMechanicSynergies,
   type MechanicSynergyMatch,
   type SaturatedMechanicSynergyMatch,
 } from "@/lib/engine/mechanicSynergy";
@@ -349,5 +350,105 @@ export function evaluateCombinedSynergyOpportunity(
       before: findConditionalMechanicTensions(selectedProfiles),
       after: findConditionalMechanicTensions(afterProfiles),
     },
+  };
+}
+
+export type CombinedSynergyPackageEvidence = {
+  /**
+   * Direct mechanic relationships after
+   * condition evaluation.
+   */
+  evaluatedDirect:
+    readonly EvaluatedDirectSynergy[];
+
+  /**
+   * Raw derived mechanic paths discovered
+   * inside the selected package.
+   */
+  derived:
+    readonly DerivedMechanicSynergyMatch[];
+
+  /**
+   * Derived relationships after their
+   * required conditions are evaluated.
+   */
+  evaluatedDerived:
+    readonly EvaluatedDerivedSynergy[];
+
+  /**
+   * Confirmed mechanic contributions after
+   * condition evaluation and saturation.
+   *
+   * Unknown or unmet conditional relationships
+   * do not become confirmed contributions.
+   */
+  applicable:
+    readonly SaturatedMechanicSynergyMatch[];
+
+  /**
+   * Potential mechanic conflicts inside
+   * the selected package.
+   */
+  tensions:
+    readonly ConditionalMechanicTension[];
+};
+
+/**
+ * Evaluates the synergy state of an already-selected
+ * package.
+ *
+ * Unlike evaluateCombinedSynergyOpportunity(), this
+ * does not compare one candidate against a "before"
+ * state. It describes the complete selected package.
+ */
+export function evaluateCombinedSynergyPackage(
+  profiles: readonly TowerProfile[],
+  context:
+    readonly MechanicConditionEvaluation[] = [],
+  relationships:
+    readonly MechanicRelationship[] =
+      MECHANIC_RELATIONSHIPS,
+): CombinedSynergyPackageEvidence {
+  const direct =
+    applyMechanicSaturation(
+      findDirectMechanicSynergies(
+        profiles,
+      ),
+    );
+
+  const evaluatedDirect =
+    evaluateDirectConditions(
+      direct,
+      context,
+      relationships,
+    );
+
+  const derived =
+    findDerivedMechanicSynergies(
+      profiles,
+      relationships,
+    );
+
+  const evaluatedDerived =
+    evaluateDerivedSynergyConditions(
+      derived,
+      context,
+    );
+
+  const applicable =
+    combineApplicableContributions(
+      evaluatedDirect,
+      evaluatedDerived,
+    );
+
+  return {
+    evaluatedDirect,
+    derived,
+    evaluatedDerived,
+    applicable,
+    tensions:
+      findConditionalMechanicTensions(
+        profiles,
+      ),
   };
 }
