@@ -19,20 +19,19 @@ export type DerivedMechanicSynergyMatch = {
   consumerStrength: MechanicStrength;
   saturation: SaturationMode;
 
-  relationshipType: "derived";
+  relationshipType: "derived" | "conditional";
   status: "potential";
   conditions: readonly MechanicRelationshipCondition[];
 };
 
 /**
- * Finds potential synergy through one registered derived
+ * Finds potential synergy through one registered derived or conditional
  * relationship. It does not verify combat conditions,
  * calculate realized strength, or apply saturation.
  */
 export function findDerivedMechanicSynergies(
   profiles: readonly TowerProfile[],
-  relationships: readonly MechanicRelationship[] =
-    MECHANIC_RELATIONSHIPS,
+  relationships: readonly MechanicRelationship[] = MECHANIC_RELATIONSHIPS,
 ): readonly DerivedMechanicSynergyMatch[] {
   const matches: DerivedMechanicSynergyMatch[] = [];
 
@@ -40,7 +39,8 @@ export function findDerivedMechanicSynergies(
     for (const supply of provider.mechanics.provides) {
       for (const relationship of relationships) {
         if (
-          relationship.type !== "derived" ||
+          relationship.type === "direct" ||
+          relationship.from === relationship.to ||
           relationship.from !== supply.signal
         ) {
           continue;
@@ -67,7 +67,7 @@ export function findDerivedMechanicSynergies(
               consumerStrength: demand.strength,
               saturation: demand.saturation,
 
-              relationshipType: "derived",
+              relationshipType: relationship.type,
               status: "potential",
               conditions: [...relationship.conditions],
             });

@@ -157,10 +157,9 @@ describe("findDerivedMechanicSynergies", () => {
     ).toEqual([]);
   });
 
-  it("does not process direct or conditional relationship entries", () => {
+  it("does not process direct relationship entries", () => {
     const otherRelationships: MechanicRelationship[] = [
       { ...relationship, type: "direct" },
-      { ...relationship, type: "conditional" },
     ];
 
     expect(
@@ -169,6 +168,18 @@ describe("findDerivedMechanicSynergies", () => {
         otherRelationships,
       ),
     ).toEqual([]);
+  });
+
+  it("preserves conditional relationships between different signals", () => {
+    const matches = findDerivedMechanicSynergies(
+      [provider, consumer],
+      [{ ...relationship, type: "conditional" }],
+    );
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      relationshipType: "conditional",
+      conditions: ["deaths-within-consumer-trigger-area"],
+    });
   });
 
   it("does not duplicate an existing direct supply as derived synergy", () => {
@@ -235,7 +246,7 @@ describe("findDerivedMechanicSynergies", () => {
   });
 });
 
-describe("canonical Shredderâ€“Ethereal relationship", () => {
+describe("canonical Shredder–Ethereal relationship", () => {
   it("uses a conditional derived chain instead of direct nearby-death supply", () => {
     // Catalog structure is checked by the profile validator.
     const profiles =

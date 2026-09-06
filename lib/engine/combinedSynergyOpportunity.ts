@@ -1,8 +1,11 @@
 import type {
   MechanicConditionEvaluation,
   MechanicConditionState,
+  MechanicRelationship,
+  MechanicRelationshipCondition,
   MechanicStrength,
 } from "@/lib/domain/mechanicSignals";
+import { MECHANIC_RELATIONSHIPS } from "@/lib/domain/mechanicRelationships";
 import type { TowerProfile } from "@/lib/domain/towerProfile";
 import {
   findDerivedMechanicSynergies,
@@ -10,6 +13,7 @@ import {
 } from "@/lib/engine/derivedMechanicSynergy";
 import {
   evaluateDerivedSynergyConditions,
+  evaluateMechanicConditions,
   type EvaluatedDerivedSynergy,
 } from "@/lib/engine/derivedSynergyConditions";
 import {
@@ -37,8 +41,33 @@ export type SynergyComparisonContext = {
 
 export type EvaluatedDirectSynergy = {
   match: MechanicSynergyMatch;
-  condition: "replication-applicable" | null;
+  // Retained for existing callers; conditions contains the complete list.
+  condition: MechanicRelationshipCondition | null;
+  conditions: EvaluatedDerivedSynergy["conditions"];
   conditionState: MechanicConditionState;
+};
+
+export type SynergyOpportunityEvidence = {
+  providerSignal: string;
+  relationshipType: MechanicSynergyMatch["relationshipType"];
+  providerStrength: MechanicStrength;
+  consumerStrength: MechanicStrength;
+  saturation: MechanicSynergyMatch["saturation"];
+  conditionState: MechanicConditionState;
+  conditions: EvaluatedDerivedSynergy["conditions"];
+};
+
+export type SynergyPlanningOpportunity = {
+  providerTowerId: string;
+  consumerTowerId: string;
+  signal: string;
+  status:
+    | "new-opportunity"
+    | "changed-opportunity"
+    | "unchanged-opportunity"
+    | "removed-opportunity";
+  before: readonly SynergyOpportunityEvidence[];
+  after: readonly SynergyOpportunityEvidence[];
 };
 
 export type CombinedSynergyOpportunityComparison = {
@@ -69,6 +98,10 @@ export type CombinedSynergyOpportunityComparison = {
 
   summaries: readonly DirectSynergyOpportunitySummary[];
 
+  // Planning evidence includes unmet and unknown requirements. These are
+  // opportunities to consider, not extra confirmed damage or contributions.
+  opportunities: readonly SynergyPlanningOpportunity[];
+
   tensions: {
     before: readonly ConditionalMechanicTension[];
     after: readonly ConditionalMechanicTension[];
@@ -78,41 +111,31 @@ export type CombinedSynergyOpportunityComparison = {
 function evaluateDirectConditions(
   matches: readonly SaturatedMechanicSynergyMatch[],
   evaluations: readonly MechanicConditionEvaluation[],
+  relationships: readonly MechanicRelationship[],
 ): readonly EvaluatedDirectSynergy[] {
-  return matches.map(({ contribution, ...match }) => {
+  const conditioned = matches.map(({ contribution, ...match }) => {
     void contribution;
+    return {
+      ...match,
+      conditions: [
+        ...new Set(
+          relationships
+            .filter(
+              (rule) => rule.from === match.signal && rule.to === match.signal,
+            )
+            .flatMap((rule) => rule.conditions),
+        ),
+      ],
+    };
+  });
 
-    if (match.signal !== "tower-replication") {
-      return {
-        match,
-        condition: null,
-        conditionState: "met",
-      };
-    }
-
-    const matchingStates = new Set(
-      evaluations
-        .filter(
-          (entry) =>
-            entry.providerTowerId === match.providerTowerId &&
-            entry.consumerTowerId === match.consumerTowerId &&
-            entry.condition === "replication-applicable",
-        )
-        .map((entry) => entry.state),
-    );
-
-    if (matchingStates.size > 1) {
-      throw new Error(
-        "Conflicting condition states for replication applicability",
-      );
-    }
-
-    const conditionState = [...matchingStates][0] ?? "unknown";
-
+  return evaluateMechanicConditions(conditioned, evaluations).map((entry) => {
+    const { conditions, ...match } = entry.match;
     return {
       match,
-      condition: "replication-applicable",
-      conditionState,
+      condition: conditions[0] ?? null,
+      conditions: entry.conditions,
+      conditionState: entry.conditionState,
     };
   });
 }
@@ -143,7 +166,7 @@ function combineApplicableContributions(
         match.consumerStrength,
       ) as MechanicStrength,
       saturation: match.saturation,
-      relationshipType: "derived",
+      relationshipType: match.relationshipType,
     });
   }
 
@@ -160,15 +183,79 @@ function combineApplicableContributions(
 
     const existing = uniqueSupply.get(key);
 
-    if (
-      !existing ||
-      match.effectiveStrength > existing.effectiveStrength
-    ) {
+    if (!existing || match.effectiveStrength > existing.effectiveStrength) {
       uniqueSupply.set(key, match);
     }
   }
 
   return applyMechanicSaturation([...uniqueSupply.values()]);
+}
+
+function summarizePlanningOpportunities(
+  directBefore: readonly EvaluatedDirectSynergy[],
+  directAfter: readonly EvaluatedDirectSynergy[],
+  derivedBefore: readonly EvaluatedDerivedSynergy[],
+  derivedAfter: readonly EvaluatedDerivedSynergy[],
+): readonly SynergyPlanningOpportunity[] {
+  const groups = new Map<
+    string,
+    {
+      providerTowerId: string;
+      consumerTowerId: string;
+      signal: string;
+      before: SynergyOpportunityEvidence[];
+      after: SynergyOpportunityEvidence[];
+    }
+  >();
+
+  for (const phase of ["before", "after"] as const) {
+    const entries =
+      phase === "before"
+        ? [...directBefore, ...derivedBefore]
+        : [...directAfter, ...derivedAfter];
+
+    for (const entry of entries) {
+      const match = entry.match;
+      const signal = "signal" in match ? match.signal : match.consumerSignal;
+      const key = JSON.stringify([
+        match.providerTowerId,
+        match.consumerTowerId,
+        signal,
+      ]);
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          providerTowerId: match.providerTowerId,
+          consumerTowerId: match.consumerTowerId,
+          signal,
+          before: [],
+          after: [],
+        };
+        groups.set(key, group);
+      }
+      group[phase].push({
+        providerSignal: "signal" in match ? match.signal : match.providerSignal,
+        relationshipType: match.relationshipType,
+        providerStrength: match.providerStrength,
+        consumerStrength: match.consumerStrength,
+        saturation: match.saturation,
+        conditionState: entry.conditionState,
+        conditions: entry.conditions,
+      });
+    }
+  }
+
+  return [...groups.values()].map((group) => ({
+    ...group,
+    status:
+      group.before.length === 0
+        ? "new-opportunity"
+        : group.after.length === 0
+          ? "removed-opportunity"
+          : JSON.stringify(group.before) === JSON.stringify(group.after)
+            ? "unchanged-opportunity"
+            : "changed-opportunity",
+  }));
 }
 
 /**
@@ -180,20 +267,22 @@ export function evaluateCombinedSynergyOpportunity(
   selectedProfiles: readonly TowerProfile[],
   candidate: TowerProfile,
   context: SynergyComparisonContext = {},
+  relationships: readonly MechanicRelationship[] = MECHANIC_RELATIONSHIPS,
 ): CombinedSynergyOpportunityComparison {
-  const direct = evaluateDirectSynergyOpportunity(
-    selectedProfiles,
-    candidate,
-  );
+  const direct = evaluateDirectSynergyOpportunity(selectedProfiles, candidate);
 
   const afterProfiles = [...selectedProfiles, candidate];
   const beforeContext = context.before ?? [];
   const afterContext = context.after ?? [];
 
-  const derivedBefore =
-    findDerivedMechanicSynergies(selectedProfiles);
-  const derivedAfter =
-    findDerivedMechanicSynergies(afterProfiles);
+  const derivedBefore = findDerivedMechanicSynergies(
+    selectedProfiles,
+    relationships,
+  );
+  const derivedAfter = findDerivedMechanicSynergies(
+    afterProfiles,
+    relationships,
+  );
 
   const evaluatedBefore = evaluateDerivedSynergyConditions(
     derivedBefore,
@@ -207,10 +296,12 @@ export function evaluateCombinedSynergyOpportunity(
   const directBefore = evaluateDirectConditions(
     direct.before,
     beforeContext,
+    relationships,
   );
   const directAfter = evaluateDirectConditions(
     direct.after,
     afterContext,
+    relationships,
   );
 
   const applicableBefore = combineApplicableContributions(
@@ -248,6 +339,12 @@ export function evaluateCombinedSynergyOpportunity(
       after: applicableAfter,
     },
     summaries,
+    opportunities: summarizePlanningOpportunities(
+      directBefore,
+      directAfter,
+      evaluatedBefore,
+      evaluatedAfter,
+    ),
     tensions: {
       before: findConditionalMechanicTensions(selectedProfiles),
       after: findConditionalMechanicTensions(afterProfiles),

@@ -1,10 +1,115 @@
 import { describe, expect, it } from "vitest";
+import profileCatalog from "@/data/towerProfiles.v1.json";
+import { CURATED_ANCHORS } from "@/lib/domain/anchorPolicy";
+import { evaluateCombinedSynergyOpportunity } from "@/lib/engine/combinedSynergyOpportunity";
 
 import type { TowerProfile } from "@/lib/domain/towerProfile";
 import {
   applyMechanicSaturation,
   findDirectMechanicSynergies,
 } from "@/lib/engine/mechanicSynergy";
+
+describe("curated five-tower synergy batch", () => {
+  function profile(id: string): TowerProfile {
+    const found = (profileCatalog.profiles as readonly TowerProfile[])
+      .find((entry) => entry.towerId === id);
+    if (!found) throw new Error(`Missing canonical profile: ${id}`);
+    return found;
+  }
+
+  // Strategic ratings, not measured damage multipliers. Mechanics are
+  // described in data/mechanics.json (core_mechanic for these five towers).
+  // Buff/replication demands use the catalog's existing repeatable source
+  // convention; this does not assert that identical in-game buffs stack.
+  // Slow/grouping use diminishing returns: the first source helps, while
+  // additional providers do not guarantee proportional extra targets/uptime.
+  it.each([
+    ["golem", "blacksmith", "attack-damage-buff", 3,
+      "stronger attacks during the active burst, without removing downtime"],
+    ["golem", "well", "attack-speed-buff", 3,
+      "more attacks during the active burst, without shortening the rest cycle"],
+    ["astral", "blacksmith", "attack-damage-buff", 3,
+      "stronger attack output rather than a range-based preference"],
+    ["astral", "well", "attack-speed-buff", 3,
+      "more attacks during the timed window, not a shorter ability cooldown"],
+    ["runic", "blacksmith", "attack-damage-buff", 3,
+      "stronger attacks in its area-attack window"],
+    ["runic", "well", "attack-speed-buff", 3,
+      "more attacks during the timed window, not a shorter ability cooldown"],
+    ["quake", "well", "attack-speed-buff", 4,
+      "faster attack-count progression generates more shockwave triggers"],
+    ["quake", "blacksmith", "attack-damage-buff", 2,
+      "basic-attack benefit without claiming its fixed shockwave damage scales"],
+  ] as const)("%s benefits from %s: %s (%s) — %s",
+    (consumer, provider, signal, strength, reason) => {
+      expect(reason).not.toBe("");
+      const matches = findDirectMechanicSynergies([
+        profile(provider), profile(consumer),
+      ]);
+      expect(matches).toContainEqual(expect.objectContaining({
+        providerTowerId: provider, consumerTowerId: consumer,
+        signal, effectiveStrength: strength,
+      }));
+    },
+  );
+
+  it.each([
+    ["golem", 3], ["astral", 3], ["runic", 3], ["crystal-spire", 4],
+  ] as const)("retains replication as an opportunity for %s", (consumer, strength) => {
+    const unknown = evaluateCombinedSynergyOpportunity(
+      [profile(consumer)], profile("trickery"),
+    );
+    expect(unknown.opportunities).toContainEqual(expect.objectContaining({
+      providerTowerId: "trickery", consumerTowerId: consumer,
+      signal: "tower-replication",
+      after: [expect.objectContaining({ consumerStrength: strength,
+        conditionState: "unknown" })],
+    }));
+    expect(unknown.applicable.after).toEqual([]);
+
+    const applicable = evaluateCombinedSynergyOpportunity(
+      [profile(consumer)], profile("trickery"), {
+        after: [{ providerTowerId: "trickery", consumerTowerId: consumer,
+          condition: "replication-applicable", state: "met" }],
+      },
+    );
+    expect(applicable.applicable.after).toContainEqual(expect.objectContaining({
+      signal: "tower-replication", effectiveStrength: strength,
+    }));
+  });
+
+  it.each([
+    ["runic", 4], ["quake", 3], ["crystal-spire", 3],
+  ] as const)("%s recognizes grouping from different providers", (consumer, strength) => {
+    const matches = applyMechanicSaturation(findDirectMechanicSynergies([
+      profile(consumer), profile("windstorm"), profile("singularity"),
+    ])).filter((match) => match.consumerTowerId === consumer &&
+      match.signal === "enemy-grouping");
+    expect(matches).toHaveLength(2);
+    expect(matches.map((match) => match.contribution)).toEqual(["full", "diminished"]);
+    expect(matches[0].effectiveStrength).toBe(strength);
+  });
+
+  it.each([
+    ["golem", 3], ["astral", 2], ["runic", 3], ["quake", 3], ["crystal-spire", 3],
+  ] as const)("%s recognizes slow as attack-window support", (consumer, strength) => {
+    expect(findDirectMechanicSynergies([
+      profile("nova"), profile(consumer),
+    ])).toContainEqual(expect.objectContaining({
+      signal: "enemy-slow", consumerTowerId: consumer,
+      consumerStrength: strength, saturation: "diminishing",
+    }));
+    // A benefit from slow does not make a tower a slow-scaling damage mechanic.
+    expect(profile(consumer).offense?.scalingTriggers ?? []).not.toContain("slow-scaling");
+  });
+
+  it("keeps Golem burst single-target and outside the anchor whitelist", () => {
+    expect(profile("golem").offense).toMatchObject({
+      damageShape: "single-target", damageProfile: "burst", damageDelivery: "periodic",
+    });
+    expect(CURATED_ANCHORS.some((anchor) => anchor.towerId === "golem")).toBe(false);
+  });
+});
 
 describe("findDirectMechanicSynergies", () => {
   it("matches Rage target isolation with Incantation", () => {

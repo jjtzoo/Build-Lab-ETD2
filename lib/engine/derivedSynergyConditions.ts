@@ -21,17 +21,19 @@ function getConditionKey(
   consumerTowerId: string,
   condition: MechanicRelationshipCondition,
 ): string {
-  return JSON.stringify([
-    providerTowerId,
-    consumerTowerId,
-    condition,
-  ]);
+  return JSON.stringify([providerTowerId, consumerTowerId, condition]);
 }
 
-export function evaluateDerivedSynergyConditions(
-  matches: readonly DerivedMechanicSynergyMatch[],
+export function evaluateMechanicConditions<
+  T extends {
+    providerTowerId: string;
+    consumerTowerId: string;
+    conditions: readonly MechanicRelationshipCondition[];
+  },
+>(
+  matches: readonly T[],
   evaluations: readonly MechanicConditionEvaluation[] = [],
-): readonly EvaluatedDerivedSynergy[] {
+) {
   const states = new Map<string, MechanicConditionState>();
 
   for (const evaluation of evaluations) {
@@ -43,13 +45,8 @@ export function evaluateDerivedSynergyConditions(
 
     const existing = states.get(key);
 
-    if (
-      existing !== undefined &&
-      existing !== evaluation.state
-    ) {
-      throw new Error(
-        `Conflicting condition states for ${key}`,
-      );
+    if (existing !== undefined && existing !== evaluation.state) {
+      throw new Error(`Conflicting condition states for ${key}`);
     }
 
     states.set(key, evaluation.state);
@@ -73,9 +70,7 @@ export function evaluateDerivedSynergyConditions(
 
     if (conditions.some((entry) => entry.state === "unmet")) {
       conditionState = "unmet";
-    } else if (
-      conditions.some((entry) => entry.state === "unknown")
-    ) {
+    } else if (conditions.some((entry) => entry.state === "unknown")) {
       conditionState = "unknown";
     } else {
       conditionState = "met";
@@ -87,4 +82,11 @@ export function evaluateDerivedSynergyConditions(
       conditions,
     };
   });
+}
+
+export function evaluateDerivedSynergyConditions(
+  matches: readonly DerivedMechanicSynergyMatch[],
+  evaluations: readonly MechanicConditionEvaluation[] = [],
+): readonly EvaluatedDerivedSynergy[] {
+  return evaluateMechanicConditions(matches, evaluations);
 }

@@ -389,7 +389,28 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "tower-replication",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 2,
+            "saturation": "diminishing"
+          }
+        ]
       }
     },
     {
@@ -403,7 +424,33 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "tower-replication",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 4,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          }
+        ]
       }
     },
     {
@@ -533,7 +580,28 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-damage-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-speed-buff",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "tower-replication",
+            "strength": 3,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          }
+        ]
       }
     },
     {
@@ -547,7 +615,28 @@
       },
       "mechanics": {
         "provides": [],
-        "consumes": []
+        "consumes": [
+          {
+            "signal": "attack-speed-buff",
+            "strength": 4,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "attack-damage-buff",
+            "strength": 2,
+            "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
+          }
+        ]
       }
     },
     {
@@ -767,6 +856,16 @@
             "signal": "tower-replication",
             "strength": 4,
             "saturation": "repeatable"
+          },
+          {
+            "signal": "enemy-grouping",
+            "strength": 3,
+            "saturation": "diminishing"
+          },
+          {
+            "signal": "enemy-slow",
+            "strength": 3,
+            "saturation": "diminishing"
           }
         ]
       }

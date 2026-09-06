@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import profileCatalog from "@/data/towerProfiles.v1.json";
+import type { MechanicRelationship } from "@/lib/domain/mechanicSignals";
 
 import type { TowerProfile } from "@/lib/domain/towerProfile";
 import { evaluateCombinedSynergyOpportunity } from "@/lib/engine/combinedSynergyOpportunity";
@@ -678,5 +680,153 @@ describe("replication applicability", () => {
         },
       ),
     ).toThrow("Conflicting condition states");
+  });
+});
+describe("Step 8 planning opportunity corrections", () => {
+  function profile(id: string): TowerProfile {
+    const result = (profileCatalog.profiles as readonly TowerProfile[]).find(
+      (entry) => entry.towerId === id,
+    );
+    if (!result) throw new Error(`Missing canonical profile: ${id}`);
+    return result;
+  }
+
+  it.each([
+    ["trickery", "crystal-spire", "tower-replication"],
+    ["shredder", "ethereal", "nearby-enemy-death"],
+  ])(
+    "retains %s as a conditional opportunity for %s",
+    (provider, consumer, signal) => {
+      const result = evaluateCombinedSynergyOpportunity(
+        [profile(consumer)],
+        profile(provider),
+      );
+      expect(result.applicable.after).toEqual([]);
+      expect(result.summaries).toEqual([]);
+      expect(result.opportunities).toHaveLength(1);
+      expect(result.opportunities[0]).toMatchObject({
+        providerTowerId: provider,
+        consumerTowerId: consumer,
+        signal,
+        status: "new-opportunity",
+        before: [],
+        after: [expect.objectContaining({ conditionState: "unknown" })],
+      });
+      expect(result.opportunities[0].after[0].conditions).toHaveLength(1);
+    },
+  );
+
+  it("keeps unmet requirements visible without counting them", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [profile("crystal-spire")],
+      profile("trickery"),
+      {
+        after: [
+          {
+            providerTowerId: "trickery",
+            consumerTowerId: "crystal-spire",
+            condition: "replication-applicable",
+            state: "unmet",
+          },
+        ],
+      },
+    );
+    expect(result.applicable.after).toEqual([]);
+    expect(result.opportunities[0].after[0].conditionState).toBe("unmet");
+  });
+
+  it("reads direct requirements from the registry instead of signal-specific code", () => {
+    // Synthetic rule tests data-driven dispatch, not a new game mechanic.
+    const rules: MechanicRelationship[] = [
+      {
+        from: "target-isolation",
+        to: "target-isolation",
+        type: "conditional",
+        conditions: [
+          "replication-applicable",
+          "deaths-within-consumer-trigger-area",
+        ],
+      },
+    ];
+    const result = evaluateCombinedSynergyOpportunity(
+      [profile("laser")],
+      profile("rage"),
+      {
+        after: [
+          {
+            providerTowerId: "rage",
+            consumerTowerId: "laser",
+            condition: "replication-applicable",
+            state: "met",
+          },
+        ],
+      },
+      rules,
+    );
+    expect(result.evaluatedDirect.after[0].conditionState).toBe("unknown");
+    expect(result.evaluatedDirect.after[0].conditions).toHaveLength(2);
+    expect(result.applicable.after).toEqual([]);
+    expect(result.opportunities).toHaveLength(1);
+  });
+
+  it("evaluates conditional cross-signal rules in the combined report", () => {
+    const rules: MechanicRelationship[] = [
+      {
+        from: "kill-generation",
+        to: "nearby-enemy-death",
+        type: "conditional",
+        conditions: ["deaths-within-consumer-trigger-area"],
+      },
+    ];
+    const result = evaluateCombinedSynergyOpportunity(
+      [profile("ethereal")],
+      profile("shredder"),
+      {
+        after: [
+          {
+            providerTowerId: "shredder",
+            consumerTowerId: "ethereal",
+            condition: "deaths-within-consumer-trigger-area",
+            state: "met",
+          },
+        ],
+      },
+      rules,
+    );
+    expect(result.applicable.after).toHaveLength(1);
+    expect(result.applicable.after[0].relationshipType).toBe("conditional");
+    expect(result.opportunities[0].after[0].relationshipType).toBe(
+      "conditional",
+    );
+  });
+
+  it("reports existing opportunities as unchanged for an unrelated candidate", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [profile("crystal-spire"), profile("trickery")],
+      profile("atom"),
+    );
+    expect(result.opportunities).toHaveLength(1);
+    expect(result.opportunities[0].status).toBe("unchanged-opportunity");
+  });
+
+  it("reports a condition change without calling it a new interaction", () => {
+    const result = evaluateCombinedSynergyOpportunity(
+      [profile("crystal-spire"), profile("trickery")],
+      profile("atom"),
+      {
+        after: [
+          {
+            providerTowerId: "trickery",
+            consumerTowerId: "crystal-spire",
+            condition: "replication-applicable",
+            state: "met",
+          },
+        ],
+      },
+    );
+    expect(result.opportunities[0].status).toBe("changed-opportunity");
+    expect(result.opportunities[0].before[0].conditionState).toBe("unknown");
+    expect(result.opportunities[0].after[0].conditionState).toBe("met");
+    expect(result.applicable.after).toHaveLength(1);
   });
 });
