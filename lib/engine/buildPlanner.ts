@@ -21,6 +21,7 @@ import type {
 
 import {
   legalNextAllocations,
+  MAX_KEYSTONES,
 } from "@/lib/engine/allocation";
 
 import {
@@ -97,6 +98,15 @@ export type PlannerDecision = {
   totalKeystones: number;
 
   optionalTowerReachableLevel: number;
+
+  /**
+   * Late-route flexibility.
+   *
+   * These are only planner tie-break evidence.
+   * Availability still does not mean selection.
+   */
+  availableQuadCount: number;
+  availableTowerCount: number;
 
   selectedTowerCount: number;
 };
@@ -469,6 +479,20 @@ export function buildPlannerDecision(
       addition?.candidateReachableLevel ??
       0,
 
+    availableQuadCount:
+      baseline.routeState
+        .availableTowers
+        .filter(
+          (entry) =>
+            entry.tower.combination ===
+            "Quad",
+        )
+        .length,
+
+    availableTowerCount:
+      baseline.routeState
+        .availableTowers.length,
+
     selectedTowerCount:
       evidence
         .selectedTowerIds.length,
@@ -532,13 +556,14 @@ function decisionVector(
 
     -decision.newTensionCount,
 
-    // If two routes create equivalent strategic
-    // value, prefer the cheaper keystone route.
-    -decision.totalKeystones,
-
-    // Late deterministic tie-breakers.
     decision
       .optionalTowerReachableLevel,
+
+    // Only after selected-build strategic evidence
+    // ties do we prefer broader late-game access.
+    decision.availableQuadCount,
+
+    decision.availableTowerCount,
 
     -decision.selectedTowerCount,
   ];
@@ -953,8 +978,13 @@ export function rankAnchorBuildPlans(
 
   const baselines =
     evaluateAnchorPackages(
-      anchorTowerId,
-      matchups,
+        anchorTowerId,
+        matchups,
+    ).filter(
+        (baseline) =>
+        baseline.routeState
+            .totalKeystones ===
+        MAX_KEYSTONES,
     );
 
   for (const baseline of baselines) {

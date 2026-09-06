@@ -11,6 +11,28 @@ import {
 
 export const MAX_ELEMENT_LEVEL = 3;
 export const MAX_KEYSTONES = 11;
+/**
+ * SPECIAL ACCESS TODO
+ *
+ * Normal allocation search currently models only:
+ * - Dual
+ * - Trio
+ * - Quad
+ *
+ * Still required before final engine completeness:
+ *
+ * Pure / Mono
+ * - normal levels up to L3
+ * - L4 requires Pure Essence
+ *
+ * Periodic
+ * - L1 only
+ * - requires Essence
+ * - requires the appropriate composite-element access
+ *
+ * Pure and Periodic must remain a separate access layer
+ * rather than being forced into the Dual/Trio/Quad model.
+ */
 
 export type AvailableTower = {
   tower: Tower;

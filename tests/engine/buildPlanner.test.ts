@@ -67,6 +67,16 @@ describe(
       }
     });
 
+    it("uses the full normal keystone budget for final build plans", () => {
+        for (const plan of laserPlans) {
+            expect(
+            plan.baseline
+                .routeState
+                .totalKeystones,
+            ).toBe(11);
+        }
+        });
+
     it("returns plans in planner-decision order", () => {
       for (
         let index = 1;
@@ -273,3 +283,31 @@ describe(
     });
   },
 );
+
+it("does not prefer a strategically dead final keystone when broader Quad access is available", () => {
+  const best =
+    getBestAnchorBuildPlan(
+      "laser",
+    );
+
+  expect(best)
+    .not.toBeNull();
+
+  const finalStep =
+    best!.keystonePath[
+      best!.keystonePath.length - 1
+    ];
+
+  expect(finalStep)
+    .toBeDefined();
+
+  const finalChangeCount =
+    finalStep.transition
+      .newlyUnlockedTowerIds.length +
+    finalStep.transition
+      .deepenedTowerIds.length;
+
+  expect(
+    finalChangeCount,
+  ).toBeGreaterThan(0);
+});
