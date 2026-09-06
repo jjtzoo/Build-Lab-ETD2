@@ -165,6 +165,65 @@ export function totalKeystones(
   );
 }
 
+function allocationKey(
+  allocation: Allocation,
+): string {
+  return allocation.join("-");
+}
+
+/**
+ * Returns every future allocation reachable from the supplied
+ * allocation using normal element keystones.
+ *
+ * The starting allocation itself is NOT included.
+ *
+ * Search continues until:
+ * - 11 normal keystones are spent, or
+ * - no legal +1 continuation exists.
+ *
+ * Duplicate states are removed because different keystone orders
+ * can lead to the same final allocation.
+ */
+export function reachableAllocations(
+  start: Allocation,
+): Allocation[] {
+  const visited = new Set<string>();
+  const reachable: Allocation[] = [];
+  const queue: Allocation[] = [
+    ...legalNextAllocations(start),
+  ];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (!current) {
+      continue;
+    }
+
+    const key = allocationKey(current);
+
+    if (visited.has(key)) {
+      continue;
+    }
+
+    visited.add(key);
+    reachable.push(current);
+
+    for (
+      const next
+      of legalNextAllocations(current)
+    ) {
+      const nextKey = allocationKey(next);
+
+      if (!visited.has(nextKey)) {
+        queue.push(next);
+      }
+    }
+  }
+
+  return reachable;
+}
+
 /**
  * Returns every allocation reachable by spending exactly
  * one normal element keystone.
