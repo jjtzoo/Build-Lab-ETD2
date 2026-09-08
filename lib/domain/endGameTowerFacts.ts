@@ -39,12 +39,19 @@ export type EndGameTowerFact = {
   ability: EndGameAbilityFact;
 };
 
+export type EndGameEngagementModel = {
+  sustainedEngagementSeconds: number;
+  note: string;
+};
+
 export type EndGameTowerFactCatalog = {
   schemaVersion: 1;
   verifiedThrough: string;
   costSemantics:
     "cumulative-minimum-field-cost";
   essenceUsesPerTower: 1;
+  engagementModel:
+    EndGameEngagementModel;
   facts:
     readonly EndGameTowerFact[];
   sources: readonly {
@@ -53,6 +60,11 @@ export type EndGameTowerFactCatalog = {
     supports: string;
   }[];
 };
+
+export const END_GAME_ENGAGEMENT_MODEL:
+  EndGameEngagementModel =
+  (endGameTowerFactsData as EndGameTowerFactCatalog)
+    .engagementModel;
 
 export const END_GAME_TOWER_FACT_CATALOG =
   endGameTowerFactsData as

@@ -49,7 +49,7 @@ export type CombinedBuildPlan = {
   endGameValue: {
     anchorWeaknessesImproved:
       number;
-    totalBaseDps: number;
+    totalSustainedEngagementDps: number;
   } | null;
   explanations: readonly string[];
   diagnostics:
@@ -123,9 +123,9 @@ export function combineBuildPlan(
           anchorWeaknessesImproved:
             best.decision
               .anchorWeaknessesImproved,
-          totalBaseDps:
+          totalSustainedEngagementDps:
             best.decision
-              .totalBaseDps,
+              .totalSustainedEngagementDps,
         }
       : null,
     explanations: [
