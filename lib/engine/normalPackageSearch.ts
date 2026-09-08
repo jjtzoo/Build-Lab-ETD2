@@ -731,22 +731,65 @@ export function buildNormalPackageJustificationGraph(
         ),
       );
 
+  const anchorDamageShape =
+    getTowerProfile(
+      baseline.routeState.anchorTowerId,
+    ).offense?.damageShape ?? null;
+  const anchorIsAreaShaped =
+    anchorDamageShape === "aoe" ||
+    anchorDamageShape === "hybrid";
+
   /*
-   * Doctrine: a Trio tower (canonical maxLevel 2) is not worth a
-   * discretionary package slot at L1 — the freed allocation is always
-   * better spent elsewhere. A Trio may only enter as a developed L2
-   * tower. Mandatory-core Trios are already in `selected` and reach this
-   * function through the core package, not as candidates, so this filter
-   * never touches the core exception.
+   * Doctrine, two exclusions applied before any candidate work:
+   *
+   * 1. A Trio tower (canonical maxLevel 2) is not worth a discretionary
+   *    package slot at L1 — the freed allocation is always better spent
+   *    elsewhere. A Trio may only enter as a developed L2 tower.
+   *
+   * 2. A target-isolation tower whose isolation works by pulling one
+   *    creep out of the pack (Rage, Gravity Cannon — enemy speed-up)
+   *    actively fights an AoE / hybrid Anchor: it de-groups the wave the
+   *    Anchor is built to hit and accelerates leaks. It may not be a
+   *    discretionary addition for an area-shaped Anchor. Phantom Zone is
+   *    exempt: its isolation is stasis, which holds the target inside the
+   *    Anchor's splash and adds its own AoE shockwave.
+   *
+   * Mandatory-core towers are already in `selected` and reach this
+   * function through the core package, not as candidates, so neither
+   * exclusion can touch the core.
    */
   const eligible =
-    unlocked.filter((entry) =>
-      !(
+    unlocked.filter((entry) => {
+      if (
         entry.tower.combination ===
           "Trio" &&
         entry.maxLevel < 2
-      ),
-    );
+      ) {
+        return false;
+      }
+
+      if (anchorIsAreaShaped) {
+        const provides =
+          getTowerProfile(
+            entry.tower.id,
+          ).mechanics.provides.map(
+            (supply) => supply.signal,
+          );
+
+        if (
+          provides.includes(
+            "target-isolation",
+          ) &&
+          !provides.includes(
+            "enemy-stasis",
+          )
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
 
   const rawDescriptors =
     eligible.map((entry) => {
