@@ -139,6 +139,19 @@ export function combineBuildPlan(
   };
 }
 
+/**
+ * Combined-plan order. Normal-wave viability and the normal planner's
+ * own strategic ranking come first and are never overridden by endgame
+ * value: a strong Pure/Periodic ceiling cannot lift a broken or weaker
+ * normal-wave package. Endgame value only separates plans the normal
+ * planner already treats as equivalent.
+ *
+ * 1. core-developed normal packages before undeveloped ones
+ * 2. the normal planner's full deterministic decision order
+ * 3. endgame package patches more of the Anchor's own element weakness
+ * 4. stronger complete endgame package
+ * 5. deterministic tower-id key
+ */
 function compareCombinedPlans(
   a: CombinedBuildPlan,
   b: CombinedBuildPlan,
@@ -155,15 +168,14 @@ function compareCombinedPlans(
       : 1;
   }
 
-  const aDefining =
-    a.normalPlan.decision
-      .anchorDefiningSynergyCount;
-  const bDefining =
-    b.normalPlan.decision
-      .anchorDefiningSynergyCount;
+  const normalComparison =
+    comparePlannerDecisions(
+      a.normalPlan.decision,
+      b.normalPlan.decision,
+    );
 
-  if (aDefining !== bDefining) {
-    return bDefining - aDefining;
+  if (normalComparison !== 0) {
+    return normalComparison;
   }
 
   const aEndCoverage =
@@ -177,24 +189,19 @@ function compareCombinedPlans(
     return bEndCoverage - aEndCoverage;
   }
 
-  const normalComparison =
-    comparePlannerDecisions(
-      a.normalPlan.decision,
-      b.normalPlan.decision,
-    );
-
-  if (normalComparison !== 0) {
-    return normalComparison;
-  }
-
   if (
     a.bestEndGamePackage &&
     b.bestEndGamePackage
   ) {
-    return compareEndGamePackages(
-      a.bestEndGamePackage,
-      b.bestEndGamePackage,
-    );
+    const endGameComparison =
+      compareEndGamePackages(
+        a.bestEndGamePackage,
+        b.bestEndGamePackage,
+      );
+
+    if (endGameComparison !== 0) {
+      return endGameComparison;
+    }
   }
 
   return a.normalPlan
