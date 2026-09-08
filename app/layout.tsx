@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: "Element TD 2 | Build Lab",
   description:
     "Plan around your anchor tower. Explore recommended support, keystone routes, coverage, and synergy.",
+  authors: [{ name: "JJ Toledo" }],
+  creator: "JJ Toledo (jjtzoo)",
 };
 export default function RootLayout({
   children,

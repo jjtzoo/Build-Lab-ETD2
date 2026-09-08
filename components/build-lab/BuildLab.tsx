@@ -356,11 +356,27 @@ export function BuildLab({
       </div>
 
       <footer className="lab-footer">
-        <span>Element TD 2 Build Lab</span>
-        <span>
-          Recommendations explain a plan.
-          Placement and execution remain yours.
-        </span>
+        <div className="footer-primary">
+          <span className="footer-product">
+            Element TD 2 Build Lab
+          </span>
+          <span>
+            Recommendations explain a plan.
+            Placement and execution remain
+            yours.
+          </span>
+        </div>
+        <div className="footer-signature">
+          <span className="signature-label">
+            Designed &amp; built by
+          </span>
+          <span className="signature-name">
+            JJ Toledo
+          </span>
+          <span className="signature-ign mono">
+            jjtzoo
+          </span>
+        </div>
       </footer>
     </main>
   );
