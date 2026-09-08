@@ -2,44 +2,30 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useEffect, useMemo, useRef } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+} from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import type { ElementName } from "@/lib/domain/elements";
 import type { Tower } from "@/lib/domain/tower";
 import type { ElementAllocation } from "@/lib/domain/elements";
-import type { PlannerDecision } from "@/lib/engine/buildPlanner";
-import type { CorePackageEvidence } from "@/lib/engine/corePackageEvidence";
-import type { CorePackageRoleEvidence } from "@/lib/engine/corePackageCandidates";
+import type { PlanDto } from "@/lib/engine/buildRecommendationDto";
+import {
+  resolveVisiblePlan,
+  useBuildLab,
+} from "@/components/build-lab/store";
 
 type Anchor = Tower & {
   level: number;
   shape: string;
   allocation: ElementAllocation;
 };
-type Step = {
-  element: string;
-  fromElementLevel: number;
-  toElementLevel: number;
-  newlyUnlockedTowerIds: string[];
-  deepenedTowerIds: string[];
-};
-type Plan = {
-  anchorTowerId: string;
-  allocation: ElementAllocation;
-  totalKeystones: number;
-  additionalKeystones: number;
-  selectedTowerIds: string[];
-  optionalTowerId: string | null;
-  towers: (Tower & { level: number })[];
-  roles: CorePackageRoleEvidence[];
-  decision: PlannerDecision;
-  coverage: CorePackageEvidence["coverage"];
-  synergy: Pick<CorePackageEvidence["synergy"], "applicable" | "tensions">;
-  keystonePath: Step[];
-};
-const roleNames = { slow: "Slow", "damage-amp": "Damage Amp", buff: "Buff" };
+
 const readable = (value: string) => value.replaceAll("-", " ");
+const gold = (value: number) => `${value.toLocaleString()} g`;
 
 function ElementIcon({
   element,
@@ -51,7 +37,6 @@ function ElementIcon({
   size?: number;
 }) {
   const src = assets.elements[element];
-
   return src ? (
     <Image
       className="element-icon"
@@ -66,19 +51,20 @@ function ElementIcon({
 }
 
 function TowerIcon({
-  tower,
+  towerId,
+  name,
   assets,
 }: {
-  tower: Pick<Tower, "id" | "name">;
+  towerId: string;
+  name: string;
   assets: BuildLabAssets;
 }) {
-  const src = assets.towerIcons[tower.id];
-
+  const src = assets.towerIcons[towerId];
   return src ? (
     <Image className="tower-icon" src={src} alt="" width={64} height={64} />
   ) : (
     <span className="tower-icon tower-icon-fallback" aria-hidden="true">
-      {tower.name
+      {name
         .split(" ")
         .map((part) => part[0])
         .join("")
@@ -97,7 +83,6 @@ function TowerArt({
   decorative?: boolean;
 }) {
   const src = assets.towerForms[tower.id];
-
   return (
     <span className="tower-art">
       {src ? (
@@ -137,6 +122,533 @@ function Recipe({
   );
 }
 
+function CapitalPanel({ plan }: { plan: PlanDto }) {
+  return (
+    <div className="capital-panel">
+      <dl>
+        <div>
+          <dt>Normal package</dt>
+          <dd>{plan.package.length} towers</dd>
+        </div>
+        <div>
+          <dt>Element allocation</dt>
+          <dd>{plan.keystoneCount} keystones</dd>
+        </div>
+        <div>
+          <dt>Essence uses</dt>
+          <dd>{plan.essenceUses}</dd>
+        </div>
+        <div className="capital-figure" title="Minimum gold to field one copy of every tower in this build at the shown levels.">
+          <dt>Minimum capital</dt>
+          <dd>{gold(plan.minimumCapital.normal)}</dd>
+        </div>
+      </dl>
+      {plan.minimumCapital.complete !== null && (
+        <p className="capital-breakdown">
+          Normal {gold(plan.minimumCapital.normal)} + End Game{" "}
+          {gold(plan.minimumCapital.endgameAdded ?? 0)} ={" "}
+          <strong>{gold(plan.minimumCapital.complete)}</strong> complete plan.
+          Not expected total match spending.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ProgressionStrip({ plan }: { plan: PlanDto }) {
+  return (
+    <section className="progression-stages">
+      <div className="section-heading">
+        <h2>Build progression</h2>
+        <span>No wave numbers — milestones only</span>
+      </div>
+      <ol>
+        {plan.progression.map((stage) => (
+          <li key={stage.stage} data-stage={stage.stage}>
+            <div className="stage-head">
+              <span className="stage-name">{stage.stage.replace("_", " ")}</span>
+              <span className="stage-headline">{stage.headline}</span>
+            </div>
+            {stage.primaryAction && (
+              <p className="stage-priority">
+                <span className="priority-label">Highest priority</span>
+                {stage.primaryAction}
+              </p>
+            )}
+            <p className="stage-allocation">
+              Keystones: <span className="mono">{stage.allocationAction}</span>
+            </p>
+            {stage.secondaryActions.length > 0 && (
+              <p className="stage-secondary">
+                Then: {stage.secondaryActions.join(" · ")}
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function SynergyLayer({ plan }: { plan: PlanDto }) {
+  if (plan.synergy.relations.length === 0) {
+    return (
+      <section className="synergy-groups">
+        <h3>Synergy</h3>
+        <p>No confirmed mechanic synergy in the current evidence.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="synergy-groups">
+      <h3>Synergy</h3>
+      <div className="synergy-tag-row">
+        {plan.synergy.tags.map((tag) => (
+          <span className="mechanic-tag" key={tag}>
+            {tag}
+          </span>
+        ))}
+      </div>
+      {plan.synergy.grouped.map((group) => (
+        <div className="synergy-group" key={group.mechanicTag}>
+          <h4>{group.mechanicTag}</h4>
+          <ul>
+            {group.relations.map((relation, i) => (
+              <li key={i}>
+                <strong>
+                  {relation.providerName} → {relation.consumerName}
+                </strong>
+                {relation.availabilityTag !== "Persistent" && (
+                  <span className="avail-tag">{relation.availabilityTag}</span>
+                )}
+                <p>{relation.text}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function EndGameSection({ plan }: { plan: PlanDto }) {
+  const { best, secondBest } = plan.endGame;
+  if (!best) {
+    return (
+      <section className="endgame-section">
+        <h2>End Game Towers</h2>
+        <p>This allocation has no legal complete two-use Essence package.</p>
+      </section>
+    );
+  }
+  const render = (
+    label: string,
+    pkg: NonNullable<PlanDto["endGame"]["best"]>,
+  ) => (
+    <article className="endgame-option">
+      <header>
+        <span className="endgame-label">{label}</span>
+        <span>
+          Essence uses: {pkg.essenceUses}/2 · added {gold(pkg.minimumAddedCapital)}
+        </span>
+      </header>
+      <div className="endgame-towers">
+        {pkg.towers.map((tower) => (
+          <span className="endgame-tower" key={tower.towerId}>
+            <strong>
+              {tower.name}
+              {tower.quantity > 1 ? ` ×${tower.quantity}` : ""}
+            </strong>
+            <span className="mono">
+              {tower.sustainedDps.toLocaleString()} DPS
+              {tower.aoe > 0 ? ` · ${tower.aoe} AoE` : ""} · rng {tower.range}
+            </span>
+            {tower.unresolvedFacts.length > 0 && (
+              <span className="unresolved">
+                unverified: {tower.unresolvedFacts.map(readable).join(", ")}
+              </span>
+            )}
+          </span>
+        ))}
+      </div>
+      <ul className="endgame-why">
+        {pkg.why.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ul>
+    </article>
+  );
+  return (
+    <section className="endgame-section">
+      <h2>End Game Towers</h2>
+      {render("Best option", best)}
+      {secondBest && render("Second best", secondBest)}
+    </section>
+  );
+}
+
+function AlternativeDeck({
+  alternatives,
+}: {
+  alternatives: readonly PlanDto[];
+}) {
+  const previewPlan = useBuildLab((s) => s.previewPlan);
+  const openDetail = useBuildLab((s) => s.openAlternativeDetail);
+
+  if (alternatives.length === 0) return null;
+
+  return (
+    <section className="alt-deck">
+      <div className="section-heading">
+        <h2>Alternative builds</h2>
+        <span>Preview on hover · click for detail</span>
+      </div>
+      <div className="alt-deck-stack">
+        {alternatives.map((plan) => {
+          const cmp = plan.comparisonToRecommended;
+          return (
+            <button
+              key={plan.id}
+              className="alt-card"
+              onMouseEnter={() => previewPlan(plan.id)}
+              onMouseLeave={() => previewPlan(null)}
+              onFocus={() => previewPlan(plan.id)}
+              onBlur={() => previewPlan(null)}
+              onClick={() => openDetail(plan.id)}
+            >
+              <span className="alt-rank">#{plan.rank}</span>
+              <span className="alt-fingerprint mono">
+                {Object.values(plan.allocation).join("-")}
+              </span>
+              <span className="alt-meta">
+                {plan.package.length} towers · {gold(plan.minimumCapital.complete ?? plan.minimumCapital.normal)}
+              </span>
+              <span className="alt-labels">
+                {(cmp?.labels ?? []).map((label) => (
+                  <span className="derived-label" key={label}>
+                    {label}
+                  </span>
+                ))}
+                {(!cmp?.labels || cmp.labels.length === 0) && (
+                  <span className="derived-label">Route variant</span>
+                )}
+              </span>
+              {cmp && cmp.substitutions.added.length > 0 && (
+                <span className="alt-subs">
+                  swaps in {cmp.substitutions.added.join(", ")}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function AlternativeModal({
+  plans,
+  names,
+}: {
+  plans: readonly PlanDto[];
+  names: Record<string, string>;
+}) {
+  void names;
+  const isOpen = useBuildLab((s) => s.isAlternativeDetailOpen);
+  const selectedId = useBuildLab((s) => s.selectedAlternativePlanId);
+  const close = useBuildLab((s) => s.closeAlternativeDetail);
+  const activate = useBuildLab((s) => s.activatePlan);
+  const engineId = useBuildLab((s) => s.engineRecommendedPlanId);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  const plan = plans.find((p) => p.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    dialogRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, close]);
+
+  if (!isOpen || !plan) return null;
+  const cmp = plan.comparisonToRecommended;
+
+  return (
+    <div
+      className="alt-modal-backdrop"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) close();
+      }}
+    >
+      <div
+        className="alt-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Alternative build ${plan.rank}`}
+        tabIndex={-1}
+        ref={dialogRef}
+      >
+        <header>
+          <h2>
+            Alternative #{plan.rank}
+            {engineId === plan.id ? " (engine recommendation)" : ""}
+          </h2>
+          <button className="modal-close" onClick={close} aria-label="Close">
+            ✕
+          </button>
+        </header>
+
+        <div className="modal-body">
+          <p className="mono">
+            Allocation {Object.values(plan.allocation).join("-")} ·{" "}
+            {plan.package.length} towers ·{" "}
+            {gold(plan.minimumCapital.complete ?? plan.minimumCapital.normal)}
+          </p>
+
+          {cmp && (
+            <>
+              <h3>Why different</h3>
+              {cmp.improves.length > 0 && (
+                <ul className="mod-improves">
+                  {cmp.improves.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              )}
+              {cmp.worsens.length > 0 && (
+                <ul className="mod-worsens">
+                  {cmp.worsens.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="mono">
+                Capital {cmp.completeCapitalDelta >= 0 ? "+" : ""}
+                {cmp.completeCapitalDelta.toLocaleString()} g · package{" "}
+                {cmp.packageSizeDelta >= 0 ? "+" : ""}
+                {cmp.packageSizeDelta}
+              </p>
+              {cmp.allocationDelta.length > 0 && (
+                <p className="mono">
+                  {cmp.allocationDelta
+                    .map((d) => `${d.element} ${d.from}→${d.to}`)
+                    .join(", ")}
+                </p>
+              )}
+              {(cmp.substitutions.added.length > 0 ||
+                cmp.substitutions.removed.length > 0) && (
+                <p>
+                  Substitutions: −{cmp.substitutions.removed.join(", ") || "none"}{" "}
+                  / +{cmp.substitutions.added.join(", ") || "none"}
+                </p>
+              )}
+            </>
+          )}
+
+          <h3>Tower package</h3>
+          <ul className="mod-package">
+            {plan.package.map((tower) => (
+              <li key={tower.id}>
+                {tower.name} L{tower.level}
+                {tower.developmentStatus === "underdeveloped" ? " (below max)" : ""}
+                {" — "}
+                {tower.purpose}
+              </li>
+            ))}
+          </ul>
+
+          <h3>End Game</h3>
+          {plan.endGame.best ? (
+            <p>
+              {plan.endGame.best.towers
+                .map(
+                  (t) =>
+                    `${t.name}${t.quantity > 1 ? ` ×${t.quantity}` : ""}`,
+                )
+                .join(" + ")}{" "}
+              — added {gold(plan.endGame.best.minimumAddedCapital)}
+            </p>
+          ) : (
+            <p>No legal Essence package for this allocation.</p>
+          )}
+        </div>
+
+        <footer>
+          <button className="use-build-button" onClick={() => activate(plan.id)}>
+            USE THIS BUILD
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function PlanView({
+  plan,
+  assets,
+}: {
+  plan: PlanDto;
+  assets: BuildLabAssets;
+}) {
+  return (
+    <>
+      <CapitalPanel plan={plan} />
+
+      <p className="section-note">
+        Levels show the maximum normal tower level reachable in this final
+        allocation.
+      </p>
+      <div className="build-grid">
+        {plan.package.map((tower) => (
+          <article
+            key={tower.id}
+            className={`build-tower ${tower.isAnchor ? "build-anchor" : ""}`}
+            data-development={tower.developmentStatus}
+          >
+            <div className="tower-top">
+              <div className="roles">
+                {tower.isAnchor && <span data-role="anchor">Anchor</span>}
+                {tower.roles
+                  .filter((role) => role !== "Main DPS")
+                  .map((role) => (
+                    <span key={role} data-role={role.toLowerCase().replace(" ", "-")}>
+                      {role}
+                    </span>
+                  ))}
+                {!tower.isAnchor && (
+                  <span data-role="purpose">{tower.purpose}</span>
+                )}
+              </div>
+              <strong className="level">LV {tower.level}</strong>
+            </div>
+            <div className="tower-identity">
+              <TowerIcon towerId={tower.id} name={tower.name} assets={assets} />
+              <h3>{tower.name}</h3>
+            </div>
+            <Recipe elements={tower.recipe} assets={assets} />
+            {tower.synergyTags.length > 0 && (
+              <div className="tower-synergy-tags">
+                {tower.synergyTags.map((tag) => (
+                  <span className="mechanic-tag small" key={tag}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+            {tower.developmentReason && (
+              <p className="dev-reason">{tower.developmentReason}</p>
+            )}
+            {tower.developmentStatus === "developed" &&
+              tower.combination === "Quad" && (
+                <p className="dev-reason ok">Quad L1 is fully developed.</p>
+              )}
+            <div className="tower-bottom">
+              <span>{tower.combination}</span>
+              <span data-element={tower.damageElement}>
+                {tower.damageElement} damage
+              </span>
+              <span className="mono">{gold(tower.minimumFieldCost)}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="allocation-strip">
+        <strong>Final allocation</strong>
+        {Object.entries(plan.allocation).map(([element, level]) => (
+          <span data-element={element} key={element}>
+            <ElementIcon
+              element={element as ElementName}
+              assets={assets}
+              size={24}
+            />
+            {element} <b>{level}</b>
+          </span>
+        ))}
+      </div>
+
+      <ProgressionStrip plan={plan} />
+
+      <section className="why-section">
+        <h2>Why this build</h2>
+        <div className="evidence-layout">
+          <section>
+            <h3>Coverage</h3>
+            <div className="coverage-table">
+              <div className="coverage-row table-head">
+                <span>Armor</span>
+                <span>Anchor</span>
+                <span>Build avg</span>
+                <span>Status</span>
+              </div>
+              {plan.coverage.rows.map((row) => (
+                <div className="coverage-row" key={row.defender}>
+                  <span className="coverage-element" data-element={row.defender}>
+                    <ElementIcon
+                      element={row.defender}
+                      assets={assets}
+                      size={26}
+                    />
+                    <span>{row.defender}</span>
+                  </span>
+                  <span className="mono">{row.anchorMultiplier}×</span>
+                  <span className="mono">
+                    {row.packageAverageMultiplier.toFixed(2)}×
+                  </span>
+                  <span>
+                    {!row.isAnchorWeakness
+                      ? "—"
+                      : row.covered
+                        ? "Covered"
+                        : "Weak, uncovered"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p>
+              Damage shape:{" "}
+              {plan.coverage.hasSingleTarget ? "single target" : "no single target"}
+              ; {plan.coverage.hasAoe ? "area damage" : "no area damage"}.
+            </p>
+            <p>
+              Offensive range{" "}
+              <span className="mono">
+                {plan.coverage.rangeMin}–{plan.coverage.rangeMax}
+              </span>
+              {plan.coverage.rangeExtensionFromAnchor > 0
+                ? `, +${plan.coverage.rangeExtensionFromAnchor} beyond the anchor.`
+                : ", no extension beyond the anchor."}
+            </p>
+          </section>
+
+          <SynergyLayer plan={plan} />
+        </div>
+
+        {plan.tensions.length > 0 && (
+          <section className="warnings">
+            <h3>Tensions</h3>
+            <ul>
+              {plan.tensions.map((tension, i) => (
+                <li key={i}>
+                  <strong>
+                    {tension.providerName} / {tension.affectedName}:
+                  </strong>{" "}
+                  {tension.condition}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </section>
+
+      <EndGameSection plan={plan} />
+    </>
+  );
+}
+
 export function BuildLab({
   anchors,
   names,
@@ -146,20 +658,51 @@ export function BuildLab({
   names: Record<string, string>;
   assets: BuildLabAssets;
 }) {
-  const [index, setIndex] = useState(() =>
-    anchors.findIndex((a) => a.id === "laser"),
-  );
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [state, setState] = useState<"empty" | "loading" | "ready" | "error">(
-    "empty",
-  );
-  const [error, setError] = useState("");
-  const [direction, setDirection] = useState(1);
+  const reduce = useReducedMotion();
   const request = useRef<AbortController | null>(null);
   const sequence = useRef(0);
-  const reduce = useReducedMotion();
+  const directionRef = useRef(1);
+
+  const anchorId = useBuildLab((s) => s.anchorId);
+  const requestState = useBuildLab((s) => s.requestState);
+  const error = useBuildLab((s) => s.error);
+  const recommendationSet = useBuildLab((s) => s.recommendationSet);
+  const activePlanId = useBuildLab((s) => s.activePlanId);
+  const previewPlanId = useBuildLab((s) => s.previewPlanId);
+  const engineRecommendedPlanId = useBuildLab((s) => s.engineRecommendedPlanId);
+  const setAnchor = useBuildLab((s) => s.setAnchor);
+  const startRequest = useBuildLab((s) => s.startRequest);
+  const failRequest = useBuildLab((s) => s.failRequest);
+  const receiveRecommendationSet = useBuildLab(
+    (s) => s.receiveRecommendationSet,
+  );
+
+  const index = Math.max(
+    0,
+    anchors.findIndex((a) => a.id === anchorId),
+  );
   const anchor = anchors[index];
+
+  const visiblePlan = useMemo(
+    () =>
+      resolveVisiblePlan({
+        recommendationSet,
+        activePlanId,
+        previewPlanId,
+      }),
+    [recommendationSet, activePlanId, previewPlanId],
+  );
+
+  const alternatives = useMemo(
+    () =>
+      (recommendationSet?.plans ?? []).filter(
+        (plan) => plan.id !== activePlanId,
+      ),
+    [recommendationSet, activePlanId],
+  );
+
   useEffect(() => () => request.current?.abort(), []);
+
   function select(next: number) {
     request.current?.abort();
     sequence.current += 1;
@@ -167,21 +710,17 @@ export function BuildLab({
     const forwardDistance =
       (normalized - index + anchors.length) % anchors.length;
     if (forwardDistance !== 0) {
-      setDirection(forwardDistance <= anchors.length / 2 ? 1 : -1);
+      directionRef.current = forwardDistance <= anchors.length / 2 ? 1 : -1;
     }
-    setIndex(normalized);
-    setPlan(null);
-    setState("empty");
-    setError("");
+    setAnchor(anchors[normalized].id);
   }
+
   async function build() {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
     const current = ++sequence.current;
-    setState("loading");
-    setPlan(null);
-    setError("");
+    startRequest();
     try {
       const response = await fetch("/api/optimize", {
         method: "POST",
@@ -195,64 +734,25 @@ export function BuildLab({
           data.error || "The planner could not complete this build.",
         );
       if (current !== sequence.current) return;
-      setPlan(data);
-      setState("ready");
+      receiveRecommendationSet(data);
     } catch (err) {
       if (controller.signal.aborted || current !== sequence.current) return;
-      setError(
+      failRequest(
         err instanceof Error
           ? err.message
           : "Connection failed. Please try again.",
       );
-      setState("error");
     }
   }
-  const nameList = (ids: string[]) =>
-    ids.map((id) => names[id] ?? id).join(", ");
-  const baselineAllocation =
-    anchors.find((item) => item.id === plan?.anchorTowerId)?.allocation ??
-    anchor.allocation;
-  const carouselTransition = reduce
-    ? { duration: 0 }
-    : {
-        layout: {
-          type: "spring" as const,
-          stiffness: 205,
-          damping: 24,
-          mass: 1.18,
-        },
-        opacity: { duration: 0.18 },
-        scale: {
-          type: "spring" as const,
-          stiffness: 220,
-          damping: 25,
-          mass: 1.1,
-        },
-        x: {
-          type: "spring" as const,
-          stiffness: 205,
-          damping: 24,
-          mass: 1.18,
-        },
-      };
-  const transitionText = (step: Step) => {
-    const unlocked = step.newlyUnlockedTowerIds.filter((id) =>
-      plan?.selectedTowerIds.includes(id),
-    );
-    const deepened = step.deepenedTowerIds.filter((id) =>
-      plan?.selectedTowerIds.includes(id),
-    );
-    return (
-      [
-        unlocked.length ? `Unlocks ${nameList(unlocked)}.` : "",
-        deepened.length ? `Raises reachable level: ${nameList(deepened)}.` : "",
-      ]
-        .filter(Boolean)
-        .join(" ") || "Advances the allocation toward the selected build."
-    );
-  };
+
+  const isPreviewing =
+    previewPlanId !== null && previewPlanId !== activePlanId;
+  const activePlan = (recommendationSet?.plans ?? []).find(
+    (plan) => plan.id === activePlanId,
+  );
+
   return (
-    <main className="lab-shell">
+    <main className="lab-shell" data-previewing={isPreviewing || undefined}>
       <a href="#build-result" className="skip-link">
         Skip to build result
       </a>
@@ -262,17 +762,15 @@ export function BuildLab({
         </Link>
         <span className="header-note">Strategy planner</span>
       </header>
+
       <div className="intro">
         <div>
           <p className="eyebrow">Build Lab</p>
           <h1>Start with your anchor.</h1>
           <p>Find its support. Plan the keystones. Understand the tradeoffs.</p>
         </div>
-        <div className="mode-note">
-          <strong>Guided planning</strong>
-          <span>What If, the manual sandbox, is coming later.</span>
-        </div>
       </div>
+
       <section aria-label="Choose an anchor tower" className="anchor-section">
         <div className="selector-heading">
           <label htmlFor="anchor-picker">Anchor tower</label>
@@ -295,6 +793,7 @@ export function BuildLab({
           role="region"
           aria-roledescription="carousel"
           aria-label="Anchor towers"
+          tabIndex={0}
           onKeyDown={(event) => {
             if (event.target !== event.currentTarget) return;
             if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
@@ -302,41 +801,23 @@ export function BuildLab({
               select(index + (event.key === "ArrowLeft" ? -1 : 1));
             }
           }}
-          tabIndex={0}
         >
           <AnimatePresence initial={false} mode="popLayout">
             {[-1, 0, 1].map((offset) => {
               const item =
                 anchors[(index + offset + anchors.length) % anchors.length];
-              const motionState = reduce
-                ? undefined
-                : {
-                    initial: {
-                      opacity: 0,
-                      x: offset === 0 ? direction * 64 : offset * 48,
-                      scale: 0.9,
-                    },
-                    animate: {
-                      opacity: offset === 0 ? 1 : 0.76,
-                      x: 0,
-                      scale: offset === 0 ? 1 : 0.95,
-                    },
-                    exit: {
-                      opacity: 0,
-                      x: direction * -72,
-                      scale: 0.9,
-                    },
-                  };
-
               return (
                 <motion.div
                   key={item.id}
                   layout={reduce ? false : "position"}
                   className="carousel-slot"
-                  initial={motionState?.initial ?? false}
-                  animate={motionState?.animate}
-                  exit={motionState?.exit}
-                  transition={carouselTransition}
+                  initial={reduce ? false : { opacity: 0, scale: 0.9 }}
+                  animate={{
+                    opacity: offset === 0 ? 1 : 0.7,
+                    scale: offset === 0 ? 1 : 0.95,
+                  }}
+                  exit={reduce ? undefined : { opacity: 0, scale: 0.9 }}
+                  transition={{ duration: reduce ? 0 : 0.2 }}
                 >
                   {offset === 0 ? (
                     <article className="anchor-card selected" aria-live="polite">
@@ -408,50 +889,66 @@ export function BuildLab({
           {anchor.recipe
             .map((element) => `${element} ${anchor.allocation[element]}`)
             .join(" / ")}
-          . This is a planning baseline, not your live-game allocation.
+          . A planning baseline, not your live-game allocation.
         </p>
-        <motion.button
+        <button
           className="build-button"
-          whileTap={reduce ? undefined : { scale: 0.98 }}
           onClick={build}
-          disabled={state === "loading"}
+          disabled={requestState === "loading"}
         >
-          {state === "loading"
+          {requestState === "loading"
             ? `PLANNING ${anchor.name.toUpperCase()}…`
             : `BUILD AROUND ${anchor.name.toUpperCase()}`}
           <span aria-hidden="true">→</span>
-        </motion.button>
+        </button>
       </section>
+
       <section
         id="build-result"
         className="result-section"
-        aria-busy={state === "loading"}
+        aria-busy={requestState === "loading"}
       >
         <div className="section-heading">
           <h2>Recommended build</h2>
-          {plan && (
+          {recommendationSet && activePlan && (
             <span>
-              {plan.towers.length} towers / {plan.totalKeystones} keystones
+              Engine recommendation: #
+              {(recommendationSet.plans.find(
+                (p) => p.id === engineRecommendedPlanId,
+              )?.rank) ?? 1}
+              {activePlanId !== engineRecommendedPlanId && activePlan
+                ? ` · Current build: #${activePlan.rank}`
+                : ""}
             </span>
           )}
         </div>
+
         <div role="status" aria-live="polite" className="sr-only">
-          {state === "loading"
+          {requestState === "loading"
             ? "Planning your build."
-            : state === "ready"
+            : requestState === "ready"
               ? `Build ready for ${anchor.name}.`
               : ""}
         </div>
-        {state === "empty" && (
+
+        {isPreviewing && (
+          <div className="preview-banner" role="status">
+            PREVIEWING ALTERNATIVE #
+            {alternatives.find((p) => p.id === previewPlanId)?.rank}
+          </div>
+        )}
+
+        {requestState === "empty" && (
           <div className="empty-state">
             <h3>Your anchor sets the direction.</h3>
             <p>
-              Build around {anchor.name} to reveal its recommended towers and
-              keystone route.
+              Build around {anchor.name} to reveal its recommended towers,
+              keystone route, and End Game options.
             </p>
           </div>
         )}
-        {state === "loading" && (
+
+        {requestState === "loading" && (
           <div className="build-grid skeleton-grid" aria-hidden="true">
             {Array.from({ length: 6 }, (_, i) => (
               <div className="skeleton" key={i}>
@@ -462,7 +959,8 @@ export function BuildLab({
             ))}
           </div>
         )}
-        {state === "error" && (
+
+        {requestState === "error" && (
           <div className="empty-state" role="alert">
             <h3>Could not plan this build</h3>
             <p>{error}</p>
@@ -471,276 +969,19 @@ export function BuildLab({
             </button>
           </div>
         )}
-        {plan && (
-          <motion.div
-            initial={reduce ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            <p className="section-note">
-              Levels show maximum normal tower levels reachable in this final
-              allocation.
-            </p>
-            <div className="build-grid">
-              {plan.towers.map((tower) => {
-                const isAnchor = tower.id === plan.anchorTowerId;
-                const optional = tower.id === plan.optionalTowerId;
-                const roles = plan.roles.filter((role) =>
-                  role.candidates.some(
-                    (candidate) => candidate.towerId === tower.id,
-                  ),
-                );
-                return (
-                  <article
-                    key={tower.id}
-                    className={`build-tower ${isAnchor ? "build-anchor" : ""} ${optional ? "build-optional" : ""}`}
-                  >
-                    <div className="tower-top">
-                      <div className="roles">
-                        {isAnchor && <span data-role="anchor">Anchor</span>}
-                        {roles.map((role) => (
-                          <span key={role.role} data-role={role.role}>
-                            {roleNames[role.role]}
-                          </span>
-                        ))}
-                        {optional && (
-                          <span data-role="optional">Optional Synergy</span>
-                        )}
-                      </div>
-                      <strong className="level">LV {tower.level}</strong>
-                    </div>
-                    <div className="tower-identity">
-                      <TowerIcon tower={tower} assets={assets} />
-                      <h3>{tower.name}</h3>
-                    </div>
-                    <Recipe elements={tower.recipe} assets={assets} />
-                    <div className="tower-bottom">
-                      <span>{tower.combination}</span>
-                      <span data-element={tower.damageElement}>
-                        {tower.damageElement} damage
-                      </span>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-            <div className="allocation-strip">
-              <strong>Final allocation</strong>
-              {Object.entries(plan.allocation).map(([element, level]) => (
-                <span data-element={element} key={element}>
-                  <ElementIcon
-                    element={element as ElementName}
-                    assets={assets}
-                    size={24}
-                  />
-                  {element} <b>{level}</b>
-                </span>
-              ))}
-            </div>
-            <section className="route-section">
-              <div className="section-heading">
-                <h2>Build progression</h2>
-                <span>{plan.additionalKeystones} additional keystones</span>
-              </div>
-              <p className="section-note">
-                Start shows the assumed anchor allocation. Every numbered row
-                after it is one additional keystone from that baseline.
-              </p>
-              <ol className="route-list">
-                <li className="route-baseline">
-                  <span className="route-number">START</span>
-                  <div className="baseline-detail">
-                    <h3>Anchor baseline</h3>
-                    <div className="baseline-allocation">
-                      {Object.entries(baselineAllocation).map(
-                        ([element, level]) => (
-                          <span key={element} data-element={element}>
-                            <ElementIcon
-                              element={element as ElementName}
-                              assets={assets}
-                              size={25}
-                            />
-                            <span>{element}</span>
-                            <b>{level}</b>
-                          </span>
-                        ),
-                      )}
-                    </div>
-                    <p>
-                      Anchor planning begins here. Tower purchases are not
-                      assigned to this timeline.
-                    </p>
-                  </div>
-                </li>
-                {plan.keystonePath.map((step, i) => (
-                  <li key={i} className={i === 0 ? "route-next" : undefined}>
-                    <span className="route-number">{i + 1}</span>
-                    <ElementIcon
-                      element={step.element as ElementName}
-                      assets={assets}
-                      size={30}
-                    />
-                    <div>
-                      <h3>
-                        <span data-element={step.element}>{step.element}</span>{" "}
-                        <span className="mono">
-                          {step.fromElementLevel} → {step.toElementLevel}
-                        </span>
-                        {i === 0 && <span className="next-label">Next</span>}
-                      </h3>
-                      <p>{transitionText(step)}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-            <section className="why-section">
-              <h2>Why this build</h2>
-              <div className="evidence-layout">
-                <section>
-                  <h3>Coverage</h3>
-                  <p className="section-note">
-                    Unweighted average across the build&apos;s offensive
-                    contributors. Direct counters remain supporting evidence.
-                  </p>
-                  <div className="coverage-table">
-                    <div className="coverage-row table-head">
-                      <span>Armor</span>
-                      <span>Anchor</span>
-                      <span>Build average</span>
-                      <span>Direct</span>
-                    </div>
-                    {plan.coverage.element.map((entry) => (
-                      <div className="coverage-row" key={entry.defender}>
-                        <span
-                          className="coverage-element"
-                          data-element={entry.defender}
-                        >
-                          <ElementIcon
-                            element={entry.defender}
-                            assets={assets}
-                            size={26}
-                          />
-                          <span>{entry.defender}</span>
-                        </span>
-                        <span className="mono">{entry.anchorMultiplier}×</span>
-                        <span className="mono coverage-average">
-                          {entry.packageAverageMultiplier.toFixed(2)}×
-                        </span>
-                        <span className="coverage-direct">
-                          {entry.hasDirectCounter ? "2× available" : "None"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <p>
-                    Damage shape:{" "}
-                    {plan.coverage.damageShape.hasSingleTargetCapability
-                      ? "single target"
-                      : "no single target"}
-                    ;{" "}
-                    {plan.coverage.damageShape.hasAoeCapability
-                      ? "area damage"
-                      : "no area damage"}
-                    .
-                  </p>
-                  <p>
-                    Offensive range:{" "}
-                    <span className="mono">
-                      {plan.coverage.range.packageMinRange} to
-                      {plan.coverage.range.packageMaxRange}
-                    </span>
-                    .{" "}
-                    {plan.coverage.range.hasLongerRangeContributor
-                      ? `Extends ${plan.coverage.range.rangeExtensionFromAnchor} beyond the anchor.`
-                      : "No range extension beyond the anchor."}
-                  </p>
-                </section>
-                <section>
-                  <h3>Synergy</h3>
-                  <p className="section-note">
-                    Confirmed mechanic relationships, with overlapping
-                    contributions accounted for. These are not damage estimates.
-                  </p>
-                  <ul className="evidence-list">
-                    {plan.synergy.applicable
-                      .filter((match) => match.contribution !== "ignored")
-                      .map((match, i) => (
-                        <li key={i}>
-                          <strong>
-                            {names[match.providerTowerId]} →{" "}
-                            {names[match.consumerTowerId]}
-                          </strong>
-                          <p>
-                            {readable(match.signal)}:{" "}
-                            {readable(match.relationshipType)} relationship.{" "}
-                            {match.contribution === "diminished"
-                              ? "Diminished contribution from overlapping support."
-                              : "Full mechanic contribution."}
-                          </p>
-                        </li>
-                      ))}
-                  </ul>
-                  {!plan.synergy.applicable.some(
-                    (match) => match.contribution !== "ignored",
-                  ) && (
-                    <p>
-                      No confirmed mechanic synergy in the current evidence.
-                    </p>
-                  )}
-                </section>
-              </div>
-              <section className="warnings">
-                <h3>Warnings & tensions</h3>
-                <ul>
-                  {plan.roles
-                    .filter((role) => !role.developed)
-                    .map((role) => (
-                      <li key={role.role}>
-                        {roleNames[role.role]} has not reached its planned
-                        development target.
-                      </li>
-                    ))}
-                  {plan.coverage.element
-                    .filter(
-                      (entry) =>
-                        entry.anchorMultiplier === 0.5 &&
-                        !entry.hasDirectCounter,
-                    )
-                    .map((entry) => (
-                      <li key={entry.defender}>
-                        The anchor is weak against {entry.defender} armor, with
-                        no direct counter in this build.
-                      </li>
-                    ))}
-                  {!plan.coverage.damageShape.hasComplementaryShape && (
-                    <li>
-                      The build does not complement the anchor&apos;s damage
-                      shape.
-                    </li>
-                  )}
-                  {plan.synergy.tensions.map((tension, i) => (
-                    <li key={i}>
-                      <strong>
-                        {names[tension.providerTowerId]} /{" "}
-                        {names[tension.affectedTowerId]}:
-                      </strong>{" "}
-                      Potential tension. {tension.condition}
-                    </li>
-                  ))}
-                </ul>
-                <p>
-                  {plan.synergy.tensions.length === 0
-                    ? "No potential mechanic tensions identified. "
-                    : ""}
-                  Unknown or unmet conditional synergies are not counted as
-                  confirmed benefits.
-                </p>
-              </section>
-            </section>
-          </motion.div>
+
+        {requestState === "ready" && visiblePlan && (
+          <>
+            <AlternativeDeck alternatives={alternatives} />
+            <PlanView plan={visiblePlan} assets={assets} />
+          </>
         )}
       </section>
+
+      {recommendationSet && (
+        <AlternativeModal plans={recommendationSet.plans} names={names} />
+      )}
+
       <footer>
         Element TD 2 Build Lab
         <span>
