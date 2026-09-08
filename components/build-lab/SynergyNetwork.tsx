@@ -175,24 +175,6 @@ export function SynergyNetwork({
         </div>
       </div>
 
-      <div className="synergy-tagcloud">
-        {plan.synergy.tags.map((tag) => (
-          <MechanicTag
-            key={tag}
-            tag={tag}
-            active={highlight.isMechanicActive(
-              tag,
-            )}
-            onEnter={() =>
-              setHighlightMechanic(tag)
-            }
-            onLeave={() =>
-              setHighlightMechanic(null)
-            }
-          />
-        ))}
-      </div>
-
       <div className="synergy-categories">
         {[...categories.entries()].map(
           ([category, groups]) => (
@@ -206,9 +188,28 @@ export function SynergyNetwork({
                   className="synergy-mechanic-group"
                   key={group.mechanicTag}
                 >
-                  <span className="synergy-mechanic-name">
-                    {group.mechanicTag}
-                  </span>
+                  <div className="synergy-mechanic-head">
+                    <MechanicTag
+                      tag={group.mechanicTag}
+                      active={highlight.isMechanicActive(
+                        group.mechanicTag,
+                      )}
+                      onEnter={() =>
+                        setHighlightMechanic(
+                          group.mechanicTag,
+                        )
+                      }
+                      onLeave={() =>
+                        setHighlightMechanic(null)
+                      }
+                    />
+                    <span className="synergy-mechanic-count mono">
+                      {group.relations.length}
+                      {group.relations.length === 1
+                        ? " link"
+                        : " links"}
+                    </span>
+                  </div>
                   <div className="synergy-relation-grid">
                     {group.relations.map(
                       (relation, i) => (

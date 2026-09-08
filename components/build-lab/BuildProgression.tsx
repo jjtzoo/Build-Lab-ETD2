@@ -5,6 +5,7 @@ import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import type {
   PlanDto,
   ProgressionStageDto,
+  KeystoneStepDto,
   TowerActionDto,
 } from "@/lib/engine/buildRecommendationDto";
 import {
@@ -21,12 +22,18 @@ const STAGE_LABEL: Record<string, string> = {
   END_GAME: "End Game",
 };
 
+function actionKey(action: TowerActionDto) {
+  return `${action.towerId}@${action.toLevel}`;
+}
+
 function ActionRow({
   action,
   assets,
+  isPrimary,
 }: {
   action: TowerActionDto;
   assets: BuildLabAssets;
+  isPrimary: boolean;
 }) {
   const setHighlightTower = useBuildLab(
     (s) => s.setHighlightTower,
@@ -38,6 +45,7 @@ function ActionRow({
   return (
     <li
       className="prog-action"
+      data-primary={isPrimary || undefined}
       data-active={
         highlightTowerId === action.towerId ||
         undefined
@@ -68,12 +76,74 @@ function ActionRow({
           → L{action.toLevel}
         </span>
       </span>
-      {action.roles.length > 0 && (
+      {isPrimary && (
+        <span className="prog-action-flag">
+          Start here
+        </span>
+      )}
+      {!isPrimary && action.roles.length > 0 && (
         <span className="prog-action-role">
           {action.roles[0]}
         </span>
       )}
     </li>
+  );
+}
+
+/**
+ * One allocation keystone paired with exactly the tower actions it unlocks,
+ * so "spend Water 1→2" and "now Polar is worth building" sit together.
+ */
+function KeystoneBlock({
+  step,
+  assets,
+  primaryKey,
+}: {
+  step: KeystoneStepDto;
+  assets: BuildLabAssets;
+  primaryKey: string | null;
+}) {
+  return (
+    <div
+      className="prog-keystone-block"
+      data-element={step.element}
+    >
+      <div className="prog-keystone-head">
+        <span className="prog-keystone-chip">
+          <ElementIcon
+            element={step.element as ElementName}
+            assets={assets}
+            size={16}
+          />
+          <span className="prog-keystone-name">
+            {step.element}
+          </span>
+          <span className="mono prog-keystone-delta">
+            {step.from}→{step.to}
+          </span>
+        </span>
+        {step.unlocks.length === 0 && (
+          <span className="prog-keystone-note">
+            allocation only — no tower unlocked here
+          </span>
+        )}
+      </div>
+
+      {step.unlocks.length > 0 && (
+        <ul className="prog-keystone-unlocks">
+          {step.unlocks.map((action) => (
+            <ActionRow
+              key={actionKey(action)}
+              action={action}
+              assets={assets}
+              isPrimary={
+                actionKey(action) === primaryKey
+              }
+            />
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -90,12 +160,19 @@ function Stage({
 }) {
   const reduce = useReducedMotion();
   const isEnd = stage.stage === "END_GAME";
-  const setHighlightTower = useBuildLab(
-    (s) => s.setHighlightTower,
-  );
-  const highlightTowerId = useBuildLab(
-    (s) => s.highlightTowerId,
-  );
+  const primaryKey = stage.primaryAction
+    ? actionKey(stage.primaryAction)
+    : null;
+  const productiveSteps =
+    stage.keystoneSteps.filter(
+      (step) => step.unlocks.length > 0,
+    );
+  const prerequisiteSteps =
+    stage.keystoneSteps.filter(
+      (step) => step.unlocks.length === 0,
+    );
+  const hasKeystones =
+    stage.keystoneSteps.length > 0;
 
   return (
     <motion.li
@@ -128,122 +205,70 @@ function Stage({
         {stage.headline}
       </p>
 
-      {stage.keystoneSteps.length > 0 && (
-        <div className="prog-keystones">
-          <span className="prog-sub-label">
-            Keystones
-          </span>
-          <span className="prog-keystone-list">
-            {stage.keystoneSteps.map((step, i) => (
-              <span
-                className="prog-keystone"
-                key={`${step.element}-${i}`}
-                data-element={step.element}
-              >
-                <ElementIcon
-                  element={
-                    step.element as ElementName
-                  }
-                  assets={assets}
-                  size={16}
-                />
-                <span className="mono">
-                  {step.from}→{step.to}
-                </span>
-              </span>
-            ))}
-          </span>
+      {productiveSteps.length > 0 && (
+        <div className="prog-keystone-flow">
+          {productiveSteps.map((step, i) => (
+            <KeystoneBlock
+              key={`${step.element}-${step.to}-${i}`}
+              step={step}
+              assets={assets}
+              primaryKey={primaryKey}
+            />
+          ))}
         </div>
       )}
 
-      {(stage.primaryAction ||
-        stage.endgameSelections) && (
-        <div className="prog-priority">
-          <span className="prog-sub-label">
-            Highest priority
+      {prerequisiteSteps.length > 0 && (
+        <p className="prog-prereq-strip">
+          <span className="prog-prereq-label">
+            Also allocate
           </span>
-          {stage.primaryAction && (
-            <div
-              className="prog-primary-action"
-              data-active={
-                highlightTowerId ===
-                  stage.primaryAction
-                    .towerId || undefined
-              }
-              onMouseEnter={() =>
-                setHighlightTower(
-                  stage.primaryAction!.towerId,
-                )
-              }
-              onMouseLeave={() =>
-                setHighlightTower(null)
-              }
+          {prerequisiteSteps.map((step, i) => (
+            <span
+              className="prog-prereq-item mono"
+              key={`${step.element}-${step.to}-${i}`}
             >
-              <TowerIcon
-                towerId={
-                  stage.primaryAction.towerId
-                }
-                name={
-                  stage.primaryAction.towerName
+              <ElementIcon
+                element={
+                  step.element as ElementName
                 }
                 assets={assets}
-                size={38}
+                size={13}
               />
-              <span>
-                <span className="prog-action-verb">
-                  {stage.primaryAction.kind ===
-                  "build"
-                    ? "Build"
-                    : "Upgrade"}
-                </span>{" "}
-                <strong>
-                  {
-                    stage.primaryAction
-                      .towerName
-                  }
-                </strong>{" "}
-                <span className="mono">
-                  → L
-                  {stage.primaryAction.toLevel}
-                </span>
-              </span>
-            </div>
-          )}
-          {stage.endgameSelections && (
-            <div className="prog-essence">
-              {stage.endgameSelections.map(
-                (selection) => (
-                  <span
-                    className="prog-essence-tower"
-                    key={selection.name}
-                  >
-                    {selection.name}
-                    {selection.quantity > 1
-                      ? ` ×${selection.quantity}`
-                      : ""}
-                  </span>
-                ),
-              )}
-              <span className="prog-essence-note">
-                Essence 2 / 2
-              </span>
-            </div>
-          )}
-        </div>
+              {step.element} {step.from}→{step.to}
+            </span>
+          ))}
+          <span className="prog-prereq-note">
+            prerequisite only
+          </span>
+        </p>
       )}
 
-      {stage.secondaryActions.length > 0 && (
-        <ul className="prog-secondary">
-          {stage.secondaryActions.map(
-            (action) => (
-              <ActionRow
-                key={`${action.towerId}-${action.toLevel}`}
-                action={action}
-                assets={assets}
-              />
+      {stage.endgameSelections && (
+        <div className="prog-essence">
+          {stage.endgameSelections.map(
+            (selection) => (
+              <span
+                className="prog-essence-tower"
+                key={selection.name}
+              >
+                {selection.name}
+                {selection.quantity > 1
+                  ? ` ×${selection.quantity}`
+                  : ""}
+              </span>
             ),
           )}
-        </ul>
+          <span className="prog-essence-note">
+            Essence 2 / 2
+          </span>
+        </div>
+      )}
+
+      {!hasKeystones && !stage.endgameSelections && (
+        <p className="prog-stage-empty">
+          {stage.reason}
+        </p>
       )}
 
       {isEnd && (
@@ -270,8 +295,8 @@ export function BuildProgression({
         <div>
           <h2>Build progression</h2>
           <p>
-            The route to this build, by milestone. No wave numbers —
-            each stage is reached when its objective is met.
+            The route to this build, by milestone. Each keystone is paired
+            with the towers it unlocks — no wave numbers.
           </p>
         </div>
       </div>

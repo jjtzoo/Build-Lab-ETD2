@@ -107,11 +107,22 @@ export type KeystoneStepDto = {
   element: ElementName;
   from: number;
   to: number;
+  /**
+   * The tower builds/upgrades this exact allocation step makes legal or
+   * reachable — so the roadmap shows *why* the keystone is spent, not just
+   * that it is. Straight from
+   * `AllocationProgressionStep.newlyLegalOrReachableSelectedTowers`.
+   */
+  unlocks: readonly TowerActionDto[];
 };
 
 export type ProgressionStageDto = {
   stage: "EARLY" | "MID" | "LATE" | "END_GAME";
   headline: string;
+  /**
+   * The single highest-priority action of the stage, used only to mark the
+   * "start here" row inside its keystone group.
+   */
   primaryAction: TowerActionDto | null;
   endgameSelections:
     | readonly {
@@ -119,7 +130,6 @@ export type ProgressionStageDto = {
         quantity: number;
       }[]
     | null;
-  secondaryActions: readonly TowerActionDto[];
   keystoneSteps: readonly KeystoneStepDto[];
   reason: string;
 };
@@ -381,8 +391,6 @@ function progressionStages(
                 quantity: s.quantity,
               }))
             : null,
-        secondaryActions:
-          sp.secondaryActions.map(toAction),
         keystoneSteps: stageSteps.map(
           (step) => ({
             element: step.nextElementAllocation,
@@ -392,6 +400,10 @@ function progressionStages(
             to: step.allocationAfter[
               step.nextElementAllocation
             ],
+            unlocks:
+              step.newlyLegalOrReachableSelectedTowers.map(
+                toAction,
+              ),
           }),
         ),
         reason: sp.reason,

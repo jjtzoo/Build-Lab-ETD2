@@ -608,11 +608,13 @@ select:hover {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-2);
   padding: clamp(22px, 3vw, 36px);
-  overflow: hidden;
+  /* No overflow clip: the route hover preview escapes the card edge. */
 }
 .featured-glow {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
   pointer-events: none;
   background: radial-gradient(
     120% 80% at 0% 0%,
@@ -764,15 +766,16 @@ select:hover {
   color: var(--muted);
 }
 
-/* Anchored hover preview */
+/* Anchored hover preview — opens upward so it clears the card edge */
 .route-preview-anchor {
   position: absolute;
-  top: calc(100% + 10px);
+  bottom: calc(100% + 10px);
   left: 0;
   z-index: 40;
   pointer-events: none;
 }
 .route-preview {
+  position: relative;
   width: 300px;
   background: var(--bg);
   border: 1px solid var(--line-strong);
@@ -786,13 +789,13 @@ select:hover {
 .route-preview::before {
   content: "";
   position: absolute;
-  top: -5px;
+  bottom: -5px;
   left: 22px;
   width: 8px;
   height: 8px;
   background: var(--bg);
-  border-left: 1px solid var(--line-strong);
-  border-top: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
   transform: rotate(45deg);
 }
 .route-preview-head {
@@ -1027,19 +1030,19 @@ select:hover {
   position: relative;
   list-style: none;
   margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  padding: 0 0 0 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .prog-connector {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 15px;
-  height: 1px;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
   background: linear-gradient(
-    90deg,
+    180deg,
     var(--line) 0%,
     var(--line-strong) 55%,
     var(--focus) 100%
@@ -1051,10 +1054,10 @@ select:hover {
   background: var(--surface-sunken);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 14px 16px 16px;
+  padding: 16px 18px 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .prog-stage[data-stage="END_GAME"] {
   background: var(--surface);
@@ -1066,6 +1069,9 @@ select:hover {
   gap: 8px;
 }
 .prog-node {
+  position: absolute;
+  left: -30px;
+  top: 18px;
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -1099,55 +1105,84 @@ select:hover {
   font-size: 13px;
   color: var(--text-2);
 }
-.prog-sub-label {
-  display: block;
+.prog-stage-empty {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+.prog-prereq-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.prog-prereq-label {
   font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 6px;
 }
-.prog-keystone-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-.prog-keystone {
+.prog-prereq-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
-  background: var(--surface-internal);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
+  gap: 4px;
+  color: var(--text-2);
 }
-.prog-priority {
-  padding: 10px;
-  background: var(--surface-internal);
-  border-radius: var(--radius-sm);
+.prog-prereq-note {
+  opacity: 0.7;
 }
-.prog-primary-action {
+
+/* Keystone → unlocked-towers pairing */
+.prog-keystone-flow {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(240px, 1fr)
+  );
+  gap: 10px;
+}
+.prog-keystone-block {
+  background: var(--surface-internal);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prog-keystone-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  border-radius: var(--radius-sm);
-  transition: background 180ms var(--ease);
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.prog-primary-action[data-active] {
-  background: rgba(205, 212, 208, 0.07);
-  box-shadow: 0 0 0 4px rgba(205, 212, 208, 0.07);
-}
-.prog-action[data-active] {
-  color: var(--text);
-}
-.prog-action[data-active] .prog-action-name {
-  text-decoration: underline;
-  text-decoration-color: var(--focus);
-  text-underline-offset: 3px;
-}
-.prog-primary-action strong {
+.prog-keystone-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 600;
+}
+.prog-keystone-name {
+  letter-spacing: 0.02em;
+}
+.prog-keystone-delta {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.prog-keystone-note {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.prog-keystone-unlocks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
 }
 .prog-action-verb {
   color: var(--muted);
@@ -1165,20 +1200,29 @@ select:hover {
   font-size: 11px;
   color: var(--muted);
 }
-.prog-secondary {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 6px;
-}
 .prog-action {
   display: flex;
   align-items: center;
   gap: 9px;
   font-size: 12px;
-  padding: 5px 0;
-  border-top: 1px solid var(--line);
+  padding: 5px 6px;
+  border-radius: var(--radius-sm);
+  transition:
+    background 160ms var(--ease),
+    box-shadow 160ms var(--ease);
+}
+.prog-action[data-primary] {
+  background: rgba(205, 212, 208, 0.06);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+.prog-action[data-active] {
+  color: var(--text);
+  background: rgba(205, 212, 208, 0.09);
+}
+.prog-action[data-active] .prog-action-name {
+  text-decoration: underline;
+  text-decoration-color: var(--focus);
+  text-underline-offset: 3px;
 }
 .prog-action-body {
   display: inline-flex;
@@ -1191,6 +1235,14 @@ select:hover {
 }
 .prog-action-level {
   color: var(--muted);
+}
+.prog-action-flag {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  white-space: nowrap;
 }
 .prog-action-role {
   margin-left: auto;
@@ -1643,12 +1695,6 @@ button.mechanic-tag:hover,
    Synergy network — full width
    ============================================================ */
 
-.synergy-tagcloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 30px;
-}
 .synergy-categories {
   display: grid;
   gap: 34px;
@@ -1661,12 +1707,15 @@ button.mechanic-tag:hover,
 .synergy-mechanic-group {
   margin-bottom: 18px;
 }
-.synergy-mechanic-name {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-2);
+.synergy-mechanic-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   margin-bottom: 8px;
+}
+.synergy-mechanic-count {
+  font-size: 10.5px;
+  color: var(--muted);
 }
 .synergy-relation-grid {
   display: grid;
