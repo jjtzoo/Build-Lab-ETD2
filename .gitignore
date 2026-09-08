@@ -10,3 +10,9 @@ tsconfig.tsbuildinfo
 
 # Stray installers / binaries that must never be committed
 *.exe
+
+# Docs and reports stay local — never publish to the repo
+*.md
+# PDFs stay local too, except the core reference
+*.pdf
+!Element TD Engine.pdf
