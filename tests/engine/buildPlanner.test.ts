@@ -100,6 +100,64 @@ describe(
       ).toBe(0);
     });
 
+    it("lets a developed scaling buff outrank one more discretionary tower", () => {
+      // Blacksmith / Well scale 10 -> 30 -> 90. A baseline that reaches
+      // buff L3 (realizedBuffMagnitude 90) must outrank one that stops at
+      // L2 (30) and instead fields another tower whose only edge is raw
+      // synergy potency, range or breadth.
+      const baseline = laserPlans[0].decision;
+
+      const buffL3 = {
+        ...baseline,
+        realizedBuffMagnitude: 90,
+      };
+      const buffL2PlusTower = {
+        ...baseline,
+        realizedBuffMagnitude: 30,
+        persistentSynergyStrength:
+          baseline.persistentSynergyStrength + 8,
+        fullSynergyStrength:
+          baseline.fullSynergyStrength + 8,
+        rangeExtensionFromAnchor:
+          baseline.rangeExtensionFromAnchor + 500,
+        selectedTowerCount:
+          baseline.selectedTowerCount + 1,
+      };
+
+      expect(
+        comparePlannerDecisions(
+          buffL3,
+          buffL2PlusTower,
+        ),
+      ).toBeLessThan(0);
+    });
+
+    it("keeps the developed buff below anchor synergy and coverage", () => {
+      const baseline = laserPlans[0].decision;
+
+      const buffL3ButLessCoverage = {
+        ...baseline,
+        realizedBuffMagnitude: 90,
+        elementWeaknessesCovered:
+          baseline.elementWeaknessesCovered,
+        anchorDefiningSynergyCount:
+          baseline.anchorDefiningSynergyCount,
+      };
+      const strongerAnchorSynergy = {
+        ...baseline,
+        realizedBuffMagnitude: 30,
+        anchorDefiningSynergyCount:
+          baseline.anchorDefiningSynergyCount + 1,
+      };
+
+      expect(
+        comparePlannerDecisions(
+          strongerAnchorSynergy,
+          buffL3ButLessCoverage,
+        ),
+      ).toBeLessThan(0);
+    });
+
     it("uses capital only after substantive strategic evidence", () => {
       const baseline =
         laserPlans[0].decision;

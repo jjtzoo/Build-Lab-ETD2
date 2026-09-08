@@ -93,6 +93,16 @@ export type PlannerDecision = {
 
   damageShapeComplementary: boolean;
 
+  /**
+   * Summed verified percent magnitude of the team damage / attack-speed
+   * buffs the package actually realises at its reachable levels
+   * (Blacksmith and Well scale 10 -> 30 -> 90 across L1-L3). A baseline
+   * that develops a selected buff tower to L3 realises far more of this
+   * than one that stops at L2 and instead fields another marginal tower,
+   * so this dimension lets buff development outrank discretionary breadth.
+   */
+  realizedBuffMagnitude: number;
+
   rangeExtensionFromAnchor: number;
 
   /**
@@ -243,6 +253,52 @@ type EvidenceMetrics = {
 
   tensionCount: number;
 };
+
+const SCALING_BUFF_SIGNALS:
+  ReadonlySet<string> = new Set([
+  "attack-damage-buff",
+  "attack-speed-buff",
+]);
+
+/**
+ * Summed verified percent magnitude of team damage / attack-speed buffs
+ * realised by the package at its reachable levels, counting only towers
+ * whose buff actually scales with level (Blacksmith and Well: 10 -> 30
+ * -> 90 across L1-L3). Flat Quad buffs (Life Altar) are excluded — they
+ * contribute the same magnitude in every legal build, so they cannot
+ * express the "develop the buff to L3 vs. add another tower" trade-off.
+ */
+function realizedBuffMagnitude(
+  evidence: CorePackageEvidence,
+): number {
+  let total = 0;
+
+  for (const contribution of
+    evidence.resolvedContributions) {
+    if (
+      contribution.maxNormalLevel < 2
+    ) {
+      continue;
+    }
+
+    for (const fact of
+      contribution.supportedAbilityFacts) {
+      if (
+        SCALING_BUFF_SIGNALS.has(
+          fact.signal,
+        ) &&
+        fact.magnitude?.unit ===
+          "percent" &&
+        typeof fact.magnitude.value ===
+          "number"
+      ) {
+        total += fact.magnitude.value;
+      }
+    }
+  }
+
+  return total;
+}
 
 function roleDeveloped(
   baseline: AnchorPackageEvaluation,
@@ -625,6 +681,11 @@ export function buildPlannerDecision(
       metrics
         .damageShapeComplementary,
 
+    realizedBuffMagnitude:
+      realizedBuffMagnitude(
+        evidence,
+      ),
+
     rangeExtensionFromAnchor:
       metrics
         .rangeExtensionFromAnchor,
@@ -736,13 +797,9 @@ function decisionVector(
     decision
       .anchorStrongSynergyCount,
 
-    // Potency and practical availability remain distinct.
-    // Persistent contributions rank before otherwise-equal
-    // intermittent or unknown contributions.
-    decision
-      .persistentSynergyStrength,
-
-    // Contextual optimization evidence.
+    // Contextual optimization evidence: covering the anchor's own armour
+    // weakness and its missing damage shape comes before raw synergy
+    // potency.
     decision
       .elementWeaknessesCovered,
 
@@ -750,6 +807,19 @@ function decisionVector(
       .damageShapeComplementary
       ? 1
       : 0,
+
+    // A developed scaling team buff (Blacksmith / Well at L3) outranks the
+    // marginal synergy value of one more discretionary tower, so pushing a
+    // selected buff tower to L3 can beat adding another tower. It stays
+    // below core development, anchor synergy and coverage, and above raw
+    // synergy potency / range / breadth.
+    decision
+      .realizedBuffMagnitude,
+
+    // Potency and practical availability remain distinct. Persistent
+    // contributions rank before otherwise-equal intermittent or unknown.
+    decision
+      .persistentSynergyStrength,
 
     decision
       .fullSynergyStrength,
