@@ -1313,6 +1313,12 @@ function compareSearchStates(
   );
 }
 
+const futurePotentialEndpointsMemo =
+  new WeakMap<
+    CorePackageEvidence,
+    ReadonlySet<string>
+  >();
+
 function futurePotentialEndpoints(
   state: {
     postCoreTowerIds:
@@ -1320,28 +1326,37 @@ function futurePotentialEndpoints(
     evidence: CorePackageEvidence;
   },
 ): ReadonlySet<string> {
-  const selected =
-    new Set(
-      state.postCoreTowerIds,
+  // Pure in (postCoreTowerIds, evidence); the evidence object is
+  // interned by the package-evaluation cache and, for a fixed core,
+  // determines the post-core set, so memoising by evidence identity is
+  // sound and collapses the O(frontier^2) dominance loop cost.
+  const memoized =
+    futurePotentialEndpointsMemo.get(
+      state.evidence,
     );
-  const endpoints = [
-    ...new Set(
-      state.evidence
-        .resolvedContributions
-        .filter((entry) =>
-          selected.has(
-            entry.towerId,
-          ),
-        )
-        .flatMap((entry) =>
-          futureEndpointSignature(
-            entry,
-          ),
-        ),
-    ),
-  ].sort();
 
-  return new Set(endpoints);
+  if (memoized) {
+    return memoized;
+  }
+
+  const selected = new Set(
+    state.postCoreTowerIds,
+  );
+  const endpoints = new Set(
+    state.evidence.resolvedContributions
+      .filter((entry) =>
+        selected.has(entry.towerId),
+      )
+      .flatMap((entry) =>
+        futureEndpointSignature(entry),
+      ),
+  );
+
+  futurePotentialEndpointsMemo.set(
+    state.evidence,
+    endpoints,
+  );
+  return endpoints;
 }
 
 export function normalPackageContextDominates(
@@ -1365,20 +1380,31 @@ export function normalPackageContextDominates(
       bVector,
     );
 
-  if (
-    strategicComparison > 0 ||
-    (
-      strategicComparison === 0 &&
+  if (strategicComparison === 0) {
+    const aCapital =
       minimumNormalPackageCapital(
         a.evidence
           .resolvedContributions,
-      ) >
-        minimumNormalPackageCapital(
-          b.evidence
-            .resolvedContributions,
-        )
-    )
-  ) {
+      );
+    const bCapital =
+      minimumNormalPackageCapital(
+        b.evidence
+          .resolvedContributions,
+      );
+
+    if (
+      aCapital > bCapital ||
+      (aCapital === bCapital &&
+        packageKey(
+          a.package.selectedTowerIds,
+        ) >
+          packageKey(
+            b.package.selectedTowerIds,
+          ))
+    ) {
+      return false;
+    }
+  } else if (strategicComparison > 0) {
     return false;
   }
 
@@ -1435,20 +1461,33 @@ function stateDominates(
       bVector,
     );
 
-  if (
-    strategicComparison > 0 ||
-    (
-      strategicComparison === 0 &&
+  if (strategicComparison === 0) {
+    // Break a strategic tie by capital, then deterministically by
+    // package key, so exactly one of two otherwise-equal states
+    // dominates and the search frontier does not accumulate
+    // duplicates.
+    const aCapital =
       minimumNormalPackageCapital(
         a.evidence
           .resolvedContributions,
-      ) >
-        minimumNormalPackageCapital(
-          b.evidence
-            .resolvedContributions,
-        )
-    )
-  ) {
+      );
+    const bCapital =
+      minimumNormalPackageCapital(
+        b.evidence
+          .resolvedContributions,
+      );
+
+    if (
+      aCapital > bCapital ||
+      (aCapital === bCapital &&
+        packageKey(a.postCoreTowerIds) >
+          packageKey(
+            b.postCoreTowerIds,
+          ))
+    ) {
+      return false;
+    }
+  } else if (strategicComparison > 0) {
     return false;
   }
 
