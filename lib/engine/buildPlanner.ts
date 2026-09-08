@@ -86,6 +86,15 @@ export type PlannerDecision = {
 
   persistentSynergyStrength: number;
   intermittentSynergyStrength: number;
+
+  /**
+   * Full synergies whose provider effect must be manually cast every
+   * cooldown (Life Altar's buffs). Ranked in its own strictly-lowest
+   * synergy tier — a buff the player has to babysit is a disadvantage in
+   * itself and must never outrank an automatic or on-hit equivalent.
+   */
+  manualActivationSynergyStrength: number;
+
   unknownAvailabilitySynergyStrength: number;
 
   elementWeaknessesCovered: number;
@@ -242,6 +251,7 @@ type EvidenceMetrics = {
 
   persistentSynergyStrength: number;
   intermittentSynergyStrength: number;
+  manualActivationSynergyStrength: number;
   unknownAvailabilitySynergyStrength: number;
 
   elementWeaknessesCovered: number;
@@ -404,6 +414,26 @@ function measureEvidence(
       .classification ??
     "unknown";
 
+  const requiresActiveCast = (
+    providerTowerId: TowerId,
+    signal: string,
+  ) =>
+    evidence
+      .resolvedContributions
+      .find(
+        (entry) =>
+          entry.towerId ===
+          providerTowerId,
+      )
+      ?.supportedAbilityFacts
+      .find(
+        (effect) =>
+          effect.signal === signal,
+      )
+      ?.availability
+      .activationRequirement ===
+    "active-cast";
+
   const fullByAvailability =
     applicable.filter(
       (match) =>
@@ -413,12 +443,17 @@ function measureEvidence(
 
   const persistentSynergyStrength =
     fullByAvailability
-      .filter((match) =>
-        availabilityClassFor(
-          match.providerTowerId,
-          match.signal,
-        ) ===
-        "effectively-continuous",
+      .filter(
+        (match) =>
+          !requiresActiveCast(
+            match.providerTowerId,
+            match.signal,
+          ) &&
+          availabilityClassFor(
+            match.providerTowerId,
+            match.signal,
+          ) ===
+            "effectively-continuous",
       )
       .reduce(
         (total, match) =>
@@ -430,6 +465,15 @@ function measureEvidence(
   const intermittentSynergyStrength =
     fullByAvailability
       .filter((match) => {
+        if (
+          requiresActiveCast(
+            match.providerTowerId,
+            match.signal,
+          )
+        ) {
+          return false;
+        }
+
         const availability =
           availabilityClassFor(
             match.providerTowerId,
@@ -447,6 +491,29 @@ function measureEvidence(
             "ramping"
         );
       })
+      .reduce(
+        (total, match) =>
+          total +
+          match.effectiveStrength,
+        0,
+      );
+
+  /*
+   * A buff the player must manually cast every cooldown (Life Altar) is a
+   * disadvantage in itself in a tower-defense context: it cannot be
+   * relied on, it competes for attention, and it often carries a resource
+   * cost. Its full synergies are pulled out of the intermittent tier into
+   * their own strictly-lowest tier so they can never outrank an
+   * equivalent automatic or on-hit interaction.
+   */
+  const manualActivationSynergyStrength =
+    fullByAvailability
+      .filter((match) =>
+        requiresActiveCast(
+          match.providerTowerId,
+          match.signal,
+        ),
+      )
       .reduce(
         (total, match) =>
           total +
@@ -497,6 +564,7 @@ function measureEvidence(
 
     persistentSynergyStrength,
     intermittentSynergyStrength,
+    manualActivationSynergyStrength,
     unknownAvailabilitySynergyStrength,
 
     elementWeaknessesCovered,
@@ -664,6 +732,10 @@ export function buildPlannerDecision(
     intermittentSynergyStrength:
       metrics
         .intermittentSynergyStrength,
+
+    manualActivationSynergyStrength:
+      metrics
+        .manualActivationSynergyStrength,
 
     unknownAvailabilitySynergyStrength:
       metrics
@@ -835,6 +907,12 @@ function decisionVector(
 
     decision
       .unknownAvailabilitySynergyStrength,
+
+    // Strictly lowest synergy tier: a buff the player must hand-cast
+    // every cooldown can never carry a package over an automatic or
+    // on-hit equivalent.
+    decision
+      .manualActivationSynergyStrength,
 
     // Lower unresolved weakness is better.
     -decision
