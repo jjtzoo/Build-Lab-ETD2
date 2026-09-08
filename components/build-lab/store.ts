@@ -30,6 +30,14 @@ type BuildLabState = {
   selectedAlternativePlanId: string | null;
   isAlternativeDetailOpen: boolean;
 
+  /**
+   * Cross-highlight focus. Set while a tower card or a synergy relation
+   * is hovered/focused; drives dimming of unrelated content. Purely
+   * presentational and never persisted.
+   */
+  highlightTowerId: string | null;
+  highlightMechanicTag: string | null;
+
   setAnchor: (anchorId: string) => void;
   startRequest: () => void;
   failRequest: (message: string) => void;
@@ -45,6 +53,13 @@ type BuildLabState = {
     planId: string,
   ) => void;
   closeAlternativeDetail: () => void;
+
+  setHighlightTower: (
+    towerId: string | null,
+  ) => void;
+  setHighlightMechanic: (
+    tag: string | null,
+  ) => void;
 };
 
 export const useBuildLab =
@@ -58,6 +73,8 @@ export const useBuildLab =
     previewPlanId: null,
     selectedAlternativePlanId: null,
     isAlternativeDetailOpen: false,
+    highlightTowerId: null,
+    highlightMechanicTag: null,
 
     setAnchor: (anchorId) =>
       set({
@@ -125,6 +142,18 @@ export const useBuildLab =
       set({
         isAlternativeDetailOpen: false,
         selectedAlternativePlanId: null,
+      }),
+
+    setHighlightTower: (towerId) =>
+      set({
+        highlightTowerId: towerId,
+        highlightMechanicTag: null,
+      }),
+
+    setHighlightMechanic: (tag) =>
+      set({
+        highlightMechanicTag: tag,
+        highlightTowerId: null,
       }),
   }));
 

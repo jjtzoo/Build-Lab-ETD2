@@ -76,13 +76,32 @@ export type CoverageRowDto = {
   covered: boolean;
 };
 
+export type TowerActionDto = {
+  kind: "build" | "upgrade";
+  towerId: TowerId;
+  towerName: string;
+  toLevel: number;
+  roles: readonly string[];
+};
+
+export type KeystoneStepDto = {
+  element: ElementName;
+  from: number;
+  to: number;
+};
+
 export type ProgressionStageDto = {
   stage: "EARLY" | "MID" | "LATE" | "END_GAME";
   headline: string;
-  primaryAction: string | null;
-  primaryActionTowerId: TowerId | null;
-  secondaryActions: readonly string[];
-  allocationAction: string;
+  primaryAction: TowerActionDto | null;
+  endgameSelections:
+    | readonly {
+        name: string;
+        quantity: number;
+      }[]
+    | null;
+  secondaryActions: readonly TowerActionDto[];
+  keystoneSteps: readonly KeystoneStepDto[];
   reason: string;
 };
 
@@ -270,74 +289,72 @@ function developmentReasonFor(
 
 function progressionStages(
   progression: BuildProgression,
-): ProgressionStageDto[] {
-  const headlines: Record<
+  rolesByTower: ReadonlyMap<
     string,
-    string
-  > = {
+    readonly string[]
+  >,
+): ProgressionStageDto[] {
+  const headlines: Record<string, string> = {
     EARLY:
-      "Make the Anchor operational and stabilise.",
-    MID: "Develop the Anchor and lock in Slow / Damage Amp / Buff.",
-    LATE: "Complete the package and prepare the Essence path.",
+      "Get the Anchor firing and steady the wave.",
+    MID: "Develop the Anchor and lock in Slow, Damage Amp, and Buff.",
+    LATE: "Finish the package and open the Essence path.",
     END_GAME:
       "Spend both Essence uses on the chosen specialisation.",
   };
 
+  const toAction = (action: {
+    action: "build" | "upgrade";
+    towerId: string;
+    toLevel: number;
+  }): TowerActionDto => ({
+    kind: action.action,
+    towerId: action.towerId as TowerId,
+    towerName: getTower(
+      action.towerId as TowerId,
+    ).name,
+    toLevel: action.toLevel,
+    roles:
+      rolesByTower.get(action.towerId) ?? [],
+  });
+
   return progression.stagePriorities.map(
     (sp) => {
       const primary = sp.primaryAction;
-      let primaryText: string | null =
-        null;
-      let primaryTowerId: TowerId | null =
-        null;
-      let allocationAction =
-        "No new keystone required for this stage.";
-
       const stageSteps =
         progression.steps.filter(
           (step) => step.stage === sp.stage,
         );
-      if (stageSteps.length > 0) {
-        allocationAction = stageSteps
-          .map(
-            (step) =>
-              `${step.nextElementAllocation} ${step.allocationBefore[step.nextElementAllocation]}→${step.allocationAfter[step.nextElementAllocation]}`,
-          )
-          .join(", ");
-      }
-
-      if (
-        primary &&
-        "towerId" in primary
-      ) {
-        primaryTowerId =
-          primary.towerId as TowerId;
-        primaryText = `${primary.action === "build" ? "Build" : "Upgrade"} ${getTower(primaryTowerId).name} to L${primary.toLevel}`;
-      } else if (
-        primary &&
-        "action" in primary
-      ) {
-        primaryText = `Execute the Essence package: ${primary.selections
-          .map(
-            (s) =>
-              `${getEndGameTowerFact(s.towerId as EndGameTowerId).name}${s.quantity > 1 ? ` ×${s.quantity}` : ""}`,
-          )
-          .join(" + ")}`;
-      }
 
       return {
         stage: sp.stage,
-        headline:
-          headlines[sp.stage] ?? "",
-        primaryAction: primaryText,
-        primaryActionTowerId:
-          primaryTowerId,
+        headline: headlines[sp.stage] ?? "",
+        primaryAction:
+          primary && "towerId" in primary
+            ? toAction(primary)
+            : null,
+        endgameSelections:
+          primary && "selections" in primary
+            ? primary.selections.map((s) => ({
+                name: getEndGameTowerFact(
+                  s.towerId as EndGameTowerId,
+                ).name,
+                quantity: s.quantity,
+              }))
+            : null,
         secondaryActions:
-          sp.secondaryActions.map(
-            (action) =>
-              `${action.action === "build" ? "Build" : "Upgrade"} ${getTower(action.towerId as TowerId).name} to L${action.toLevel}`,
-          ),
-        allocationAction,
+          sp.secondaryActions.map(toAction),
+        keystoneSteps: stageSteps.map(
+          (step) => ({
+            element: step.nextElementAllocation,
+            from: step.allocationBefore[
+              step.nextElementAllocation
+            ],
+            to: step.allocationAfter[
+              step.nextElementAllocation
+            ],
+          }),
+        ),
         reason: sp.reason,
       };
     },
@@ -449,6 +466,29 @@ function toPlanDto(
     ),
   );
 
+  const rolesByTower = new Map<
+    string,
+    readonly string[]
+  >(
+    normal.selectedTowerIds.map((towerId) => [
+      towerId,
+      towerId === plan.anchorTowerId
+        ? ["Main DPS"]
+        : normal.baseline.package.roles
+            .filter((role) =>
+              role.candidates.some(
+                (candidate) =>
+                  candidate.towerId === towerId,
+              ),
+            )
+            .map(
+              (role) =>
+                ROLE_LABEL[role.role] ??
+                role.role,
+            ),
+    ]),
+  );
+
   const packageTowers: PackageTowerDto[] =
     [...normal.selectedTowerIds]
       .sort((a, b) => {
@@ -464,20 +504,11 @@ function toPlanDto(
           auditByTower.get(towerId)!;
         const isCore =
           coreIds.has(towerId);
-        const roles =
-          normal.baseline.package.roles
-            .filter((role) =>
-              role.candidates.some(
-                (candidate) =>
-                  candidate.towerId ===
-                  towerId,
-              ),
-            )
-            .map(
-              (role) =>
-                ROLE_LABEL[role.role] ??
-                role.role,
-            );
+        const roles = (
+          rolesByTower.get(towerId) ?? []
+        ).filter(
+          (role) => role !== "Main DPS",
+        );
         return {
           id: towerId,
           name: tower.name,
@@ -620,6 +651,7 @@ function toPlanDto(
       ),
     progression: progressionStages(
       entry.progression,
+      rolesByTower,
     ),
     endGame: {
       best: endGamePackageDto(
