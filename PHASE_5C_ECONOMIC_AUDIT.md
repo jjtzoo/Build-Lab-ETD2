@@ -53,6 +53,14 @@ meaningful factual offense at its current level, a meaningful range
 extension). "Reduces minimum capital" is explicitly excluded from that
 list.
 
+> **Superseded for Trio towers (branch `1e40f8e`).** A Trio (class max
+> L2) may no longer enter the package as a discretionary L1 addition at
+> all, even with a defining justification — the freed allocation is
+> always better spent elsewhere. The `windstorm Trio L1` row below is
+> retained only as a record of the pre-ban Laser Rank #1; the current
+> engine does not produce it. Dual towers below L3 and Quad L1 are
+> unaffected.
+
 ## Laser economic / development audit (engine Rank #1)
 
 Allocation `L2 D2 W2 F1 N2 E2` · 10 tower types · minimum capital 39,800.
