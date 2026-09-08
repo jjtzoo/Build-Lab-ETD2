@@ -1453,6 +1453,25 @@ select:hover {
   gap: 5px;
   flex-wrap: wrap;
 }
+.tower-card-identity-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tower-id-shape {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.tower-card-identity-strip > * + *::before {
+  content: "·";
+  margin-right: 6px;
+  opacity: 0.55;
+}
 .mechanic-tag {
   font-size: 11px;
   padding: 3px 8px;

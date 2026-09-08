@@ -125,6 +125,30 @@ function TowerCard({
         assets={assets}
       />
 
+      {(tower.identity.damageShape ||
+        tower.identity.mechanics.length > 0) && (
+        <div className="tower-card-identity-strip">
+          {tower.identity.damageShape && (
+            <span className="tower-id-shape">
+              {tower.identity.damageShape}
+            </span>
+          )}
+          {tower.identity.mechanics
+            .filter(
+              (mechanic) =>
+                !tower.roles.includes(mechanic),
+            )
+            .map((mechanic) => (
+              <span
+                className="tower-id-mech"
+                key={mechanic}
+              >
+                {mechanic}
+              </span>
+            ))}
+        </div>
+      )}
+
       {tower.synergyTags.length > 0 && (
         <div className="tower-card-tags">
           {tower.synergyTags.map((tag) => (

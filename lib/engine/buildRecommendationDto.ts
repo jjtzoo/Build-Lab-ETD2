@@ -8,6 +8,10 @@ import {
   getTower,
 } from "@/lib/domain/towerCatalog";
 
+import {
+  getTowerProfile,
+} from "@/lib/domain/towerProfileCatalog";
+
 import type {
   TowerId,
 } from "@/lib/domain/tower";
@@ -46,6 +50,109 @@ const ROLE_LABEL: Record<string, string> = {
   buff: "Buff",
 };
 
+/**
+ * Human labels for the mechanic each tower actually provides. The engine
+ * keeps a single "damage-amp" role, but Polar removes current HP, Jinx
+ * echoes damage, and only Incantation / Corrosion truly amplify — so the
+ * UI names the real effect instead of the abstract slot.
+ */
+const MECHANIC_LABEL: Record<string, string> = {
+  "damage-taken-amp": "Damage Amp",
+  "damage-echo": "Damage Echo",
+  "current-hp-removal": "HP Removal",
+  "enemy-slow": "Slow",
+  "enemy-stun": "Stun",
+  "enemy-stasis": "Stasis",
+  "enemy-grouping": "Grouping",
+  "enemy-displacement": "Displacement",
+  "target-isolation": "Isolation",
+  "kill-generation": "Kill Generation",
+  "attack-damage-buff": "Attack Damage",
+  "attack-speed-buff": "Attack Speed",
+  "tower-replication": "Replication",
+};
+
+const SHAPE_LABEL: Record<string, string> = {
+  "single-target": "Single-target",
+  aoe: "AoE",
+  hybrid: "Hybrid",
+};
+
+const PROFILE_LABEL: Record<string, string> = {
+  dot: "DoT",
+  execute: "Execute",
+  ramp: "Ramping",
+};
+
+/**
+ * The label shown on a tower card's role line. For the "damage-amp" slot
+ * it names the real mechanic; every other slot keeps its plain name.
+ */
+function displayRoleLabel(
+  towerId: TowerId,
+  role: string,
+): string {
+  if (role === "damage-amp") {
+    const provided: readonly string[] =
+      getTowerProfile(
+        towerId,
+      ).mechanics.provides.map(
+        (entry) => entry.signal,
+      );
+
+    for (const signal of [
+      "current-hp-removal",
+      "damage-echo",
+      "damage-taken-amp",
+    ]) {
+      if (provided.includes(signal)) {
+        return MECHANIC_LABEL[signal];
+      }
+    }
+  }
+
+  return ROLE_LABEL[role] ?? role;
+}
+
+/**
+ * Fixed identity of a tower, independent of why it was picked for this
+ * build: its damage shape and the mechanics it brings.
+ */
+function towerIdentity(towerId: TowerId): {
+  damageShape: string | null;
+  mechanics: readonly string[];
+} {
+  const profile = getTowerProfile(towerId);
+  const shapeParts: string[] = [];
+
+  if (profile.offense) {
+    const shape =
+      SHAPE_LABEL[
+        profile.offense.damageShape
+      ];
+    if (shape) shapeParts.push(shape);
+    const profileLabel =
+      PROFILE_LABEL[
+        profile.offense.damageProfile
+      ];
+    if (profileLabel)
+      shapeParts.push(profileLabel);
+  }
+
+  return {
+    damageShape:
+      shapeParts.length > 0
+        ? shapeParts.join(" · ")
+        : null,
+    mechanics:
+      profile.mechanics.provides.map(
+        (entry) =>
+          MECHANIC_LABEL[entry.signal] ??
+          entry.signal,
+      ),
+  };
+}
+
 export type PackageTowerDto = {
   id: TowerId;
   name: string;
@@ -65,6 +172,17 @@ export type PackageTowerDto = {
   purpose: string;
   developmentReason: string | null;
   synergyTags: readonly string[];
+
+  /**
+   * What this tower fundamentally is, regardless of why it entered this
+   * build — its damage shape and the mechanics it provides. Lets the card
+   * show "Isolation · Single-target" for a Rage that only patched a
+   * coverage hole this run.
+   */
+  identity: {
+    damageShape: string | null;
+    mechanics: readonly string[];
+  };
 
   /**
    * True for the engine's mandatory core package (Anchor plus the towers
@@ -255,12 +373,13 @@ function purposeFor(
           "",
         ),
       )
-      .map(
-        (entry) =>
-          ROLE_LABEL[entry] ??
-          (entry === "main-dps"
-            ? "Main DPS"
-            : entry),
+      .map((entry) =>
+        entry === "main-dps"
+          ? "Main DPS"
+          : displayRoleLabel(
+              audit.towerId as TowerId,
+              entry,
+            ),
       )
       .join(" · ");
   }
@@ -576,10 +695,11 @@ function toPlanDto(
                   candidate.towerId === towerId,
               ),
             )
-            .map(
-              (role) =>
-                ROLE_LABEL[role.role] ??
+            .map((role) =>
+              displayRoleLabel(
+                towerId as TowerId,
                 role.role,
+              ),
             ),
     ]),
   );
@@ -663,6 +783,7 @@ function toPlanDto(
               relations,
               towerId,
             ),
+          identity: towerIdentity(towerId),
           isCore,
           isProgressionPriority:
             priorityStageByTower.has(towerId),
