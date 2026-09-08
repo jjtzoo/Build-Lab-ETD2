@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "currency": "gold",
+  "costSemantics": "cumulative-minimum-field-cost",
+  "definition": "Each value is the total minimum gold needed to field one normal tower directly at the shown level. Values are cumulative totals, not per-upgrade increments, and must not be summed across earlier levels.",
+  "verifiedThrough": {
+    "date": "2026-08-19",
+    "announcement": "Another Small Update",
+    "note": "The official announcement history through this date contains no later Dual, Trio, or Quad normal-tower cost change. The 2024-06-28 total-cost change applies only to Level 4 Single Element and Periodic towers."
+  },
+  "costsByCombination": {
+    "Dual": [500, 1300, 3300],
+    "Trio": [1500, 5000],
+    "Quad": [4250]
+  },
+  "sources": [
+    {
+      "label": "Official developer-linked Element TD 2 DPS/Gold Values spreadsheet",
+      "url": "https://docs.google.com/spreadsheets/d/1GdfCqVeudiNHhxHF1XYSUMqkyNRRkCx-loXJiNQqv4s/edit?usp=sharing",
+      "supports": "Tower rows label the field as Gold Cost and show total level costs, including Dual 500/1300/3300 and Trio 1500/5000."
+    },
+    {
+      "label": "Official Version 1.3 announcement",
+      "url": "https://steamcommunity.com/games/1018830/announcements/detail/4101082696718337390",
+      "supports": "Dual Element Tower cost changed to 500/1300/3300."
+    },
+    {
+      "label": "Official Version 1.6 announcement",
+      "url": "https://steamcommunity.com/games/1018830/announcements/detail/5849624375822685094",
+      "supports": "Quad Element Tower total cost increased from 4000 to 4250."
+    },
+    {
+      "label": "Official Version 1.9.4 announcement",
+      "url": "https://steamcommunity.com/games/1018830/announcements/detail/5842939267313888970",
+      "supports": "Level 4 Single Element and Periodic total cost changed; normal Dual, Trio, and Quad costs were not changed."
+    }
+  ]
+}

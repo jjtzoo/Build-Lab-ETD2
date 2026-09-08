@@ -12,7 +12,9 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "validate:towers": "node scripts/validateTowersV2.mjs",
     "validate:mechanic-facts": "node scripts/validateTowerMechanicFactsV1.mjs",
+    "validate:tower-economics": "node scripts/validateTowerEconomicsV1.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio"

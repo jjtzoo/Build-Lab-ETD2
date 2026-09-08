@@ -26,18 +26,43 @@ import {
   comparePlannerDecisions,
   getBestAnchorBuildPlan,
   rankAnchorBuildPlans,
+  rankAnchorBuildPlansWithDiagnostics,
   type RankedBuildPlan,
 } from "@/lib/engine/buildPlanner";
 
+import type {
+  NormalPackageSearchDiagnostics,
+} from "@/lib/engine/normalPackageSearch";
+
 let laserPlans:
   readonly RankedBuildPlan[];
+let laserDiagnostics:
+  NormalPackageSearchDiagnostics;
+let laserSearchDurationMs = 0;
+let laserHeapDeltaMb = 0;
 
 beforeAll(() => {
-  laserPlans =
-    rankAnchorBuildPlans(
+  const heapBefore =
+    process.memoryUsage().heapUsed;
+  const startedAt =
+    performance.now();
+  const result =
+    rankAnchorBuildPlansWithDiagnostics(
       "laser",
       10,
     );
+  laserSearchDurationMs =
+    performance.now() - startedAt;
+  laserHeapDeltaMb =
+    (
+      process.memoryUsage().heapUsed -
+      heapBefore
+    ) /
+    1024 /
+    1024;
+  laserPlans = result.plans;
+  laserDiagnostics =
+    result.diagnostics;
 }, 30_000);
 
 describe(
@@ -73,6 +98,134 @@ describe(
           narrow,
         ),
       ).toBe(0);
+    });
+
+    it("uses capital only after substantive strategic evidence", () => {
+      const baseline =
+        laserPlans[0].decision;
+      const cheap = {
+        ...baseline,
+        minimumNormalPackageCapital:
+          1,
+      };
+      const expensiveEquivalent = {
+        ...baseline,
+        minimumNormalPackageCapital:
+          1_000_000,
+      };
+      const expensiveStronger = {
+        ...expensiveEquivalent,
+        fullSynergyStrength:
+          baseline
+            .fullSynergyStrength + 1,
+      };
+
+      expect(
+        comparePlannerDecisions(
+          cheap,
+          expensiveEquivalent,
+        ),
+      ).toBeLessThan(0);
+      expect(
+        comparePlannerDecisions(
+          expensiveStronger,
+          cheap,
+        ),
+      ).toBeLessThan(0);
+    });
+
+    it("exposes coherent capital and leave-one-out audits", () => {
+      for (const plan of laserPlans) {
+        expect(
+          plan
+            .minimumNormalPackageCapital,
+        ).toBe(
+          plan.normalPackageEconomics
+            .selectedTowers.reduce(
+              (total, tower) =>
+                total +
+                tower.minimumFieldCost,
+              0,
+            ),
+        );
+        expect(
+          plan.normalPackageEconomics
+            .towerAudits.map(
+              (audit) =>
+                audit.towerId,
+            ).sort(),
+        ).toEqual(
+          [...plan.selectedTowerIds]
+            .sort(),
+        );
+
+        for (const audit of
+          plan.normalPackageEconomics
+            .towerAudits) {
+          expect(
+            audit.rolePurpose.length,
+          ).toBeGreaterThan(0);
+          expect(
+            audit
+              .leaveOneOutConsequences
+              .length,
+          ).toBeGreaterThan(1);
+        }
+
+        for (const audit of
+          plan.normalPackageEconomics
+            .postCoreTowerAudits) {
+          expect(
+            audit.marginalMinimumCapital,
+          ).toBe(
+            audit.minimumFieldCost,
+          );
+          expect(
+            audit.rolePurpose.length,
+          ).toBeGreaterThan(0);
+          expect(
+            audit
+              .leaveOneOutConsequences
+              .some((entry) =>
+                !entry.startsWith(
+                  "reduces-minimum-capital-by:",
+                ),
+              ),
+          ).toBe(true);
+
+          if (
+            audit.developmentStatus ===
+              "underdeveloped"
+          ) {
+            expect(
+              audit
+                .explicitDevelopmentReasons
+                .length,
+            ).toBeGreaterThan(0);
+          }
+        }
+      }
+    });
+
+    it("keeps the Laser search inside the Phase 5B performance envelope", () => {
+      expect(
+        laserSearchDurationMs,
+      ).toBeLessThan(15_000);
+      expect(
+        laserHeapDeltaMb,
+      ).toBeLessThan(256);
+      expect(
+        laserDiagnostics
+          .truncationStatus,
+      ).toBe(false);
+      expect(
+        laserDiagnostics
+          .maximumCandidatesAfterJustificationFiltering,
+      ).toBeLessThanOrEqual(24);
+      expect(
+        laserDiagnostics
+          .maximumFrontierSize,
+      ).toBeLessThanOrEqual(105);
     });
 
     it("produces ranked future build plans for a curated anchor", () => {

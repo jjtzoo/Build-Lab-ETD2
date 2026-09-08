@@ -40,6 +40,10 @@ import type {
   ResolvedTowerContribution,
 } from "@/lib/engine/resolvedTowerContribution";
 
+import {
+  minimumNormalPackageCapital,
+} from "@/lib/engine/normalPackageEconomics";
+
 type JustificationKind =
   | "element-coverage"
   | "damage-shape"
@@ -63,6 +67,7 @@ export type NormalPackageCandidate = {
   meaningfulOffense: boolean;
   baseDps: number;
   range: number;
+  minimumFieldCost: number;
   availabilityRank: number;
   tensionDelta: number;
 };
@@ -359,6 +364,18 @@ function mechanicJustifications(
       match.consumerTowerId ===
         before.anchorTowerId
     ) {
+      if (
+        match.providerTowerId ===
+          candidateTowerId &&
+        fullMechanicStrength(
+          before,
+          match.consumerTowerId,
+          match.signal,
+        ) >= match.effectiveStrength
+      ) {
+        continue;
+      }
+
       atoms.push({
         key:
           `anchor:${match.consumerTowerId}:${match.signal}`,
@@ -556,7 +573,7 @@ function endpointsDominate(
   return true;
 }
 
-function candidateDominates(
+export function normalPackageCandidateDominates(
   a: NormalPackageCandidate,
   b: NormalPackageCandidate,
 ): boolean {
@@ -577,6 +594,8 @@ function candidateDominates(
       b.meaningfulOffense ||
     a.baseDps < b.baseDps ||
     a.range < b.range ||
+    a.minimumFieldCost >
+      b.minimumFieldCost ||
     a.availabilityRank <
       b.availabilityRank ||
     a.tensionDelta >
@@ -594,6 +613,8 @@ function candidateDominates(
         .length ||
     a.baseDps > b.baseDps ||
     a.range > b.range ||
+    a.minimumFieldCost <
+      b.minimumFieldCost ||
     a.availabilityRank >
       b.availabilityRank ||
     a.tensionDelta <
@@ -767,6 +788,9 @@ export function buildNormalPackageJustificationGraph(
           contribution
             .factualStatsAtLevel
             .range,
+        minimumFieldCost:
+          contribution.economics
+            .minimumFieldCost,
         availabilityRank:
           candidateAvailabilityRank(
             contribution,
@@ -871,7 +895,7 @@ export function buildNormalPackageJustificationGraph(
       }
 
       if (
-        candidateDominates(
+        normalPackageCandidateDominates(
           alternative,
           candidate,
         )
@@ -1009,7 +1033,31 @@ export function normalPackageContextSignature(
     tensionCount:
       evidence.synergy.tensions
         .length,
+    minimumNormalPackageCapital:
+      minimumNormalPackageCapital(
+        evidence.resolvedContributions,
+      ),
   });
+}
+
+function compareSearchDecisionVectors(
+  a: readonly number[],
+  b: readonly number[],
+): number {
+  for (
+    let index = 0;
+    index < a.length;
+    index += 1
+  ) {
+    if (a[index] > b[index]) {
+      return -1;
+    }
+    if (a[index] < b[index]) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 function searchDecisionVector(
@@ -1203,17 +1251,14 @@ function compareSearchStates(
       b.evidence,
     );
 
-  for (
-    let index = 0;
-    index < aVector.length;
-    index += 1
-  ) {
-    if (aVector[index] > bVector[index]) {
-      return -1;
-    }
-    if (aVector[index] < bVector[index]) {
-      return 1;
-    }
+  const strategicComparison =
+    compareSearchDecisionVectors(
+      aVector,
+      bVector,
+    );
+
+  if (strategicComparison !== 0) {
+    return strategicComparison;
   }
 
   return packageKey(
@@ -1271,18 +1316,27 @@ export function normalPackageContextDominates(
       b.evidence,
     );
 
-  for (
-    let index = 0;
-    index < aVector.length;
-    index += 1
-  ) {
-    if (aVector[index] < bVector[index]) {
-      return false;
-    }
+  const strategicComparison =
+    compareSearchDecisionVectors(
+      aVector,
+      bVector,
+    );
 
-    if (aVector[index] > bVector[index]) {
-      break;
-    }
+  if (
+    strategicComparison > 0 ||
+    (
+      strategicComparison === 0 &&
+      minimumNormalPackageCapital(
+        a.evidence
+          .resolvedContributions,
+      ) >
+        minimumNormalPackageCapital(
+          b.evidence
+            .resolvedContributions,
+        )
+    )
+  ) {
+    return false;
   }
 
   const allEndpoints = (
@@ -1321,12 +1375,36 @@ function stateDominates(
     evidence: CorePackageEvidence;
   },
 ): boolean {
-  if (
-    compareSearchStates(
+  const aVector =
+    searchDecisionVector(
       baseline,
-      a,
-      b,
-    ) > 0
+      a.evidence,
+    );
+  const bVector =
+    searchDecisionVector(
+      baseline,
+      b.evidence,
+    );
+
+  const strategicComparison =
+    compareSearchDecisionVectors(
+      aVector,
+      bVector,
+    );
+
+  if (
+    strategicComparison > 0 ||
+    (
+      strategicComparison === 0 &&
+      minimumNormalPackageCapital(
+        a.evidence
+          .resolvedContributions,
+      ) >
+        minimumNormalPackageCapital(
+          b.evidence
+            .resolvedContributions,
+        )
+    )
   ) {
     return false;
   }
@@ -1414,7 +1492,6 @@ function hasVerifiedPairGain(
     }
 
     if (
-      !pairOnly &&
       fullMechanicStrength(
         before,
         edge.consumerTowerId,

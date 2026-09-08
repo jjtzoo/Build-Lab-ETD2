@@ -19,6 +19,11 @@ import {
 } from "@/lib/domain/towerCatalog";
 
 import {
+  resolveNormalTowerCost,
+  type ResolvedNormalTowerCost,
+} from "@/lib/domain/towerEconomics";
+
+import {
   getTowerProfile,
 } from "@/lib/domain/towerProfileCatalog";
 
@@ -81,6 +86,7 @@ export type ResolvedTowerContribution = {
   };
   supportedAbilityFacts:
     readonly ResolvedMechanicEffectFact[];
+  economics: ResolvedNormalTowerCost;
 };
 
 export function resolveTowerContribution(
@@ -184,5 +190,10 @@ export function resolveTowerContribution(
           .consumes,
     },
     supportedAbilityFacts,
+    economics:
+      resolveNormalTowerCost(
+        towerId,
+        reachableLevel,
+      ),
   };
 }

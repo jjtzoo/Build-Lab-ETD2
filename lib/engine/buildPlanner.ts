@@ -57,6 +57,12 @@ import {
   type NormalPackageSearchResult,
 } from "@/lib/engine/normalPackageSearch";
 
+import {
+  evaluateNormalPackageEconomics,
+  minimumNormalPackageCapital,
+  type NormalPackageEconomics,
+} from "@/lib/engine/normalPackageEconomics";
+
 /**
  * Explicit planner evidence.
  *
@@ -127,6 +133,13 @@ export type PlannerDecision = {
   selectedTowerReachableLevelTotal: number;
 
   /**
+   * Minimum verified gold needed to field one copy of every selected
+   * normal tower at its recommended level. This is a cumulative field
+   * cost, not a budget cap or a score-per-gold term.
+   */
+  minimumNormalPackageCapital: number;
+
+  /**
    * Diagnostic access breadth. These fields are exposed for
    * inspection only and never participate in plan ranking.
    */
@@ -178,6 +191,11 @@ export type RankedBuildPlan = {
   evidence:
     CorePackageEvidence;
 
+  minimumNormalPackageCapital: number;
+
+  normalPackageEconomics:
+    NormalPackageEconomics;
+
   decision:
     PlannerDecision;
 
@@ -197,6 +215,12 @@ type UnpathedBuildPlan =
   Omit<
     RankedBuildPlan,
     "keystonePath"
+  >;
+
+type CandidateBuildPlan =
+  Omit<
+    UnpathedBuildPlan,
+    "normalPackageEconomics"
   >;
 
 type EvidenceMetrics = {
@@ -656,6 +680,12 @@ export function buildPlannerDecision(
           0,
         ),
 
+    minimumNormalPackageCapital:
+      minimumNormalPackageCapital(
+        evidence
+          .resolvedContributions,
+      ),
+
     availableQuadCount:
       baseline.routeState
         .availableTowers
@@ -749,6 +779,11 @@ function decisionVector(
 
     decision
       .selectedTowerReachableLevelTotal,
+
+    // Economic burden breaks ties only after substantive strategic
+    // evidence and factual development/offense. It is not a hard cap.
+    -decision
+      .minimumNormalPackageCapital,
 
     // Package size is never positive evidence. When every
     // meaningful selected-package dimension ties, prefer the
@@ -1065,7 +1100,13 @@ export function buildPreferredKeystonePath(
 function makeNormalPackagePlan(
   baseline: AnchorPackageEvaluation,
   result: NormalPackageSearchResult,
-): UnpathedBuildPlan {
+): CandidateBuildPlan {
+  const capital =
+    minimumNormalPackageCapital(
+      result.evidence
+        .resolvedContributions,
+    );
+
   return {
     anchorTowerId:
       baseline.package
@@ -1082,6 +1123,8 @@ function makeNormalPackagePlan(
       result.selectedTowerIds,
     evidence:
       result.evidence,
+    minimumNormalPackageCapital:
+      capital,
     decision:
       buildPlannerDecision(
         baseline,
@@ -1091,7 +1134,7 @@ function makeNormalPackagePlan(
 }
 
 function deterministicPlanKey(
-  plan: UnpathedBuildPlan,
+  plan: CandidateBuildPlan,
 ): string {
   return [
     plan.baseline
@@ -1170,7 +1213,7 @@ export function rankAnchorBuildPlansWithDiagnostics(
   }
 
   const candidates:
-    UnpathedBuildPlan[] = [];
+    CandidateBuildPlan[] = [];
 
   const diagnostics =
     emptyNormalPackageSearchDiagnostics();
@@ -1381,6 +1424,13 @@ export function rankAnchorBuildPlansWithDiagnostics(
     .map(
       (candidate) => ({
         ...candidate,
+
+        normalPackageEconomics:
+          evaluateNormalPackageEconomics(
+            candidate.baseline,
+            candidate.evidence,
+            matchups,
+          ),
 
         keystonePath:
           buildPreferredKeystonePath(
