@@ -12,8 +12,8 @@ describe(
   "resolved tower contribution",
   () => {
     it.each([
-      ["runic", 1, 1_150],
-      ["runic", 2, 4_600],
+      ["runic", 1, 925],
+      ["runic", 2, 3_700],
       ["well", 1, 450],
       ["well", 3, 7_200],
       ["geyser", 1, 1_100],
@@ -59,6 +59,47 @@ describe(
             .attackSpeed,
       );
     });
+
+    it.each([
+      ["ice", 3, 11_200, 1_000],
+      ["howitzer", 3, 2_800, 1_750],
+      ["astral", 2, 9_200, 1_500],
+      ["jinx", 2, 2_200, 1_000],
+      ["incantation", 2, 1_140, 1_000],
+      ["corrosion", 2, 360, 1_000],
+      ["root", 2, 200, 1_000],
+      ["phantom-zone", 1, 14_000, 1_000],
+      ["nuclear", 1, 8_000, 875],
+      ["life-altar", 1, 8_000, 1_000],
+      ["plague", 1, 800, 875],
+      ["shredder", 1, 10_000, 1_000],
+    ])(
+      "uses latest-live %s level %i damage and range",
+      (
+        towerId,
+        level,
+        damage,
+        range,
+      ) => {
+        const resolved =
+          resolveTowerContribution(
+            towerId,
+            level,
+          );
+
+        expect(
+          resolved
+            .factualStatsAtLevel
+            .damage,
+        ).toBe(damage);
+
+        expect(
+          resolved
+            .factualStatsAtLevel
+            .range,
+        ).toBe(range);
+      },
+    );
 
     it("treats Quad level 1 as its canonical normal maximum", () => {
       const resolved =

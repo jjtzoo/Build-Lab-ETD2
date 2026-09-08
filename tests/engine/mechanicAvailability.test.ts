@@ -69,11 +69,15 @@ describe(
           value: 30,
         });
 
+      expect(
+        altar?.durationSeconds,
+      ).toBe(12);
+
       expect(altar?.availability)
         .toMatchObject({
           classification:
             "burst-window",
-          dutyCycle: 0.25,
+          dutyCycle: 0.2,
           lowUptime: true,
           activationRequirement:
             "active-cast",
@@ -165,6 +169,31 @@ describe(
           "attack-speed-buff",
         ).magnitude?.byLevel,
       ).toEqual([10, 30, 90]);
+    });
+
+    it("uses the latest-live slow and amplification facts", () => {
+      expect(
+        fact(
+          "nova",
+          "enemy-slow",
+        ).durationSeconds
+          ?.byLevel,
+      ).toEqual([5, 5]);
+
+      expect(
+        fact(
+          "windstorm",
+          "enemy-slow",
+        ).durationSeconds
+          ?.byLevel,
+      ).toEqual([5, 5]);
+
+      expect(
+        fact(
+          "rage",
+          "damage-taken-amp",
+        ).magnitude?.byLevel,
+      ).toEqual([28]);
     });
   },
 );

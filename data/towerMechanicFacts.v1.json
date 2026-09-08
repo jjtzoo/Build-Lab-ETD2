@@ -44,7 +44,7 @@
       "towerId": "nova",
       "signal": "enemy-slow",
       "magnitude": { "unit": "percent", "byLevel": [16, 32] },
-      "durationSeconds": { "byLevel": [3, 3] },
+      "durationSeconds": { "byLevel": [5, 5] },
       "activationRequirement": "on-hit"
     },
     {
@@ -65,7 +65,7 @@
       "towerId": "windstorm",
       "signal": "enemy-slow",
       "magnitude": { "unit": "percent", "byLevel": [16, 32] },
-      "durationSeconds": { "byLevel": [3, 3] },
+      "durationSeconds": { "byLevel": [5, 5] },
       "activationRequirement": "on-hit"
     },
     {
@@ -101,7 +101,7 @@
     {
       "towerId": "rage",
       "signal": "damage-taken-amp",
-      "magnitude": { "unit": "percent", "byLevel": [20] },
+      "magnitude": { "unit": "percent", "byLevel": [28] },
       "durationSeconds": { "byLevel": [5] },
       "activationRequirement": "on-hit"
     },
@@ -116,7 +116,7 @@
       "towerId": "life-altar",
       "signal": "attack-damage-buff",
       "magnitude": { "unit": "percent", "byLevel": [30] },
-      "durationSeconds": { "byLevel": [15] },
+      "durationSeconds": { "byLevel": [12] },
       "cooldownSeconds": 60,
       "activationRequirement": "active-cast",
       "targetCoverage": "nearby-towers",
@@ -129,7 +129,7 @@
       "towerId": "life-altar",
       "signal": "attack-speed-buff",
       "magnitude": { "unit": "percent", "byLevel": [30] },
-      "durationSeconds": { "byLevel": [15] },
+      "durationSeconds": { "byLevel": [12] },
       "cooldownSeconds": 60,
       "activationRequirement": "active-cast",
       "targetCoverage": "nearby-towers",

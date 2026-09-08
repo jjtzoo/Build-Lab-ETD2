@@ -26,7 +26,7 @@
           7200
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -42,12 +42,12 @@
       "damageElement": "Water",
       "stats": {
         "damage": [
-          850,
-          3400,
-          13600
+          700,
+          2800,
+          11200
         ],
         "attackSpeed": 1,
-        "range": 900,
+        "range": 1000,
         "aoe": 100
       }
     },
@@ -89,7 +89,7 @@
           5680
         ],
         "attackSpeed": 1.5,
-        "range": 750,
+        "range": 875,
         "aoe": 200
       }
     },
@@ -110,7 +110,7 @@
           5040
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 200
       }
     },
@@ -131,7 +131,7 @@
           2080
         ],
         "attackSpeed": 0.66,
-        "range": 900,
+        "range": 1000,
         "aoe": 300
       }
     },
@@ -152,7 +152,7 @@
           12800
         ],
         "attackSpeed": 1.5,
-        "range": 750,
+        "range": 875,
         "aoe": 0
       }
     },
@@ -173,7 +173,7 @@
           2400
         ],
         "attackSpeed": 3,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -189,12 +189,12 @@
       "damageElement": "Earth",
       "stats": {
         "damage": [
-          190,
-          760,
-          3040
+          175,
+          700,
+          2800
         ],
         "attackSpeed": 1,
-        "range": 1500,
+        "range": 1750,
         "aoe": 50
       }
     },
@@ -215,7 +215,7 @@
           18400
         ],
         "attackSpeed": 0.66,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -257,7 +257,7 @@
           17600
         ],
         "attackSpeed": 1,
-        "range": 750,
+        "range": 875,
         "aoe": 0
       }
     },
@@ -278,7 +278,7 @@
           7200
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -299,7 +299,7 @@
           3840
         ],
         "attackSpeed": 1,
-        "range": 750,
+        "range": 875,
         "aoe": 100
       }
     },
@@ -320,7 +320,7 @@
           7840
         ],
         "attackSpeed": 1,
-        "range": 750,
+        "range": 875,
         "aoe": 300
       }
     },
@@ -337,8 +337,8 @@
       "damageElement": "Light",
       "stats": {
         "damage": [
-          2250,
-          9000
+          2300,
+          9200
         ],
         "attackSpeed": 1,
         "range": 1500,
@@ -358,8 +358,8 @@
       "damageElement": "Darkness",
       "stats": {
         "damage": [
-          1150,
-          4600
+          925,
+          3700
         ],
         "attackSpeed": 1,
         "range": 1125,
@@ -379,11 +379,11 @@
       "damageElement": "Darkness",
       "stats": {
         "damage": [
-          1100,
-          4400
+          550,
+          2200
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 200
       }
     },
@@ -404,7 +404,7 @@
           28000
         ],
         "attackSpeed": 1,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -446,7 +446,7 @@
           3800
         ],
         "attackSpeed": 1,
-        "range": 900,
+        "range": 1000,
         "aoe": 500
       }
     },
@@ -467,7 +467,7 @@
           2000
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 300
       }
     },
@@ -488,7 +488,7 @@
           1200
         ],
         "attackSpeed": 0.66,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -526,11 +526,11 @@
       "damageElement": "Nature",
       "stats": {
         "damage": [
-          475,
-          1900
+          285,
+          1140
         ],
         "attackSpeed": 3,
-        "range": 900,
+        "range": 1000,
         "aoe": 200
       }
     },
@@ -547,11 +547,11 @@
       "damageElement": "Fire",
       "stats": {
         "damage": [
-          150,
-          600
+          90,
+          360
         ],
         "attackSpeed": 1,
-        "range": 900,
+        "range": 1000,
         "aoe": 300
       }
     },
@@ -593,7 +593,7 @@
           1800
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 300
       }
     },
@@ -635,7 +635,7 @@
           1600
         ],
         "attackSpeed": 1.5,
-        "range": 750,
+        "range": 875,
         "aoe": 200
       }
     },
@@ -652,11 +652,11 @@
       "damageElement": "Nature",
       "stats": {
         "damage": [
-          100,
-          400
+          50,
+          200
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 200
       }
     },
@@ -698,7 +698,7 @@
           4000
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -740,7 +740,7 @@
           8000
         ],
         "attackSpeed": 1.5,
-        "range": 750,
+        "range": 875,
         "aoe": 100
       }
     },
@@ -761,7 +761,7 @@
           12000
         ],
         "attackSpeed": 0.33,
-        "range": 900,
+        "range": 1000,
         "aoe": 400
       }
     },
@@ -782,7 +782,7 @@
           1000
         ],
         "attackSpeed": 1,
-        "range": 750,
+        "range": 875,
         "aoe": 0
       }
     },
@@ -800,10 +800,10 @@
       "damageElement": "Darkness",
       "stats": {
         "damage": [
-          16000
+          14000
         ],
         "attackSpeed": 0.33,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -824,7 +824,7 @@
           2000
         ],
         "attackSpeed": 1.5,
-        "range": 750,
+        "range": 875,
         "aoe": 0
       }
     },
@@ -845,7 +845,7 @@
           4500
         ],
         "attackSpeed": 1,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -863,10 +863,10 @@
       "damageElement": "Earth",
       "stats": {
         "damage": [
-          10000
+          8000
         ],
         "attackSpeed": 0.33,
-        "range": 750,
+        "range": 875,
         "aoe": 400
       }
     },
@@ -887,7 +887,7 @@
           8000
         ],
         "attackSpeed": 1.5,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -908,7 +908,7 @@
           7500
         ],
         "attackSpeed": 1,
-        "range": 900,
+        "range": 1000,
         "aoe": 0
       }
     },
@@ -926,10 +926,10 @@
       "damageElement": "Nature",
       "stats": {
         "damage": [
-          8500
+          8000
         ],
         "attackSpeed": 1,
-        "range": 900,
+        "range": 1000,
         "aoe": 200
       }
     },
@@ -950,7 +950,7 @@
           15000
         ],
         "attackSpeed": 0.33,
-        "range": 900,
+        "range": 1000,
         "aoe": 300
       }
     },
@@ -971,7 +971,7 @@
           800
         ],
         "attackSpeed": 1,
-        "range": 750,
+        "range": 875,
         "aoe": 100
       }
     },
@@ -1031,10 +1031,10 @@
       "damageElement": "Earth",
       "stats": {
         "damage": [
-          13000
+          10000
         ],
         "attackSpeed": 0.66,
-        "range": 900,
+        "range": 1000,
         "aoe": 200
       }
     },
