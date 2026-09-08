@@ -69,6 +69,16 @@ export function evaluateAnchorPackages(
     );
 
   for (const routeState of routeStates) {
+    const reachableLevels =
+      new Map(
+        routeState
+          .availableTowers
+          .map((entry) => [
+            entry.tower.id,
+            entry.maxLevel,
+          ] as const),
+      );
+
     const packages =
       getCorePackageCandidates(
         routeState,
@@ -85,6 +95,7 @@ export function evaluateAnchorPackages(
           evaluateCorePackageEvidence(
             candidate,
             matchups,
+            reachableLevels,
           ),
       });
     }

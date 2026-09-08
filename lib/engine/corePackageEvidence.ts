@@ -47,6 +47,16 @@ import {
   type RangeCoverageMeasurement,
 } from "@/lib/engine/rangeCoverage";
 
+import {
+  resolvePracticalOffense,
+  type PracticalOffensiveContribution,
+} from "@/lib/engine/practicalOffense";
+
+import {
+  resolveTowerContribution,
+  type ResolvedTowerContribution,
+} from "@/lib/engine/resolvedTowerContribution";
+
 type SelectedTower = {
   tower: Tower;
   profile: TowerProfile;
@@ -83,6 +93,19 @@ export type CorePackageEvidence = {
    */
   offensiveContributorTowerIds:
     readonly TowerId[];
+
+  meaningfulOffensiveContributorTowerIds:
+    readonly TowerId[];
+
+  practicalOffensiveContributions:
+    readonly PracticalOffensiveContribution[];
+
+  /**
+   * Factual contribution of every selected tower at the maximum
+   * level reachable in this exact allocation.
+   */
+  resolvedContributions:
+    readonly ResolvedTowerContribution[];
 
   coverage:
     CorePackageCoverageEvidence;
@@ -152,6 +175,8 @@ export function evaluateSelectedPackageEvidence(
   selectedTowerIds:
     readonly TowerId[],
   matchups: ElementMatchupTable,
+  reachableLevels?:
+    ReadonlyMap<TowerId, number>,
 ): CorePackageEvidence {
   const selected =
     resolveSelectedTowers(
@@ -182,30 +207,61 @@ export function evaluateSelectedPackageEvidence(
           undefined,
     );
 
-  const supportingElements =
-    supportingOffense.map(
-      (entry) =>
-        entry.tower.damageElement,
-    );
-
-  const supportingShapes =
-    supportingOffense.map(
-      (entry) =>
-        entry.profile.offense!
-          .damageShape,
-    );
-
-  const supportingRanges =
-    supportingOffense.map(
-      (entry) =>
-        entry.tower.stats.range,
-    );
-
   const profiles =
     selected.map(
       (entry) =>
-        entry.profile,
+      entry.profile,
     );
+
+  const resolvedContributions =
+    selected.map((entry) =>
+      resolveTowerContribution(
+        entry.tower.id,
+        reachableLevels?.get(
+          entry.tower.id,
+        ) ?? entry.tower.maxLevel,
+      ),
+    );
+
+  const resolvedAnchor =
+    resolvedContributions.find(
+      (entry) =>
+        entry.towerId ===
+        anchorTowerId,
+    );
+
+  if (!resolvedAnchor) {
+    throw new Error(
+      `Missing resolved anchor contribution: ${anchorTowerId}`,
+    );
+  }
+
+  const practicalOffensiveContributions =
+    resolvedContributions
+      .filter(
+        (entry) =>
+          entry.towerId !==
+          anchorTowerId,
+      )
+      .map((entry) =>
+        resolvePracticalOffense(
+          resolvedAnchor,
+          entry,
+        ),
+      )
+      .filter(
+        (
+          entry,
+        ): entry is PracticalOffensiveContribution =>
+          entry !== null,
+      );
+
+  const meaningfulOffense =
+    practicalOffensiveContributions
+      .filter(
+        (entry) =>
+          entry.meaningful,
+      );
 
   return {
     anchorTowerId,
@@ -220,24 +276,60 @@ export function evaluateSelectedPackageEvidence(
       ),
     ],
 
+    meaningfulOffensiveContributorTowerIds: [
+      anchorTowerId,
+      ...meaningfulOffense.map(
+        (entry) =>
+          entry.towerId,
+      ),
+    ],
+
+    practicalOffensiveContributions,
+
+    resolvedContributions,
+
     coverage: {
       element:
         evaluateElementCoverage(
           matchups,
           anchor.tower.damageElement,
-          supportingElements,
+          practicalOffensiveContributions
+            .map(
+              (entry) =>
+                entry.offensiveElement,
+            ),
+          meaningfulOffense.map(
+            (entry) =>
+              entry.offensiveElement,
+          ),
         ),
 
       damageShape:
         evaluateDamageShapeCoverage(
           anchorOffense.damageShape,
-          supportingShapes,
+          practicalOffensiveContributions
+            .map(
+              (entry) =>
+                entry.damageShape,
+            ),
+          meaningfulOffense.map(
+            (entry) =>
+              entry.damageShape,
+          ),
         ),
 
       range:
         evaluateRangeCoverage(
           anchor.tower.stats.range,
-          supportingRanges,
+          practicalOffensiveContributions
+            .map(
+              (entry) =>
+                entry.range,
+            ),
+          meaningfulOffense.map(
+            (entry) =>
+              entry.range,
+          ),
         ),
     },
 
@@ -254,10 +346,13 @@ export function evaluateSelectedPackageEvidence(
 export function evaluateCorePackageEvidence(
   candidate: CorePackageCandidate,
   matchups: ElementMatchupTable,
+  reachableLevels?:
+    ReadonlyMap<TowerId, number>,
 ): CorePackageEvidence {
   return evaluateSelectedPackageEvidence(
     candidate.anchorTowerId,
     candidate.selectedTowerIds,
     matchups,
+    reachableLevels,
   );
 }

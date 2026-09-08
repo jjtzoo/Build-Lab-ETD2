@@ -8,11 +8,17 @@ export type RangeCoverageMeasurement = {
 
   longerRangeContributorCount: number;
   hasLongerRangeContributor: boolean;
+
+  meaningfulRangeExtensionFromAnchor: number;
+  hasMeaningfulLongerRangeContributor: boolean;
 };
 
 export function evaluateRangeCoverage(
   anchorRange: number,
   supportingRanges: readonly number[] = [],
+  meaningfulSupportingRanges:
+    readonly number[] =
+      supportingRanges,
 ): RangeCoverageMeasurement {
   const packageRanges = [
     anchorRange,
@@ -32,6 +38,12 @@ export function evaluateRangeCoverage(
       (range) => range > anchorRange,
     ).length;
 
+  const meaningfulMaxRange =
+    Math.max(
+      anchorRange,
+      ...meaningfulSupportingRanges,
+    );
+
   return {
     anchorRange,
 
@@ -46,5 +58,15 @@ export function evaluateRangeCoverage(
     longerRangeContributorCount,
     hasLongerRangeContributor:
       longerRangeContributorCount > 0,
+
+    meaningfulRangeExtensionFromAnchor:
+      Math.max(
+        0,
+        meaningfulMaxRange -
+          anchorRange,
+      ),
+    hasMeaningfulLongerRangeContributor:
+      meaningfulMaxRange >
+      anchorRange,
   };
 }

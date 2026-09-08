@@ -69,6 +69,10 @@ export type PlannerDecision = {
   fullSynergyStrength: number;
   diminishedSynergyStrength: number;
 
+  persistentSynergyStrength: number;
+  intermittentSynergyStrength: number;
+  unknownAvailabilitySynergyStrength: number;
+
   elementWeaknessesCovered: number;
   elementWeaknessesRemaining: number;
 
@@ -100,10 +104,22 @@ export type PlannerDecision = {
   optionalTowerReachableLevel: number;
 
   /**
-   * Late-route flexibility.
-   *
-   * These are only planner tie-break evidence.
-   * Availability still does not mean selection.
+   * Basic-attack DPS from canonical damage and attack-speed facts
+   * at the optional tower's actual reachable level. Ability damage
+   * and uptime are intentionally excluded.
+   */
+  optionalTowerBaseDps: number;
+
+  /**
+   * Sum of reachable levels for towers actually selected into
+   * the package. This is a late tie-break only; unlike raw access
+   * breadth, every counted level belongs to the recommended build.
+   */
+  selectedTowerReachableLevelTotal: number;
+
+  /**
+   * Diagnostic access breadth. These fields are exposed for
+   * inspection only and never participate in plan ranking.
    */
   availableQuadCount: number;
   availableTowerCount: number;
@@ -174,6 +190,10 @@ type EvidenceMetrics = {
 
   fullSynergyStrength: number;
   diminishedSynergyStrength: number;
+
+  persistentSynergyStrength: number;
+  intermittentSynergyStrength: number;
+  unknownAvailabilitySynergyStrength: number;
 
   elementWeaknessesCovered: number;
   elementWeaknessesRemaining: number;
@@ -269,6 +289,92 @@ function measureEvidence(
         0,
       );
 
+  const availabilityClassFor = (
+    providerTowerId: TowerId,
+    signal: string,
+  ) =>
+    evidence
+      .resolvedContributions
+      .find(
+        (entry) =>
+          entry.towerId ===
+          providerTowerId,
+      )
+      ?.supportedAbilityFacts
+      .find(
+        (effect) =>
+          effect.signal === signal,
+      )
+      ?.availability
+      .classification ??
+    "unknown";
+
+  const fullByAvailability =
+    applicable.filter(
+      (match) =>
+        match.contribution ===
+        "full",
+    );
+
+  const persistentSynergyStrength =
+    fullByAvailability
+      .filter((match) =>
+        availabilityClassFor(
+          match.providerTowerId,
+          match.signal,
+        ) ===
+        "effectively-continuous",
+      )
+      .reduce(
+        (total, match) =>
+          total +
+          match.effectiveStrength,
+        0,
+      );
+
+  const intermittentSynergyStrength =
+    fullByAvailability
+      .filter((match) => {
+        const availability =
+          availabilityClassFor(
+            match.providerTowerId,
+            match.signal,
+          );
+
+        return (
+          availability ===
+            "periodic" ||
+          availability ===
+            "triggered" ||
+          availability ===
+            "burst-window" ||
+          availability ===
+            "ramping"
+        );
+      })
+      .reduce(
+        (total, match) =>
+          total +
+          match.effectiveStrength,
+        0,
+      );
+
+  const unknownAvailabilitySynergyStrength =
+    fullByAvailability
+      .filter(
+        (match) =>
+          availabilityClassFor(
+            match.providerTowerId,
+            match.signal,
+          ) === "unknown",
+      )
+      .reduce(
+        (total, match) =>
+          total +
+          match.effectiveStrength,
+        0,
+      );
+
   const anchorWeaknesses =
     evidence.coverage.element.filter(
       (entry) =>
@@ -279,7 +385,8 @@ function measureEvidence(
   const elementWeaknessesCovered =
     anchorWeaknesses.filter(
       (entry) =>
-        entry.hasDirectCounter,
+        entry
+          .hasMeaningfulDirectCounter,
     ).length;
 
   const elementWeaknessesRemaining =
@@ -293,18 +400,22 @@ function measureEvidence(
     fullSynergyStrength,
     diminishedSynergyStrength,
 
+    persistentSynergyStrength,
+    intermittentSynergyStrength,
+    unknownAvailabilitySynergyStrength,
+
     elementWeaknessesCovered,
     elementWeaknessesRemaining,
 
     damageShapeComplementary:
       evidence.coverage
         .damageShape
-        .hasComplementaryShape,
+        .hasMeaningfulComplementaryShape,
 
     rangeExtensionFromAnchor:
       evidence.coverage
         .range
-        .rangeExtensionFromAnchor,
+        .meaningfulRangeExtensionFromAnchor,
 
     tensionCount:
       evidence.synergy
@@ -437,6 +548,18 @@ export function buildPlannerDecision(
       metrics
         .diminishedSynergyStrength,
 
+    persistentSynergyStrength:
+      metrics
+        .persistentSynergyStrength,
+
+    intermittentSynergyStrength:
+      metrics
+        .intermittentSynergyStrength,
+
+    unknownAvailabilitySynergyStrength:
+      metrics
+        .unknownAvailabilitySynergyStrength,
+
     elementWeaknessesCovered:
       metrics
         .elementWeaknessesCovered,
@@ -478,6 +601,33 @@ export function buildPlannerDecision(
     optionalTowerReachableLevel:
       addition?.candidateReachableLevel ??
       0,
+
+    optionalTowerBaseDps:
+      addition
+        ? evidence
+            .resolvedContributions
+            .find(
+              (entry) =>
+                entry.towerId ===
+                addition.candidateTowerId,
+            )
+            ?.factualStatsAtLevel
+            .baseDps ?? 0
+        : 0,
+
+    selectedTowerReachableLevelTotal:
+      baseline.routeState
+        .availableTowers
+        .filter((entry) =>
+          evidence.selectedTowerIds.includes(
+            entry.tower.id,
+          ),
+        )
+        .reduce(
+          (total, entry) =>
+            total + entry.maxLevel,
+          0,
+        ),
 
     availableQuadCount:
       baseline.routeState
@@ -529,6 +679,12 @@ function decisionVector(
     decision
       .anchorStrongSynergyCount,
 
+    // Potency and practical availability remain distinct.
+    // Persistent contributions rank before otherwise-equal
+    // intermittent or unknown contributions.
+    decision
+      .persistentSynergyStrength,
+
     // Contextual optimization evidence.
     decision
       .elementWeaknessesCovered,
@@ -542,10 +698,16 @@ function decisionVector(
       .fullSynergyStrength,
 
     decision
+      .intermittentSynergyStrength,
+
+    decision
       .rangeExtensionFromAnchor,
 
     decision
       .diminishedSynergyStrength,
+
+    decision
+      .unknownAvailabilitySynergyStrength,
 
     // Lower unresolved weakness is better.
     -decision
@@ -556,15 +718,14 @@ function decisionVector(
 
     -decision.newTensionCount,
 
+    decision.optionalTowerBaseDps,
+
     decision
-      .optionalTowerReachableLevel,
+      .selectedTowerReachableLevelTotal,
 
-    // Only after selected-build strategic evidence
-    // ties do we prefer broader late-game access.
-    decision.availableQuadCount,
-
-    decision.availableTowerCount,
-
+    // Package size is never positive evidence. When every
+    // meaningful selected-package dimension ties, prefer the
+    // smaller non-dominated package.
     -decision.selectedTowerCount,
   ];
 }

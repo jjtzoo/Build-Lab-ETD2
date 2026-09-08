@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    {
+      "towerId": "well",
+      "signal": "attack-speed-buff",
+      "magnitude": { "unit": "percent", "byLevel": [10, 30, 90] },
+      "durationSeconds": { "byLevel": [60, 60, 60] },
+      "triggerIntervalSeconds": 15,
+      "activationRequirement": "automatic-or-manual",
+      "maxTargets": 4,
+      "refreshBehavior": "rotates-among-eligible-targets"
+    },
+    {
+      "towerId": "blacksmith",
+      "signal": "attack-damage-buff",
+      "magnitude": { "unit": "percent", "byLevel": [10, 30, 90] },
+      "durationSeconds": { "byLevel": [60, 60, 60] },
+      "triggerIntervalSeconds": 15,
+      "activationRequirement": "automatic-or-manual",
+      "maxTargets": 4,
+      "refreshBehavior": "rotates-among-eligible-targets"
+    },
+    {
+      "towerId": "trickery",
+      "signal": "tower-replication",
+      "magnitude": { "unit": "percent-damage", "byLevel": [100, 100, 100] },
+      "durationSeconds": { "byLevel": [6, 18, 54] },
+      "triggerIntervalSeconds": 15,
+      "activationRequirement": "automatic-or-manual",
+      "maxTargets": 1,
+      "refreshBehavior": "same-target-lockout",
+      "resetSeconds": 60
+    },
+    {
+      "towerId": "incantation",
+      "signal": "damage-taken-amp",
+      "magnitude": { "unit": "percent", "byLevel": [13, 26] },
+      "durationSeconds": { "byLevel": [5, 5] },
+      "activationRequirement": "on-hit",
+      "conditionalRequirement": "isolated-target-doubles-magnitude"
+    },
+    {
+      "towerId": "nova",
+      "signal": "enemy-slow",
+      "magnitude": { "unit": "percent", "byLevel": [16, 32] },
+      "durationSeconds": { "byLevel": [3, 3] },
+      "activationRequirement": "on-hit"
+    },
+    {
+      "towerId": "muck",
+      "signal": "enemy-slow",
+      "magnitude": { "unit": "percent", "byLevel": [16, 32] },
+      "durationSeconds": { "byLevel": [5, 5] },
+      "activationRequirement": "on-hit"
+    },
+    {
+      "towerId": "root",
+      "signal": "enemy-slow",
+      "magnitude": { "unit": "percent", "byLevel": [16, 32] },
+      "durationSeconds": { "byLevel": [5, 5] },
+      "activationRequirement": "on-hit"
+    },
+    {
+      "towerId": "windstorm",
+      "signal": "enemy-slow",
+      "magnitude": { "unit": "percent", "byLevel": [16, 32] },
+      "durationSeconds": { "byLevel": [3, 3] },
+      "activationRequirement": "on-hit"
+    },
+    {
+      "towerId": "corrosion",
+      "signal": "damage-taken-amp",
+      "magnitude": { "unit": "percent", "byLevel": [20, 40] },
+      "durationSeconds": { "byLevel": [5, 5] },
+      "activationRequirement": "on-hit"
+    },
+    {
+      "towerId": "ice",
+      "signal": "enemy-stun",
+      "magnitude": { "unit": "seconds", "byLevel": [0.08, 0.16, 0.24] },
+      "activationRequirement": "on-hit",
+      "resetSeconds": 1
+    },
+    {
+      "towerId": "phantom-zone",
+      "signal": "enemy-stasis",
+      "durationSeconds": { "byLevel": [2] },
+      "cooldownSeconds": 12,
+      "activationRequirement": "on-hit",
+      "refreshBehavior": "same-target-cooldown"
+    },
+    {
+      "towerId": "phantom-zone",
+      "signal": "target-isolation",
+      "durationSeconds": { "byLevel": [2] },
+      "cooldownSeconds": 12,
+      "activationRequirement": "on-hit",
+      "refreshBehavior": "same-target-cooldown"
+    },
+    {
+      "towerId": "rage",
+      "signal": "damage-taken-amp",
+      "magnitude": { "unit": "percent", "byLevel": [20] },
+      "durationSeconds": { "byLevel": [5] },
+      "activationRequirement": "on-hit"
+    },
+    {
+      "towerId": "rage",
+      "signal": "target-isolation",
+      "magnitude": { "unit": "percent-speed-increase", "byLevel": [50] },
+      "durationSeconds": { "byLevel": [5] },
+      "activationRequirement": "on-hit"
+    },
+    {
+      "towerId": "life-altar",
+      "signal": "attack-damage-buff",
+      "magnitude": { "unit": "percent", "byLevel": [30] },
+      "durationSeconds": { "byLevel": [15] },
+      "cooldownSeconds": 60,
+      "activationRequirement": "active-cast",
+      "targetCoverage": "nearby-towers",
+      "resourceBurden": {
+        "resource": "lives",
+        "amount": "scales-with-affected-towers"
+      }
+    },
+    {
+      "towerId": "life-altar",
+      "signal": "attack-speed-buff",
+      "magnitude": { "unit": "percent", "byLevel": [30] },
+      "durationSeconds": { "byLevel": [15] },
+      "cooldownSeconds": 60,
+      "activationRequirement": "active-cast",
+      "targetCoverage": "nearby-towers",
+      "resourceBurden": {
+        "resource": "lives",
+        "amount": "scales-with-affected-towers"
+      }
+    }
+  ]
+}

@@ -27,12 +27,21 @@ export type ElementCoverageEntry = {
    * against this armor element.
    */
   hasDirectCounter: boolean;
+
+  /**
+   * Whether a direct counter is present from a contributor that
+   * survives the practical-offense significance test.
+   */
+  hasMeaningfulDirectCounter: boolean;
 };
 
 export function evaluateElementCoverage(
   matchups: ElementMatchupTable,
   anchorElement: ElementName,
   supportingOffensiveElements: readonly ElementName[] = [],
+  meaningfulSupportingOffensiveElements:
+    readonly ElementName[] =
+      supportingOffensiveElements,
 ): readonly ElementCoverageEntry[] {
   const offensiveElements = [
     anchorElement,
@@ -63,6 +72,16 @@ export function evaluateElementCoverage(
       hasDirectCounter: multipliers.some(
         (multiplier) => multiplier === 2,
       ),
+      hasMeaningfulDirectCounter:
+        meaningfulSupportingOffensiveElements
+          .some(
+            (attacker) =>
+              getElementMultiplier(
+                matchups,
+                attacker,
+                defender,
+              ) === 2,
+          ),
     };
   });
 }

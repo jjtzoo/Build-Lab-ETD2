@@ -16,6 +16,10 @@ describe("evaluateRangeCoverage", () => {
       rangeExtensionFromAnchor: 0,
       longerRangeContributorCount: 0,
       hasLongerRangeContributor: false,
+      meaningfulRangeExtensionFromAnchor:
+        0,
+      hasMeaningfulLongerRangeContributor:
+        false,
     });
   });
 
@@ -32,6 +36,10 @@ describe("evaluateRangeCoverage", () => {
       rangeExtensionFromAnchor: 750,
       longerRangeContributorCount: 1,
       hasLongerRangeContributor: true,
+      meaningfulRangeExtensionFromAnchor:
+        750,
+      hasMeaningfulLongerRangeContributor:
+        true,
     });
   });
 
@@ -48,6 +56,10 @@ describe("evaluateRangeCoverage", () => {
       rangeExtensionFromAnchor: 750,
       longerRangeContributorCount: 3,
       hasLongerRangeContributor: true,
+      meaningfulRangeExtensionFromAnchor:
+        750,
+      hasMeaningfulLongerRangeContributor:
+        true,
     });
   });
 
@@ -64,6 +76,29 @@ describe("evaluateRangeCoverage", () => {
       rangeExtensionFromAnchor: 275,
       longerRangeContributorCount: 1,
       hasLongerRangeContributor: true,
+      meaningfulRangeExtensionFromAnchor:
+        275,
+      hasMeaningfulLongerRangeContributor:
+        true,
     });
+  });
+
+  it("does not treat an incidental long-range tower as practical coverage", () => {
+    const result =
+      evaluateRangeCoverage(
+        750,
+        [1500],
+        [],
+      );
+
+    expect(result)
+      .toMatchObject({
+        rangeExtensionFromAnchor: 750,
+        meaningfulRangeExtensionFromAnchor:
+          0,
+        hasLongerRangeContributor: true,
+        hasMeaningfulLongerRangeContributor:
+          false,
+      });
   });
 });

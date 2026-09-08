@@ -99,6 +99,16 @@ export function evaluatePackageAdditions(
           ),
       );
 
+  const reachableLevels =
+    new Map(
+      baseline.routeState
+        .availableTowers
+        .map((entry) => [
+          entry.tower.id,
+          entry.maxLevel,
+        ] as const),
+    );
+
   return baseline.routeState
     .availableTowers
     .filter(
@@ -138,6 +148,7 @@ export function evaluatePackageAdditions(
                 .anchorTowerId,
               afterSelectedTowerIds,
               matchups,
+              reachableLevels,
             ),
 
           synergy:

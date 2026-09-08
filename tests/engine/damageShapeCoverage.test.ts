@@ -19,6 +19,8 @@ describe("evaluateDamageShapeCoverage", () => {
       hasAoeCapability: false,
 
       hasComplementaryShape: false,
+      hasMeaningfulComplementaryShape:
+        false,
     });
   });
 
@@ -39,6 +41,8 @@ describe("evaluateDamageShapeCoverage", () => {
       hasAoeCapability: true,
 
       hasComplementaryShape: true,
+      hasMeaningfulComplementaryShape:
+        true,
     });
   });
 
@@ -59,6 +63,8 @@ describe("evaluateDamageShapeCoverage", () => {
       hasAoeCapability: true,
 
       hasComplementaryShape: true,
+      hasMeaningfulComplementaryShape:
+        true,
     });
   });
 
@@ -78,6 +84,24 @@ describe("evaluateDamageShapeCoverage", () => {
       hasAoeCapability: true,
 
       hasComplementaryShape: true,
+      hasMeaningfulComplementaryShape:
+        true,
     });
+  });
+
+  it("keeps insignificant shape access technical rather than meaningful", () => {
+    const result =
+      evaluateDamageShapeCoverage(
+        "single-target",
+        ["aoe"],
+        [],
+      );
+
+    expect(result)
+      .toMatchObject({
+        hasComplementaryShape: true,
+        hasMeaningfulComplementaryShape:
+          false,
+      });
   });
 });

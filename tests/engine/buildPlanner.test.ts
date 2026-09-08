@@ -43,6 +43,38 @@ beforeAll(() => {
 describe(
   "build planner",
   () => {
+    it("does not rank unused tower or Quad access breadth", () => {
+      const baseline =
+        laserPlans[0]
+          .decision;
+
+      const narrow = {
+        ...baseline,
+        availableQuadCount: 0,
+        availableTowerCount: 12,
+      };
+
+      const broad = {
+        ...baseline,
+        availableQuadCount: 15,
+        availableTowerCount: 50,
+      };
+
+      expect(
+        comparePlannerDecisions(
+          narrow,
+          broad,
+        ),
+      ).toBe(0);
+
+      expect(
+        comparePlannerDecisions(
+          broad,
+          narrow,
+        ),
+      ).toBe(0);
+    });
+
     it("produces ranked future build plans for a curated anchor", () => {
       expect(
         laserPlans.length,
@@ -283,31 +315,3 @@ describe(
     });
   },
 );
-
-it("does not prefer a strategically dead final keystone when broader Quad access is available", () => {
-  const best =
-    getBestAnchorBuildPlan(
-      "laser",
-    );
-
-  expect(best)
-    .not.toBeNull();
-
-  const finalStep =
-    best!.keystonePath[
-      best!.keystonePath.length - 1
-    ];
-
-  expect(finalStep)
-    .toBeDefined();
-
-  const finalChangeCount =
-    finalStep.transition
-      .newlyUnlockedTowerIds.length +
-    finalStep.transition
-      .deepenedTowerIds.length;
-
-  expect(
-    finalChangeCount,
-  ).toBeGreaterThan(0);
-});

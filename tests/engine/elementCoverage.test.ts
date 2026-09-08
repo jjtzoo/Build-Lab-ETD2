@@ -70,6 +70,7 @@ describe("evaluateElementCoverage", () => {
       anchorMultiplier: 0.5,
       packageAverageMultiplier: 0.5,
       hasDirectCounter: false,
+      hasMeaningfulDirectCounter: false,
     });
   });
 
@@ -89,6 +90,7 @@ describe("evaluateElementCoverage", () => {
       anchorMultiplier: 0.5,
       packageAverageMultiplier: 0.75,
       hasDirectCounter: false,
+      hasMeaningfulDirectCounter: false,
     });
   });
 
@@ -108,6 +110,9 @@ describe("evaluateElementCoverage", () => {
       water?.packageAverageMultiplier,
     ).toBeCloseTo(0.833333, 5);
     expect(water?.hasDirectCounter).toBe(false);
+    expect(
+      water?.hasMeaningfulDirectCounter,
+    ).toBe(false);
   });
 
   it("recognizes Darkness as a direct counter to Fire's Water weakness", () => {
@@ -126,6 +131,29 @@ describe("evaluateElementCoverage", () => {
       anchorMultiplier: 0.5,
       packageAverageMultiplier: 1.25,
       hasDirectCounter: true,
+      hasMeaningfulDirectCounter: true,
     });
+  });
+
+  it("keeps technical and meaningful counter evidence separate", () => {
+    const coverage =
+      evaluateElementCoverage(
+        matchups,
+        "Fire",
+        ["Darkness"],
+        [],
+      );
+
+    const water = coverage.find(
+      (entry) =>
+        entry.defender === "Water",
+    );
+
+    expect(water)
+      .toMatchObject({
+        hasDirectCounter: true,
+        hasMeaningfulDirectCounter:
+          false,
+      });
   });
 });

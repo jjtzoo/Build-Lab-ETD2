@@ -11,11 +11,16 @@ export type DamageShapeCoverageMeasurement = {
   hasAoeCapability: boolean;
 
   hasComplementaryShape: boolean;
+
+  hasMeaningfulComplementaryShape: boolean;
 };
 
 export function evaluateDamageShapeCoverage(
   anchorShape: DamageShape,
   supportingShapes: readonly DamageShape[] = [],
+  meaningfulSupportingShapes:
+    readonly DamageShape[] =
+      supportingShapes,
 ): DamageShapeCoverageMeasurement {
   const packageShapes = [
     anchorShape,
@@ -41,20 +46,39 @@ export function evaluateDamageShapeCoverage(
     aoeCount > 0 || hybridCount > 0;
 
   let hasComplementaryShape: boolean;
+  let hasMeaningfulComplementaryShape:
+    boolean;
 
   switch (anchorShape) {
     case "single-target":
       hasComplementaryShape =
         aoeCount > 0 || hybridCount > 0;
+      hasMeaningfulComplementaryShape =
+        meaningfulSupportingShapes
+          .some(
+            (shape) =>
+              shape === "aoe" ||
+              shape === "hybrid",
+          );
       break;
 
     case "aoe":
       hasComplementaryShape =
         singleTargetCount > 0 || hybridCount > 0;
+      hasMeaningfulComplementaryShape =
+        meaningfulSupportingShapes
+          .some(
+            (shape) =>
+              shape ===
+                "single-target" ||
+              shape === "hybrid",
+          );
       break;
 
     case "hybrid":
       hasComplementaryShape = true;
+      hasMeaningfulComplementaryShape =
+        true;
       break;
   }
 
@@ -69,5 +93,6 @@ export function evaluateDamageShapeCoverage(
     hasAoeCapability,
 
     hasComplementaryShape,
+    hasMeaningfulComplementaryShape,
   };
 }
