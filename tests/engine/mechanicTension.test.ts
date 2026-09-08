@@ -65,7 +65,7 @@ describe("findConditionalMechanicTensions", () => {
     ).toEqual([]);
   });
 
-  it("does not infer density scaling from AoE alone", () => {
+  it("tensions an AoE attacker even without an explicit density-scaling stat", () => {
     const ordinaryAoe: TowerProfile = {
       ...densityConsumer,
       offense: {
@@ -76,10 +76,35 @@ describe("findConditionalMechanicTensions", () => {
       },
     };
 
+    const result = findConditionalMechanicTensions([
+      isolationProvider,
+      ordinaryAoe,
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      providerTowerId: "isolation-provider",
+      affectedTowerId: "density-consumer",
+      signal: "target-isolation",
+    });
+    expect(result[0].condition).toMatch(/area damage/);
+  });
+
+  it("leaves a single-target attacker with no density stat alone", () => {
+    const singleTarget: TowerProfile = {
+      ...densityConsumer,
+      offense: {
+        damageShape: "single-target",
+        damageProfile: "sustained",
+        damageDelivery: "basic-attack",
+        offensiveElement: "Water",
+      },
+    };
+
     expect(
       findConditionalMechanicTensions([
         isolationProvider,
-        ordinaryAoe,
+        singleTarget,
       ]),
     ).toEqual([]);
   });

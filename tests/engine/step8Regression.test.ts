@@ -21,12 +21,18 @@ function profile(towerId: string): TowerProfile {
 }
 
 describe("Step 8 regression audit", () => {
-  it("exposes all three isolation providers to Laser", () => {
-    for (const provider of [
-      "rage",
-      "gravity-cannon",
-      "phantom-zone",
-    ]) {
+  it("exposes both isolation providers to Laser at their real strengths", () => {
+    // Rage's speed-up is full-strength isolation; Gravity Cannon's is
+    // weaker (it can clump as easily as separate). Phantom Zone is not an
+    // isolation provider — its stasis bunches the trailing pack.
+    const expected: Record<string, number> = {
+      rage: 4,
+      "gravity-cannon": 2,
+    };
+
+    for (const [provider, strength] of Object.entries(
+      expected,
+    )) {
       const matches = findDirectMechanicSynergies([
         profile(provider),
         profile("laser"),
@@ -37,18 +43,30 @@ describe("Step 8 regression audit", () => {
           providerTowerId: provider,
           consumerTowerId: "laser",
           signal: "target-isolation",
-          effectiveStrength: 4,
+          effectiveStrength: strength,
         }),
       );
     }
+
+    expect(
+      findDirectMechanicSynergies([
+        profile("phantom-zone"),
+        profile("laser"),
+      ]).some(
+        (match) => match.signal === "target-isolation",
+      ),
+    ).toBe(false);
   });
 
-  it("exposes all three isolation providers to Incantation", () => {
-    for (const provider of [
-      "rage",
-      "gravity-cannon",
-      "phantom-zone",
-    ]) {
+  it("exposes both isolation providers to Incantation at their real strengths", () => {
+    const expected: Record<string, number> = {
+      rage: 3,
+      "gravity-cannon": 2,
+    };
+
+    for (const [provider, strength] of Object.entries(
+      expected,
+    )) {
       const matches = findDirectMechanicSynergies([
         profile(provider),
         profile("incantation"),
@@ -59,7 +77,7 @@ describe("Step 8 regression audit", () => {
           providerTowerId: provider,
           consumerTowerId: "incantation",
           signal: "target-isolation",
-          effectiveStrength: 3,
+          effectiveStrength: strength,
         }),
       );
     }
@@ -71,7 +89,6 @@ describe("Step 8 regression audit", () => {
         profile("laser"),
         profile("rage"),
         profile("gravity-cannon"),
-        profile("phantom-zone"),
       ]),
     ).filter(
       (match) =>
@@ -79,15 +96,11 @@ describe("Step 8 regression audit", () => {
         match.signal === "target-isolation",
     );
 
-    expect(saturated).toHaveLength(3);
+    expect(saturated).toHaveLength(2);
 
     expect(
       saturated.map((match) => match.contribution),
-    ).toEqual([
-      "full",
-      "ignored",
-      "ignored",
-    ]);
+    ).toEqual(["full", "ignored"]);
   });
 
   it("connects Polar HP removal directly to Disease", () => {

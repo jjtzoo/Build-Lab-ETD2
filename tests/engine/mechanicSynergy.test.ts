@@ -1795,25 +1795,28 @@ describe("curated Archdruid through Life Altar synergy batch", () => {
     ).toBe(false);
   });
 
-  it("makes Phantom Zone both a stasis and isolation provider", () => {
+  it("makes Phantom Zone a stasis provider, not an isolation provider", () => {
     const phantom = profile("phantom-zone");
 
     expect(phantom.offense?.scalingTriggers).toContain(
       "attack-scaling",
     );
 
-    expect(phantom.mechanics.provides).toEqual(
-      expect.arrayContaining([
-        {
-          signal: "enemy-stasis",
-          strength: 4,
-        },
-        {
-          signal: "target-isolation",
-          strength: 4,
-        },
-      ]),
-    );
+    // Freezing a creep lets its trailing allies catch up and bunch past
+    // it — the shockwave payoff even wants that density. Phantom Zone is
+    // stasis only; it does not isolate.
+    expect(phantom.mechanics.provides).toEqual([
+      {
+        signal: "enemy-stasis",
+        strength: 4,
+      },
+    ]);
+    expect(
+      phantom.mechanics.provides.some(
+        (supply) =>
+          supply.signal === "target-isolation",
+      ),
+    ).toBe(false);
   });
 
   it("curates Phantom Zone around stasis frequency rather than density", () => {
@@ -1896,9 +1899,11 @@ describe("curated Gravity Cannon through Corrosion synergy batch", () => {
     return result;
   }
 
-  it("makes Gravity Cannon a defining displacement and isolation provider", () => {
+  it("makes Gravity Cannon a defining displacement and a weaker, conditional isolation provider", () => {
     const gravity = profile("gravity-cannon");
 
+    // Its speed-up can separate a target OR clump creeps depending on
+    // targeting, so its isolation is weaker than Rage's.
     expect(gravity.mechanics.provides).toEqual(
       expect.arrayContaining([
         {
@@ -1907,7 +1912,7 @@ describe("curated Gravity Cannon through Corrosion synergy batch", () => {
         },
         {
           signal: "target-isolation",
-          strength: 4,
+          strength: 2,
         },
       ]),
     );
@@ -1949,7 +1954,7 @@ describe("curated Gravity Cannon through Corrosion synergy batch", () => {
         providerTowerId: "gravity-cannon",
         consumerTowerId: "laser",
         signal: "target-isolation",
-        effectiveStrength: 4,
+        effectiveStrength: 2,
       }),
     );
   });
@@ -1965,7 +1970,7 @@ describe("curated Gravity Cannon through Corrosion synergy batch", () => {
         providerTowerId: "gravity-cannon",
         consumerTowerId: "incantation",
         signal: "target-isolation",
-        effectiveStrength: 3,
+        effectiveStrength: 2,
       }),
     );
   });

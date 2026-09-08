@@ -137,7 +137,7 @@
           },
           {
             "signal": "target-isolation",
-            "strength": 4
+            "strength": 2
           }
         ],
         "consumes": [
@@ -1470,10 +1470,6 @@
         "provides": [
           {
             "signal": "enemy-stasis",
-            "strength": 4
-          },
-          {
-            "signal": "target-isolation",
             "strength": 4
           }
         ],

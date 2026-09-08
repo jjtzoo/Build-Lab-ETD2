@@ -35,8 +35,14 @@ export function findConditionalMechanicTensions(
         affected.offense?.scalingTriggers?.includes(
           "density-scaling",
         ) ?? false;
+      // An AoE attacker wants a clumped wave even without an explicit
+      // density-scaling stat — pulling one creep out of the pack wastes
+      // its splash and speeds that creep toward the exit.
+      const isAreaAttacker =
+        affected.offense?.damageShape === "aoe" ||
+        affected.offense?.damageShape === "hybrid";
 
-      if (!dependsOnDensity) {
+      if (!dependsOnDensity && !isAreaAttacker) {
         continue;
       }
 
@@ -47,8 +53,9 @@ export function findConditionalMechanicTensions(
         affectedScalingTrigger: "density-scaling",
         relationshipType: "conditional",
         status: "potential",
-        condition:
-          "Target isolation reduces enemy density where the affected tower deals damage.",
+        condition: dependsOnDensity
+          ? "Target isolation reduces enemy density where the affected tower deals damage."
+          : "Target isolation pulls a creep out of the pack, wasting the affected tower's area damage.",
       });
     }
   }

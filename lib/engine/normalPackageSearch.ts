@@ -746,13 +746,12 @@ export function buildNormalPackageJustificationGraph(
    *    package slot at L1 — the freed allocation is always better spent
    *    elsewhere. A Trio may only enter as a developed L2 tower.
    *
-   * 2. A target-isolation tower whose isolation works by pulling one
-   *    creep out of the pack (Rage, Gravity Cannon — enemy speed-up)
-   *    actively fights an AoE / hybrid Anchor: it de-groups the wave the
-   *    Anchor is built to hit and accelerates leaks. It may not be a
-   *    discretionary addition for an area-shaped Anchor. Phantom Zone is
-   *    exempt: its isolation is stasis, which holds the target inside the
-   *    Anchor's splash and adds its own AoE shockwave.
+   * 2. A target-isolation tower (Rage, Gravity Cannon) pulls one creep
+   *    out of the pack and speeds it toward the exit. That directly
+   *    fights an AoE / hybrid Anchor, whose whole value is hitting the
+   *    grouped wave, so it cannot be a discretionary addition for an
+   *    area-shaped Anchor. Single-target Anchors — Laser especially,
+   *    which loses damage per nearby creep — still get it, and want it.
    *
    * Mandatory-core towers are already in `selected` and reach this
    * function through the core package, not as candidates, so neither
@@ -768,24 +767,16 @@ export function buildNormalPackageJustificationGraph(
         return false;
       }
 
-      if (anchorIsAreaShaped) {
-        const provides =
-          getTowerProfile(
-            entry.tower.id,
-          ).mechanics.provides.map(
-            (supply) => supply.signal,
-          );
-
-        if (
-          provides.includes(
-            "target-isolation",
-          ) &&
-          !provides.includes(
-            "enemy-stasis",
+      if (
+        anchorIsAreaShaped &&
+        getTowerProfile(entry.tower.id)
+          .mechanics.provides.some(
+            (supply) =>
+              supply.signal ===
+              "target-isolation",
           )
-        ) {
-          return false;
-        }
+      ) {
+        return false;
       }
 
       return true;
