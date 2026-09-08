@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "verifiedThrough": "2026-08-19",
+  "costSemantics": "cumulative-minimum-field-cost",
+  "essenceUsesPerTower": 1,
+  "facts": [
+    {
+      "towerId": "pure-light",
+      "name": "Pure Light",
+      "kind": "Pure",
+      "element": "Light",
+      "minimumFieldCost": 13750,
+      "damage": 56160,
+      "attackSpeed": 1.5,
+      "range": 1500,
+      "aoe": 0,
+      "ability": {
+        "name": "Intensify",
+        "activation": "consecutive-attacks-on-same-target",
+        "perAttackMagnitude": 1080,
+        "maximumMagnitude": null,
+        "durationSeconds": null,
+        "cooldownSeconds": null,
+        "resetRule": "resets-when-target-switches",
+        "targetRestriction": "same-target",
+        "bossBehavior": "unknown",
+        "duplicateBehavior": "unknown"
+      }
+    },
+    {
+      "towerId": "pure-darkness",
+      "name": "Pure Darkness",
+      "kind": "Pure",
+      "element": "Darkness",
+      "minimumFieldCost": 13750,
+      "damage": 129600,
+      "attackSpeed": 0.67,
+      "range": 1125,
+      "aoe": 0,
+      "ability": {
+        "name": "Overkill",
+        "activation": "on-kill",
+        "perAttackMagnitude": null,
+        "maximumMagnitude": null,
+        "durationSeconds": null,
+        "cooldownSeconds": null,
+        "resetRule": "none",
+        "targetRestriction": "nearby-creep-within-750",
+        "bossBehavior": "unknown",
+        "duplicateBehavior": "unknown"
+      }
+    },
+    {
+      "towerId": "pure-water",
+      "name": "Pure Water",
+      "kind": "Pure",
+      "element": "Water",
+      "minimumFieldCost": 13750,
+      "damage": 41040,
+      "attackSpeed": 1.5,
+      "range": 900,
+      "aoe": 200,
+      "ability": {
+        "name": "Condensation",
+        "activation": "secondary-target-present",
+        "perAttackMagnitude": 0.4,
+        "maximumMagnitude": null,
+        "durationSeconds": null,
+        "cooldownSeconds": null,
+        "resetRule": "none",
+        "targetRestriction": "one-secondary-creep-within-125",
+        "bossBehavior": "normal-basic-attack-only-when-no-secondary-target",
+        "duplicateBehavior": "unknown"
+      }
+    },
+    {
+      "towerId": "pure-fire",
+      "name": "Pure Fire",
+      "kind": "Pure",
+      "element": "Fire",
+      "minimumFieldCost": 13750,
+      "damage": 12960,
+      "attackSpeed": 3,
+      "range": 750,
+      "aoe": 300,
+      "ability": {
+        "name": "Blaze",
+        "activation": "each-second-while-attacking",
+        "perAttackMagnitude": 432,
+        "maximumMagnitude": 25920,
+        "durationSeconds": 60,
+        "cooldownSeconds": null,
+        "resetRule": "resets-after-3-seconds-not-attacking",
+        "targetRestriction": "none",
+        "bossBehavior": "unknown",
+        "duplicateBehavior": "independent-per-tower-ramp"
+      }
+    },
+    {
+      "towerId": "pure-nature",
+      "name": "Pure Nature",
+      "kind": "Pure",
+      "element": "Nature",
+      "minimumFieldCost": 13750,
+      "damage": 36720,
+      "attackSpeed": 3,
+      "range": 750,
+      "aoe": 0,
+      "ability": {
+        "name": "Burst",
+        "activation": "first-second-of-attacking",
+        "perAttackMagnitude": 2.5,
+        "maximumMagnitude": null,
+        "durationSeconds": 1,
+        "cooldownSeconds": null,
+        "resetRule": "resets-after-1-second-not-attacking",
+        "targetRestriction": "none",
+        "bossBehavior": "unknown",
+        "duplicateBehavior": "independent-per-tower-window"
+      }
+    },
+    {
+      "towerId": "pure-earth",
+      "name": "Pure Earth",
+      "kind": "Pure",
+      "element": "Earth",
+      "minimumFieldCost": 13750,
+      "damage": 54000,
+      "attackSpeed": 0.67,
+      "range": 900,
+      "aoe": 300,
+      "ability": {
+        "name": "Aftershock",
+        "activation": "while-attacking",
+        "perAttackMagnitude": 17280,
+        "maximumMagnitude": 900,
+        "durationSeconds": null,
+        "cooldownSeconds": null,
+        "resetRule": "aoe-resets-after-3-seconds-not-attacking",
+        "targetRestriction": "shockwave-centered-on-tower",
+        "bossBehavior": "unknown",
+        "duplicateBehavior": "independent-per-tower-ramp"
+      }
+    },
+    {
+      "towerId": "periodic",
+      "name": "Periodic",
+      "kind": "Periodic",
+      "element": "Composite",
+      "minimumFieldCost": 13750,
+      "damage": 52000,
+      "attackSpeed": 1,
+      "range": 1125,
+      "aoe": 200,
+      "ability": {
+        "name": null,
+        "activation": "none",
+        "perAttackMagnitude": null,
+        "maximumMagnitude": null,
+        "durationSeconds": null,
+        "cooldownSeconds": null,
+        "resetRule": "none",
+        "targetRestriction": "none",
+        "bossBehavior": "composite-basic-damage",
+        "duplicateBehavior": "independent-basic-attacks"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "label": "Official Version 1.9.4 announcement",
+      "url": "https://steamcommunity.com/games/1018830/announcements/detail/5842939267313888970",
+      "supports": "Pure L4 and Periodic total field cost 13750; all former 1150 ranges are 1125."
+    },
+    {
+      "label": "Official Version 1.9.5 announcement",
+      "url": "https://steamcommunity.com/games/1018830/announcements/detail/1809869180064222",
+      "supports": "Pure Water L4 damage 41040 and Pure Earth L4 shockwave damage 17280."
+    },
+    {
+      "label": "Official Beginner's Guide",
+      "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=2360427994",
+      "supports": "Essence can be used for Pure L4 or Periodic; one traditional Essence pick supports two special tower uses; Periodic is Composite."
+    },
+    {
+      "label": "Official developer-linked Element TD 2 DPS/Gold Values spreadsheet plus subsequent official balance notes",
+      "url": "https://docs.google.com/spreadsheets/d/1GdfCqVeudiNHhxHF1XYSUMqkyNRRkCx-loXJiNQqv4s/edit?usp=sharing",
+      "supports": "Base tower statistics and abilities, reconciled forward through the verified announcement history."
+    }
+  ]
+}
