@@ -4,6 +4,15 @@ const catalog = JSON.parse(
   fs.readFileSync("./data/towers.v2.json", "utf8"),
 );
 
+const ELEMENT_ORDER = [
+  "Light",
+  "Darkness",
+  "Water",
+  "Fire",
+  "Nature",
+  "Earth",
+];
+
 const ELEMENTS = new Set([
   "Light",
   "Darkness",
@@ -113,6 +122,77 @@ for (const tower of catalog.towers ?? []) {
     if (typeof tower.stats[field] !== "number") {
       errors.push(
         `${label}: stats.${field} must be a number`,
+      );
+    }
+  }
+
+  const recipe = Array.isArray(tower.recipe) ? tower.recipe : [];
+
+  if (new Set(recipe).size !== recipe.length) {
+    errors.push(`${label}: recipe has duplicate elements`);
+  }
+
+  const canonical = ELEMENT_ORDER.filter((e) => recipe.includes(e));
+
+  if (
+    recipe.every((e) => ELEMENTS.has(e)) &&
+    canonical.join(",") !== recipe.join(",")
+  ) {
+    errors.push(
+      `${label}: recipe must be in canonical element order [${canonical.join(", ")}], got [${recipe.join(", ")}]`,
+    );
+  }
+
+  if (
+    ELEMENTS.has(tower.damageElement) &&
+    !recipe.includes(tower.damageElement)
+  ) {
+    errors.push(
+      `${label}: damageElement "${tower.damageElement}" is not part of its recipe [${recipe.join(", ")}]`,
+    );
+  }
+}
+
+// Structural bijection check: every combination class must cover each
+// distinct element combination exactly once (Dual = C(6,2)=15,
+// Trio = C(6,3)=20, Quad = C(6,4)=15).
+function combinations(pool, size) {
+  if (size === 0) return [[]];
+  if (pool.length < size) return [];
+  const [head, ...rest] = pool;
+  return [
+    ...combinations(rest, size - 1).map((c) => [head, ...c]),
+    ...combinations(rest, size),
+  ];
+}
+
+for (const [combination, size] of [
+  ["Dual", 2],
+  ["Trio", 3],
+  ["Quad", 4],
+]) {
+  const seen = new Map();
+
+  for (const tower of catalog.towers ?? []) {
+    if (tower.combination !== combination) continue;
+    const key = [...(tower.recipe ?? [])].sort().join("+");
+    if (seen.has(key)) {
+      errors.push(
+        `${combination}: recipe {${key}} used by both ${seen.get(key)} and ${tower.id}`,
+      );
+    } else {
+      seen.set(key, tower.id);
+    }
+  }
+
+  const expected = combinations(ELEMENT_ORDER, size).map((c) =>
+    [...c].sort().join("+"),
+  );
+
+  for (const key of expected) {
+    if (!seen.has(key)) {
+      errors.push(
+        `${combination}: no tower has the required recipe {${key}}`,
       );
     }
   }

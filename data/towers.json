@@ -865,9 +865,9 @@
       "type": "Quad",
       "recipe": [
         "Light",
-        "Water",
         "Fire",
-        "Nature"
+        "Nature",
+        "Earth"
       ],
       "role": "DPS",
       "utility": "",
@@ -889,7 +889,7 @@
         "Light",
         "Water",
         "Fire",
-        "Earth"
+        "Nature"
       ],
       "role": "DPS",
       "utility": "",
@@ -930,10 +930,10 @@
       "name": "Archdruid",
       "type": "Quad",
       "recipe": [
-        "Light",
+        "Darkness",
+        "Water",
         "Fire",
-        "Nature",
-        "Earth"
+        "Nature"
       ],
       "role": "Support / DPS",
       "utility": "",
@@ -954,8 +954,8 @@
       "recipe": [
         "Darkness",
         "Water",
-        "Fire",
-        "Nature"
+        "Nature",
+        "Earth"
       ],
       "role": "DPS",
       "utility": "",
@@ -996,9 +996,9 @@
       "name": "Gravity Cannon",
       "type": "Quad",
       "recipe": [
-        "Darkness",
+        "Light",
         "Water",
-        "Nature",
+        "Fire",
         "Earth"
       ],
       "role": "DPS / Utility",
@@ -1073,7 +1073,7 @@
       ],
       "role": "Special",
       "utility": "All six elements at Lv1+",
-      "damage": "\u2014",
+      "damage": "—",
       "damageId": null,
       "req": {
         "Light": 1,

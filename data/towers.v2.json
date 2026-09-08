@@ -876,9 +876,9 @@
       "combination": "Quad",
       "recipe": [
         "Light",
-        "Water",
         "Fire",
-        "Nature"
+        "Nature",
+        "Earth"
       ],
       "maxLevel": 1,
       "damageElement": "Nature",
@@ -899,7 +899,7 @@
         "Light",
         "Water",
         "Fire",
-        "Earth"
+        "Nature"
       ],
       "maxLevel": 1,
       "damageElement": "Fire",
@@ -938,10 +938,10 @@
       "name": "Archdruid",
       "combination": "Quad",
       "recipe": [
-        "Light",
+        "Darkness",
+        "Water",
         "Fire",
-        "Nature",
-        "Earth"
+        "Nature"
       ],
       "maxLevel": 1,
       "damageElement": "Nature",
@@ -961,8 +961,8 @@
       "recipe": [
         "Darkness",
         "Water",
-        "Fire",
-        "Nature"
+        "Nature",
+        "Earth"
       ],
       "maxLevel": 1,
       "damageElement": "Darkness",
@@ -1001,9 +1001,9 @@
       "name": "Gravity Cannon",
       "combination": "Quad",
       "recipe": [
-        "Darkness",
+        "Light",
         "Water",
-        "Nature",
+        "Fire",
         "Earth"
       ],
       "maxLevel": 1,
