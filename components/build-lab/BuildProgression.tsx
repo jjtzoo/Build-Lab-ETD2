@@ -11,6 +11,7 @@ import {
   ElementIcon,
   TowerIcon,
 } from "@/components/build-lab/primitives";
+import { useBuildLab } from "@/components/build-lab/store";
 import type { ElementName } from "@/lib/domain/elements";
 
 const STAGE_LABEL: Record<string, string> = {
@@ -27,8 +28,27 @@ function ActionRow({
   action: TowerActionDto;
   assets: BuildLabAssets;
 }) {
+  const setHighlightTower = useBuildLab(
+    (s) => s.setHighlightTower,
+  );
+  const highlightTowerId = useBuildLab(
+    (s) => s.highlightTowerId,
+  );
+
   return (
-    <li className="prog-action">
+    <li
+      className="prog-action"
+      data-active={
+        highlightTowerId === action.towerId ||
+        undefined
+      }
+      onMouseEnter={() =>
+        setHighlightTower(action.towerId)
+      }
+      onMouseLeave={() =>
+        setHighlightTower(null)
+      }
+    >
       <TowerIcon
         towerId={action.towerId}
         name={action.towerName}
@@ -70,6 +90,12 @@ function Stage({
 }) {
   const reduce = useReducedMotion();
   const isEnd = stage.stage === "END_GAME";
+  const setHighlightTower = useBuildLab(
+    (s) => s.setHighlightTower,
+  );
+  const highlightTowerId = useBuildLab(
+    (s) => s.highlightTowerId,
+  );
 
   return (
     <motion.li
@@ -137,7 +163,22 @@ function Stage({
             Highest priority
           </span>
           {stage.primaryAction && (
-            <div className="prog-primary-action">
+            <div
+              className="prog-primary-action"
+              data-active={
+                highlightTowerId ===
+                  stage.primaryAction
+                    .towerId || undefined
+              }
+              onMouseEnter={() =>
+                setHighlightTower(
+                  stage.primaryAction!.towerId,
+                )
+              }
+              onMouseLeave={() =>
+                setHighlightTower(null)
+              }
+            >
               <TowerIcon
                 towerId={
                   stage.primaryAction.towerId
@@ -193,15 +234,15 @@ function Stage({
 
       {stage.secondaryActions.length > 0 && (
         <ul className="prog-secondary">
-          {stage.secondaryActions
-            .slice(0, 5)
-            .map((action) => (
+          {stage.secondaryActions.map(
+            (action) => (
               <ActionRow
                 key={`${action.towerId}-${action.toLevel}`}
                 action={action}
                 assets={assets}
               />
-            ))}
+            ),
+          )}
         </ul>
       )}
 
@@ -225,7 +266,7 @@ export function BuildProgression({
   return (
     <section className="lab-section prog-section">
       <div className="section-rail">
-        <span className="section-index mono">04</span>
+        <span className="section-index mono">03</span>
         <div>
           <h2>Build progression</h2>
           <p>

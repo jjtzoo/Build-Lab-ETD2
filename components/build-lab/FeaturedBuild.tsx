@@ -6,19 +6,20 @@ import {
   ElementIcon,
   gold,
 } from "@/components/build-lab/primitives";
+import { AlternativeRouteExplorer } from "@/components/build-lab/AlternativeRoutes";
 import type { ElementName } from "@/lib/domain/elements";
 
 export function FeaturedBuild({
   plan,
   activeRank,
   engineRank,
-  isPreviewing,
+  alternatives,
   assets,
 }: {
   plan: PlanDto;
   activeRank: number;
   engineRank: number;
-  isPreviewing: boolean;
+  alternatives: readonly PlanDto[];
   assets: BuildLabAssets;
 }) {
   return (
@@ -28,19 +29,14 @@ export function FeaturedBuild({
         <div>
           <h2>Recommended build</h2>
           <p>
-            {isPreviewing
-              ? `Previewing alternative #${activeRank}. Leave to return to the engine's pick.`
-              : activeRank === engineRank
-                ? "The strongest defensible plan for this Anchor under the current game rules."
-                : `You're working with alternative #${activeRank}. The engine still recommends #${engineRank}.`}
+            {activeRank === engineRank
+              ? "The strongest defensible plan for this Anchor under the current game rules."
+              : `You're inspecting route #${activeRank}. The engine still recommends #${engineRank}.`}
           </p>
         </div>
       </div>
 
-      <div
-        className="featured-card"
-        data-previewing={isPreviewing || undefined}
-      >
+      <div className="featured-card">
         <span
           className="featured-glow"
           aria-hidden="true"
@@ -140,6 +136,10 @@ export function FeaturedBuild({
           Minimum capital is the gold to field one copy of every tower
           at the shown levels — not expected match spend.
         </p>
+
+        <AlternativeRouteExplorer
+          alternatives={alternatives}
+        />
       </div>
     </section>
   );

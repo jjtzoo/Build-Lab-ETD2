@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import {
+  resolvePreviewPlan,
   resolveVisiblePlan,
   useBuildLab,
 } from "@/components/build-lab/store";
@@ -13,7 +14,7 @@ import {
   type AnchorItem,
 } from "@/components/build-lab/AnchorSelector";
 import { FeaturedBuild } from "@/components/build-lab/FeaturedBuild";
-import { AlternativeRoutes } from "@/components/build-lab/AlternativeRoutes";
+import { RouteDetailModal } from "@/components/build-lab/AlternativeRoutes";
 import { BuildProgression } from "@/components/build-lab/BuildProgression";
 import { TowerPackage } from "@/components/build-lab/TowerPackage";
 import { CoverageAnalysis } from "@/components/build-lab/CoverageAnalysis";
@@ -71,6 +72,16 @@ export function BuildLab({
   const visiblePlan = useMemo(
     () =>
       resolveVisiblePlan({
+        recommendationSet,
+        activePlanId,
+      }),
+    [recommendationSet, activePlanId],
+  );
+
+  // Hovering a route does not swap the page; it surfaces the delta.
+  const previewedPlan = useMemo(
+    () =>
+      resolvePreviewPlan({
         recommendationSet,
         activePlanId,
         previewPlanId,
@@ -153,14 +164,13 @@ export function BuildLab({
     recommendationSet?.plans.find(
       (p) => p.id === activePlanId,
     )?.rank ?? 1;
-  const isPreviewing =
-    previewPlanId !== null &&
-    previewPlanId !== activePlanId;
 
   return (
     <main
       className="lab-shell"
-      data-previewing={isPreviewing || undefined}
+      data-previewing={
+        previewedPlan ? true : undefined
+      }
     >
       <span
         className="lab-grain"
@@ -222,23 +232,6 @@ export function BuildLab({
               : ""}
         </div>
 
-        {isPreviewing && (
-          <motion.div
-            className="preview-banner"
-            role="status"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            Previewing alternative #
-            {
-              alternatives.find(
-                (p) => p.id === previewPlanId,
-              )?.rank
-            }
-          </motion.div>
-        )}
-
         {requestState === "empty" && (
           <div className="empty-state lab-section">
             <h3>
@@ -297,14 +290,8 @@ export function BuildLab({
                 plan={visiblePlan}
                 activeRank={activeRank}
                 engineRank={engineRank}
-                isPreviewing={isPreviewing}
-                assets={assets}
-              />
-              <AlternativeRoutes
                 alternatives={alternatives}
-                allPlans={
-                  recommendationSet.plans
-                }
+                assets={assets}
               />
               <BuildProgression
                 plan={visiblePlan}
@@ -312,6 +299,7 @@ export function BuildLab({
               />
               <TowerPackage
                 plan={visiblePlan}
+                previewPlan={previewedPlan}
                 assets={assets}
               />
               <CoverageAnalysis
@@ -327,7 +315,7 @@ export function BuildLab({
                 <section className="lab-section tensions-section">
                   <div className="section-rail">
                     <span className="section-index mono">
-                      08
+                      07
                     </span>
                     <div>
                       <h3>Tensions</h3>
@@ -360,6 +348,9 @@ export function BuildLab({
                   </ul>
                 </section>
               )}
+              <RouteDetailModal
+                plans={recommendationSet.plans}
+              />
             </>
           )}
       </div>

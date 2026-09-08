@@ -1,17 +1,136 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+} from "motion/react";
 import type { PlanDto } from "@/lib/engine/buildRecommendationDto";
 import { useBuildLab } from "@/components/build-lab/store";
 import { gold } from "@/components/build-lab/primitives";
 
-function AlternativeCard({
+/* ------------------------------------------------------------------ */
+/* Hover preview — the route delta, anchored to the hovered chip        */
+/* ------------------------------------------------------------------ */
+
+function RoutePreview({
   plan,
-  offset,
 }: {
   plan: PlanDto;
-  offset: number;
+}) {
+  const cmp = plan.comparisonToRecommended;
+
+  return (
+    <motion.div
+      className="route-preview"
+      role="tooltip"
+      initial={{ opacity: 0, y: 6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 4, scale: 0.99 }}
+      transition={{
+        duration: 0.16,
+        ease: [0.32, 0.72, 0, 1],
+      }}
+    >
+      <div className="route-preview-head">
+        <span className="route-preview-rank mono">
+          Route #{plan.rank}
+        </span>
+        <span className="route-preview-alloc mono">
+          {Object.values(plan.allocation).join(
+            "-",
+          )}
+        </span>
+      </div>
+
+      {cmp && cmp.substitutionPairs.length > 0 && (
+        <div className="route-preview-block">
+          <span className="route-preview-label">
+            Swaps
+          </span>
+          <ul className="route-swaps">
+            {cmp.substitutionPairs.map(
+              (pair, i) => (
+                <li key={i}>
+                  <span className="swap-from">
+                    {pair.from?.name ?? "—"}
+                  </span>
+                  <span
+                    className="swap-arrow"
+                    aria-hidden="true"
+                  >
+                    →
+                  </span>
+                  <span className="swap-to">
+                    {pair.to?.name ?? "—"}
+                  </span>
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+      )}
+
+      {cmp &&
+        (cmp.improves.length > 0 ||
+          cmp.worsens.length > 0) && (
+          <div className="route-preview-block">
+            <span className="route-preview-label">
+              Changes
+            </span>
+            <ul className="route-changes">
+              {cmp.improves
+                .slice(0, 3)
+                .map((line, i) => (
+                  <li
+                    key={`i${i}`}
+                    data-tone="up"
+                  >
+                    {line}
+                  </li>
+                ))}
+              {cmp.worsens
+                .slice(0, 3)
+                .map((line, i) => (
+                  <li
+                    key={`w${i}`}
+                    data-tone="down"
+                  >
+                    {line}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+
+      <div className="route-preview-foot mono">
+        <span>{plan.package.length} towers</span>
+        <span>
+          {gold(
+            plan.minimumCapital.complete ??
+              plan.minimumCapital.normal,
+          )}
+        </span>
+        <span>{plan.essenceUses} Essence</span>
+      </div>
+      <span className="route-preview-hint">
+        Click for full inspection
+      </span>
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* The rail: one compact chip per alternative route                     */
+/* ------------------------------------------------------------------ */
+
+function RouteChip({
+  plan,
+  index,
+}: {
+  plan: PlanDto;
+  index: number;
 }) {
   const reduce = useReducedMotion();
   const previewPlan = useBuildLab(
@@ -23,97 +142,101 @@ function AlternativeCard({
   const previewPlanId = useBuildLab(
     (s) => s.previewPlanId,
   );
-  const cmp = plan.comparisonToRecommended;
-  const labels = cmp?.labels ?? [];
   const isPreviewed = previewPlanId === plan.id;
+  const cmp = plan.comparisonToRecommended;
+  const headline =
+    cmp?.labels[0] ??
+    (cmp && cmp.allocationDelta.length > 0
+      ? "Route variant"
+      : "Variant");
 
   return (
-    <motion.button
-      className="alt-card"
-      data-previewed={isPreviewed || undefined}
-      style={{ "--fan": offset } as React.CSSProperties}
-      initial={
-        reduce
-          ? false
-          : { opacity: 0, y: 16 }
-      }
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.5 }}
-      transition={{
-        duration: 0.4,
-        delay: offset * 0.06,
-        ease: [0.16, 1, 0.3, 1],
-      }}
-      onMouseEnter={() => previewPlan(plan.id)}
-      onMouseLeave={() => previewPlan(null)}
-      onFocus={() => previewPlan(plan.id)}
-      onBlur={() => previewPlan(null)}
-      onClick={() => openDetail(plan.id)}
-    >
-      <div className="alt-card-top">
-        <span className="alt-card-rank mono">
+    <div className="route-chip-wrap">
+      <motion.button
+        className="route-chip"
+        data-previewed={isPreviewed || undefined}
+        aria-describedby={
+          isPreviewed
+            ? `route-preview-${plan.id}`
+            : undefined
+        }
+        initial={
+          reduce
+            ? false
+            : { opacity: 0, y: 8 }
+        }
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.6 }}
+        transition={{
+          duration: 0.32,
+          delay: index * 0.05,
+          ease: [0.16, 1, 0.3, 1],
+        }}
+        onMouseEnter={() => previewPlan(plan.id)}
+        onMouseLeave={() => previewPlan(null)}
+        onFocus={() => previewPlan(plan.id)}
+        onBlur={() => previewPlan(null)}
+        onClick={() => openDetail(plan.id)}
+      >
+        <span className="route-chip-rank mono">
           #{plan.rank}
         </span>
-        <span className="alt-card-alloc mono">
-          {Object.values(plan.allocation).join(
-            "-",
-          )}
-        </span>
-      </div>
-
-      <div className="alt-card-metrics mono">
-        <span>{plan.package.length} towers</span>
-        <span>
-          {gold(
-            plan.minimumCapital.complete ??
-              plan.minimumCapital.normal,
-          )}
-        </span>
-      </div>
-
-      {cmp && cmp.substitutions.added.length > 0 ? (
-        <p className="alt-card-change">
-          Swaps in{" "}
-          <strong>
-            {cmp.substitutions.added.join(", ")}
-          </strong>
-        </p>
-      ) : cmp && cmp.allocationDelta.length > 0 ? (
-        <p className="alt-card-change">
-          {cmp.allocationDelta
-            .map(
-              (d) =>
-                `${d.element} ${d.from}→${d.to}`,
-            )
-            .join(", ")}
-        </p>
-      ) : (
-        <p className="alt-card-change muted">
-          Same towers, different keystone order
-        </p>
-      )}
-
-      <div className="alt-card-labels">
-        {labels.length > 0 ? (
-          labels.map((label) => (
-            <span
-              className="derived-label"
-              key={label}
-            >
-              {label}
-            </span>
-          ))
-        ) : (
-          <span className="derived-label subtle">
-            Route variant
+        <span className="route-chip-body">
+          <span className="route-chip-label">
+            {headline}
           </span>
+          <span className="route-chip-alloc mono">
+            {Object.values(
+              plan.allocation,
+            ).join("-")}
+          </span>
+        </span>
+      </motion.button>
+
+      <AnimatePresence>
+        {isPreviewed && (
+          <div
+            className="route-preview-anchor"
+            id={`route-preview-${plan.id}`}
+          >
+            <RoutePreview plan={plan} />
+          </div>
         )}
-      </div>
-    </motion.button>
+      </AnimatePresence>
+    </div>
   );
 }
 
-function DetailModal({
+export function AlternativeRouteExplorer({
+  alternatives,
+}: {
+  alternatives: readonly PlanDto[];
+}) {
+  if (alternatives.length === 0) return null;
+
+  return (
+    <div className="route-explorer">
+      <span className="route-explorer-label">
+        Alternative routes
+      </span>
+      <div className="route-rail">
+        {alternatives.map((plan, i) => (
+          <RouteChip
+            key={plan.id}
+            plan={plan}
+            index={i}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Click target: the full inspection dialog                             */
+/* ------------------------------------------------------------------ */
+
+export function RouteDetailModal({
   plans,
 }: {
   plans: readonly PlanDto[];
@@ -148,43 +271,57 @@ function DetailModal({
       document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-      if (event.key === "Tab" && dialogRef.current) {
-        const focusables =
-          dialogRef.current.querySelectorAll<HTMLElement>(
-            'button, [href], [tabindex]:not([tabindex="-1"])',
-          );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last =
-          focusables[focusables.length - 1];
-        if (
-          event.shiftKey &&
-          document.activeElement === first
-        ) {
-          event.preventDefault();
-          last.focus();
-        } else if (
-          !event.shiftKey &&
-          document.activeElement === last
-        ) {
-          event.preventDefault();
-          first.focus();
-        }
+      if (event.key === "Escape") {
+        close();
+        return;
+      }
+      if (
+        event.key !== "Tab" ||
+        !dialogRef.current
+      )
+        return;
+      const focusables =
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], [tabindex]:not([tabindex="-1"])',
+        );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last =
+        focusables[focusables.length - 1];
+      if (
+        event.shiftKey &&
+        document.activeElement === first
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        document.activeElement === last
+      ) {
+        event.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener(
         "keydown",
         onKey,
       );
+      document.body.style.overflow = "";
       previouslyFocused?.focus?.();
     };
   }, [isOpen, close]);
 
   if (!isOpen || !plan) return null;
   const cmp = plan.comparisonToRecommended;
+  const core = plan.package.filter(
+    (tower) => tower.isCore,
+  );
+  const supporting = plan.package.filter(
+    (tower) => !tower.isCore,
+  );
 
   return (
     <div
@@ -198,12 +335,16 @@ function DetailModal({
         className="alt-modal"
         role="dialog"
         aria-modal="true"
-        aria-label={`Alternative build ${plan.rank}`}
+        aria-labelledby="route-modal-title"
         ref={dialogRef}
-        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        initial={{
+          opacity: 0,
+          y: 12,
+          scale: 0.985,
+        }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{
-          duration: 0.24,
+          duration: 0.22,
           ease: [0.32, 0.72, 0, 1],
         }}
       >
@@ -214,12 +355,14 @@ function DetailModal({
                 ? "Engine recommendation"
                 : "Alternative route"}
             </span>
-            <h2>Build #{plan.rank}</h2>
+            <h2 id="route-modal-title">
+              Route #{plan.rank}
+            </h2>
           </div>
           <button
             className="modal-close"
             onClick={close}
-            aria-label="Close"
+            aria-label="Close route detail"
             ref={closeRef}
           >
             ✕
@@ -227,20 +370,62 @@ function DetailModal({
         </header>
 
         <div className="alt-modal-body">
-          <p className="mono alt-modal-fingerprint">
-            {Object.values(plan.allocation).join(
-              "-",
-            )}{" "}
-            · {plan.package.length} towers ·{" "}
-            {gold(
-              plan.minimumCapital.complete ??
-                plan.minimumCapital.normal,
-            )}
-          </p>
+          <dl className="mod-deltas mono">
+            <div>
+              <dt>Allocation</dt>
+              <dd>
+                {Object.values(
+                  plan.allocation,
+                ).join("-")}
+              </dd>
+            </div>
+            <div>
+              <dt>Towers</dt>
+              <dd>{plan.package.length}</dd>
+            </div>
+            <div>
+              <dt>Capital</dt>
+              <dd>
+                {gold(
+                  plan.minimumCapital
+                    .complete ??
+                    plan.minimumCapital.normal,
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Essence</dt>
+              <dd>{plan.essenceUses}</dd>
+            </div>
+          </dl>
 
           {cmp && (
             <>
               <h3>Why different</h3>
+              {cmp.substitutionPairs.length >
+                0 && (
+                <ul className="route-swaps modal-swaps">
+                  {cmp.substitutionPairs.map(
+                    (pair, i) => (
+                      <li key={i}>
+                        <span className="swap-from">
+                          {pair.from?.name ??
+                            "—"}
+                        </span>
+                        <span
+                          className="swap-arrow"
+                          aria-hidden="true"
+                        >
+                          →
+                        </span>
+                        <span className="swap-to">
+                          {pair.to?.name ?? "—"}
+                        </span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              )}
               {cmp.improves.length > 0 && (
                 <ul className="mod-list mod-improves">
                   {cmp.improves.map((line, i) => (
@@ -255,62 +440,30 @@ function DetailModal({
                   ))}
                 </ul>
               )}
-              <dl className="mod-deltas mono">
-                <div>
-                  <dt>Capital</dt>
-                  <dd>
-                    {cmp.completeCapitalDelta >= 0
-                      ? "+"
-                      : ""}
-                    {cmp.completeCapitalDelta.toLocaleString()}{" "}
-                    g
-                  </dd>
-                </div>
-                <div>
-                  <dt>Package</dt>
-                  <dd>
-                    {cmp.packageSizeDelta >= 0
-                      ? "+"
-                      : ""}
-                    {cmp.packageSizeDelta}
-                  </dd>
-                </div>
-                {cmp.allocationDelta.length >
-                  0 && (
-                  <div>
-                    <dt>Allocation</dt>
-                    <dd>
-                      {cmp.allocationDelta
-                        .map(
-                          (d) =>
-                            `${d.element} ${d.from}→${d.to}`,
-                        )
-                        .join(", ")}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-              {(cmp.substitutions.added.length >
-                0 ||
-                cmp.substitutions.removed.length >
-                  0) && (
-                <p className="mod-subs">
-                  −
-                  {cmp.substitutions.removed.join(
-                    ", ",
-                  ) || "nothing"}{" "}
-                  · +
-                  {cmp.substitutions.added.join(
-                    ", ",
-                  ) || "nothing"}
-                </p>
-              )}
             </>
           )}
 
-          <h3>Tower package</h3>
+          <h3>Core package</h3>
           <ul className="mod-package">
-            {plan.package.map((tower) => (
+            {core.map((tower) => (
+              <li key={tower.id}>
+                <span>
+                  {tower.name}{" "}
+                  <span className="mono">
+                    L{tower.level}
+                  </span>
+                </span>
+                <span className="mod-package-purpose">
+                  {tower.roles.join(" · ") ||
+                    tower.purpose}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <h3>Supporting package</h3>
+          <ul className="mod-package">
+            {supporting.map((tower) => (
               <li key={tower.id}>
                 <span>
                   {tower.name}{" "}
@@ -327,6 +480,36 @@ function DetailModal({
                 </span>
               </li>
             ))}
+          </ul>
+
+          <h3>Progression priorities</h3>
+          <ul className="mod-package">
+            {plan.progression
+              .filter(
+                (stage) =>
+                  stage.primaryAction ||
+                  stage.endgameSelections,
+              )
+              .map((stage) => (
+                <li key={stage.stage}>
+                  <span className="mono">
+                    {stage.stage.replace(
+                      "_",
+                      " ",
+                    )}
+                  </span>
+                  <span className="mod-package-purpose">
+                    {stage.primaryAction
+                      ? `${stage.primaryAction.kind === "build" ? "Build" : "Upgrade"} ${stage.primaryAction.towerName} → L${stage.primaryAction.toLevel}`
+                      : stage.endgameSelections
+                          ?.map(
+                            (s) =>
+                              `${s.name}${s.quantity > 1 ? ` ×${s.quantity}` : ""}`,
+                          )
+                          .join(" + ")}
+                  </span>
+                </li>
+              ))}
           </ul>
 
           <h3>End Game</h3>
@@ -357,53 +540,10 @@ function DetailModal({
             className="use-build-button"
             onClick={() => activate(plan.id)}
           >
-            Use this build
+            Use this route
           </button>
         </footer>
       </motion.div>
     </div>
-  );
-}
-
-export function AlternativeRoutes({
-  alternatives,
-  allPlans,
-}: {
-  alternatives: readonly PlanDto[];
-  allPlans: readonly PlanDto[];
-}) {
-  if (alternatives.length === 0) {
-    return (
-      <DetailModal plans={allPlans} />
-    );
-  }
-
-  return (
-    <section className="lab-section alt-section">
-      <div className="section-rail">
-        <span className="section-index mono">03</span>
-        <div>
-          <h3 className="alt-heading">
-            Alternative routes
-          </h3>
-          <p>
-            Distinct non-dominated plans from the same engine run. Hover
-            to preview the whole page; open one for the full comparison.
-          </p>
-        </div>
-      </div>
-
-      <div className="alt-deck">
-        {alternatives.map((plan, i) => (
-          <AlternativeCard
-            key={plan.id}
-            plan={plan}
-            offset={i}
-          />
-        ))}
-      </div>
-
-      <DetailModal plans={allPlans} />
-    </section>
   );
 }

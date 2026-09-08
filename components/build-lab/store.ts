@@ -158,10 +158,26 @@ export const useBuildLab =
   }));
 
 /**
- * The plan the whole page should render right now: the previewed plan
- * when one is hovered, otherwise the active plan. Never mutates state.
+ * The plan the page renders. Hovering an alternative route does NOT swap
+ * this: previewing shows the delta against the active build instead of
+ * replacing it, so "added" and "removed" stay unambiguous.
  */
 export function resolveVisiblePlan(
+  state: Pick<
+    BuildLabState,
+    "recommendationSet" | "activePlanId"
+  >,
+): PlanDto | null {
+  return (
+    state.recommendationSet?.plans.find(
+      (plan) =>
+        plan.id === state.activePlanId,
+    ) ?? null
+  );
+}
+
+/** The alternative route currently being hovered or focused, if any. */
+export function resolvePreviewPlan(
   state: Pick<
     BuildLabState,
     | "recommendationSet"
@@ -169,14 +185,16 @@ export function resolveVisiblePlan(
     | "previewPlanId"
   >,
 ): PlanDto | null {
-  const plans =
-    state.recommendationSet?.plans ?? [];
-  const id =
-    state.previewPlanId ??
-    state.activePlanId;
+  if (
+    !state.previewPlanId ||
+    state.previewPlanId === state.activePlanId
+  ) {
+    return null;
+  }
   return (
-    plans.find(
-      (plan) => plan.id === id,
+    state.recommendationSet?.plans.find(
+      (plan) =>
+        plan.id === state.previewPlanId,
     ) ?? null
   );
 }

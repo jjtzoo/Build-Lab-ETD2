@@ -65,6 +65,25 @@ export type PackageTowerDto = {
   purpose: string;
   developmentReason: string | null;
   synergyTags: readonly string[];
+
+  /**
+   * True for the engine's mandatory core package (Anchor plus the towers
+   * satisfying Slow / Damage Amp / Buff). Straight from
+   * `baseline.package.selectedTowerIds` — not a presentation guess.
+   */
+  isCore: boolean;
+
+  /**
+   * True when this tower is the highest-priority action of one of the
+   * progression stages, so the package and the roadmap agree on what
+   * matters.
+   */
+  isProgressionPriority: boolean;
+  progressionStage:
+    | "EARLY"
+    | "MID"
+    | "LATE"
+    | null;
 };
 
 export type CoverageRowDto = {
@@ -126,6 +145,26 @@ export type EndGamePackageDto = {
   why: readonly string[];
 };
 
+/**
+ * The engine's comparison plus display-ready tower names and paired
+ * substitutions, so the route explorer can render "Shredder →
+ * Singularity" without re-deriving anything.
+ */
+export type PlanComparisonDto = PlanComparison & {
+  removedTowers: readonly {
+    id: TowerId;
+    name: string;
+  }[];
+  addedTowers: readonly {
+    id: TowerId;
+    name: string;
+  }[];
+  substitutionPairs: readonly {
+    from: { id: TowerId; name: string } | null;
+    to: { id: TowerId; name: string } | null;
+  }[];
+};
+
 export type PlanDto = {
   id: string;
   rank: number;
@@ -174,7 +213,7 @@ export type PlanDto = {
     secondBest: EndGamePackageDto | null;
   };
   comparisonToRecommended:
-    PlanComparison | null;
+    PlanComparisonDto | null;
 };
 
 export type BuildRecommendationSetDto = {
@@ -442,6 +481,50 @@ function endGamePackageDto(
   };
 }
 
+function namedTower(towerId: TowerId) {
+  return {
+    id: towerId,
+    name: getTower(towerId).name,
+  };
+}
+
+/**
+ * Pairs removed against added towers positionally so a one-for-one swap
+ * reads as "Shredder → Singularity". Uneven counts keep the remainder as
+ * one-sided entries rather than inventing a pairing.
+ */
+function comparisonDto(
+  comparison: PlanComparison | null,
+): PlanComparisonDto | null {
+  if (!comparison) return null;
+
+  const removedTowers =
+    comparison.substitutions.removed.map(
+      namedTower,
+    );
+  const addedTowers =
+    comparison.substitutions.added.map(
+      namedTower,
+    );
+  const pairCount = Math.max(
+    removedTowers.length,
+    addedTowers.length,
+  );
+
+  return {
+    ...comparison,
+    removedTowers,
+    addedTowers,
+    substitutionPairs: Array.from(
+      { length: pairCount },
+      (_, index) => ({
+        from: removedTowers[index] ?? null,
+        to: addedTowers[index] ?? null,
+      }),
+    ),
+  };
+}
+
 function toPlanDto(
   entry: ReturnType<
     typeof buildRecommendationSet
@@ -488,6 +571,31 @@ function toPlanDto(
             ),
     ]),
   );
+
+  // Computed before the package so the tower cards and the roadmap
+  // derive "what matters most" from the same structure.
+  const progression = progressionStages(
+    entry.progression,
+    rolesByTower,
+  );
+  const priorityStageByTower = new Map<
+    string,
+    "EARLY" | "MID" | "LATE"
+  >();
+  for (const stage of progression) {
+    if (
+      stage.stage !== "END_GAME" &&
+      stage.primaryAction &&
+      !priorityStageByTower.has(
+        stage.primaryAction.towerId,
+      )
+    ) {
+      priorityStageByTower.set(
+        stage.primaryAction.towerId,
+        stage.stage,
+      );
+    }
+  }
 
   const packageTowers: PackageTowerDto[] =
     [...normal.selectedTowerIds]
@@ -543,6 +651,13 @@ function toPlanDto(
               relations,
               towerId,
             ),
+          isCore,
+          isProgressionPriority:
+            priorityStageByTower.has(towerId),
+          progressionStage:
+            priorityStageByTower.get(
+              towerId,
+            ) ?? null,
         } satisfies PackageTowerDto;
       });
 
@@ -649,10 +764,7 @@ function toPlanDto(
           condition: tension.condition,
         }),
       ),
-    progression: progressionStages(
-      entry.progression,
-      rolesByTower,
-    ),
+    progression,
     endGame: {
       best: endGamePackageDto(
         plan,
@@ -663,8 +775,9 @@ function toPlanDto(
         "secondBest",
       ),
     },
-    comparisonToRecommended:
+    comparisonToRecommended: comparisonDto(
       entry.comparisonToRecommended,
+    ),
   };
 }
 
