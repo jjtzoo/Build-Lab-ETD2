@@ -1,97 +1,118 @@
 # Phase 9 — Top-3 recommendations and 22-anchor validation
 
-Branch tip `9a0b4e0`. `buildRecommendationSet(anchor)` returns the engine
-recommendation (`rank-1`) plus up to two materially distinct,
-non-manufactured alternatives from the same planner run, each with a
-comparison to the recommendation (capital / allocation / package-size
-deltas, tower substitutions, human-readable improves / worsens, derived
-labels) and a full EARLY/MID/LATE/END GAME progression.
+Branch tip `1e40f8e` (Trio-L1 ban + realized-buff-magnitude ranking).
+`buildRecommendationSet(anchor)` returns the engine recommendation
+(`rank-1`) plus up to two materially distinct, non-manufactured
+alternatives from the same planner run, each with a comparison to the
+recommendation (capital / allocation / package-size deltas, tower
+substitutions, human-readable improves / worsens, derived labels) and a
+full EARLY/MID/LATE/END GAME progression.
 
 Alternatives are lower-ranked combined plans that differ from the
 recommendation by allocation, ≥2 tower substitutions, a different
 Essence package, or a ≥3000-gold capital gap. No diversity is forced; if
 fewer than three distinct plans exist, fewer are returned.
 
+## Doctrine changes since the previous run (`9a0b4e0`)
+
+1. **No Trio tower at L1 as a discretionary addition.** A Trio (canonical
+   maxLevel 2) may only enter the package developed, at L2. Mandatory-core
+   Trios are unaffected. This removes the "underdeveloped Trio with a
+   unique pair-only justification" additions (Polar/Disease-style) that
+   the previous run produced.
+2. **Realized scaling-buff magnitude is a ranking dimension.** Blacksmith
+   and Well scale their team buff 10 → 30 → 90 across L1–L3.
+   `PlannerDecision.realizedBuffMagnitude` sums the verified percent
+   magnitude the package actually realises (flat Quad buffs excluded). It
+   sits below core development, anchor synergy and coverage, and above
+   persistent/full synergy potency and breadth — so buff L3 can outrank
+   one more discretionary tower.
+
 ## All 22 curated anchors — engine recommendation (rank 1)
 
 Allocation fingerprint is `L-D-W-F-N-E`.
 
 | Anchor | Alloc | Pkg | Complete gold | Underdev | Quads | Endgame | Alternatives | ms |
-|---|---|---:|---:|---:|---:|---|---|---:|
-| atom | 3-0-2-2-1-3 | 6 | 47850 | 1 | 1 | earth + light | #2 route, #3 Wider Utility | 114 |
-| poison | 0-3-3-2-1-2 | 9 | 56850 | 2 | 3 | darkness + water | #2/#3 Lower Capital + Smaller | 110 |
-| vapor | 2-2-3-3-1-0 | 8 | 56100 | 1 | 2 | fire + water | #2/#3 route | 44 |
-| infernal | 0-3-1-3-2-2 | 9 | 57600 | 2 | 2 | darkness x2 | #2/#3 Smaller Package | 64 |
-| bloom | 3-0-1-2-3-2 | 7 | 54850 | 0 | 3 | light + nature | #3 More Developed | 68 |
-| howitzer | 0-3-1-2-2-3 | 9 | 54850 | 3 | 1 | darkness x2 | #3 Smaller Package | 88 |
-| lightning | 3-2-1-3-2-0 | 9 | 57600 | 2 | 2 | fire + light | #2/#3 route | 71 |
-| disease | 2-3-1-0-3-2 | 8 | 53600 | 2 | 2 | nature x2 | #2 More Developed + Wider, #3 Stronger Synergy | 50 |
-| ice | 3-2-3-2-0-1 | 8 | 56100 | 1 | 2 | light x2 | #3 Lower Capital + Smaller + More Developed | 44 |
-| solar | 0-2-1-3-3-2 | 9 | 54100 | 3 | 2 | nature x2 | #2/#3 More Developed + Wider | 50 |
-| mushroom | 2-0-1-2-3-3 | 8 | 56350 | 1 | 3 | earth + nature | #2 Stronger Synergy, #3 Lower Capital + Smaller | 34 |
-| geyser | 2-0-3-2-1-3 | 7 | 54850 | 0 | 3 | water x2 | #2 More Developed, #3 Stronger Synergy | 41 |
-| astral | 2-3-2-0-1-3 | 8 | 60600 | 0 | 2 | darkness x2 | #2/#3 Stronger Synergy | 346 |
-| runic | 2-2-1-2-2-2 | 10 | 67300 | 1 | 4 | periodic x2 | #2/#3 route | 1822 |
-| flooding | 1-2-2-2-2-2 | 10 | 70800 | 0 | 4 | periodic x2 | #3 Lower Capital + Smaller | 860 |
-| flamethrower | 1-2-2-2-2-2 | 10 | 67300 | 1 | 4 | periodic x2 | #3 Lower Capital | 3044 |
-| impulse | 1-2-2-2-2-2 | 9 | 66550 | 0 | 3 | periodic x2 | #2/#3 route | 493 |
-| laser | 2-2-2-1-2-2 | 10 | 67300 | 1 | 4 | periodic x2 | #2 Stronger Synergy + Smaller | 1773 |
-| ethereal | 2-3-1-0-2-3 | 7 | 55600 | 0 | 2 | darkness + earth | #2 Stronger Synergy, #3 More Developed | 1974 |
-| wisp | 2-1-2-2-2-2 | 9 | 65800 | 0 | 4 | periodic x2 | #2/#3 route | 1580 |
-| haste | 1-2-2-2-2-2 | 10 | 67850 | 1 | 3 | periodic x2 | #2/#3 route | 1601 |
-| quake | 1-2-2-2-2-2 | 9 | 62300 | 1 | 4 | periodic x2 | #3 Smaller Package | 1328 |
+|---|---|--:|--:|--:|--:|---|---|--:|
+| atom | 3-0-2-2-1-3 | 6 | 50600 | 1 | 2 | pure-earth + pure-light | #2 Wider Utility, #3 More Developed Package | 90 |
+| poison | 0-3-3-2-1-2 | 8 | 52400 | 3 | 2 | pure-darkness + pure-water | #2 route, #3 Smaller Package/Wider Utility | 50 |
+| vapor | 2-1-3-3-0-2 | 6 | 51350 | 1 | 1 | pure-fire + pure-water | #2 Stronger Synergy, #3 Stronger Synergy | 38 |
+| infernal | 0-3-2-3-1-2 | 8 | 56100 | 2 | 2 | pure-darkness x2 | #2 route, #3 route | 56 |
+| bloom | 3-0-1-2-3-2 | 7 | 54850 | 1 | 3 | pure-light + pure-nature | #2 More Developed Package, #3 Lower Capital/Smaller Package/More Developed Package | 37 |
+| howitzer | 0-3-2-2-1-3 | 8 | 56100 | 2 | 2 | pure-darkness x2 | #2 Stronger Synergy/More Developed Package, #3 route | 35 |
+| lightning | 3-2-1-3-2-0 | 8 | 56100 | 2 | 2 | pure-fire + pure-light | #2 route, #3 route | 28 |
+| disease | 0-3-1-2-3-2 | 8 | 56100 | 2 | 2 | pure-nature x2 | #2 route, #3 Smaller Package/Wider Utility | 31 |
+| ice | 3-1-3-2-0-2 | 7 | 56350 | 1 | 1 | pure-light x2 | #2 Stronger Synergy/Lower Capital/Smaller Package/More Developed Package, #3 Stronger Synergy | 35 |
+| solar | 0-2-1-3-3-2 | 8 | 55350 | 2 | 3 | pure-nature x2 | #2 More Developed Package/Wider Utility, #3 More Developed Package/Wider Utility | 30 |
+| mushroom | 0-2-1-2-3-3 | 7 | 51100 | 2 | 2 | pure-earth + pure-nature | #2 Stronger Synergy/Wider Utility, #3 More Developed Package/Wider Utility | 26 |
+| geyser | 2-0-3-2-1-3 | 7 | 54850 | 1 | 3 | pure-water x2 | #2 More Developed Package, #3 Stronger Synergy | 25 |
+| astral | 2-3-2-0-1-3 | 8 | 60600 | 1 | 2 | pure-darkness x2 | #2 Stronger Synergy, #3 Stronger Synergy | 238 |
+| runic | 2-2-1-2-2-2 | 10 | 70800 | 1 | 4 | periodic x2 | #2 route, #3 Lower Capital/Smaller Package | 818 |
+| flooding | 1-2-2-2-2-2 | 10 | 70800 | 1 | 4 | periodic x2 | #2 Lower Capital/Smaller Package, #3 Lower Capital/Smaller Package | 296 |
+| flamethrower | 0-2-2-3-1-3 | 8 | 59050 | 1 | 3 | pure-earth + pure-fire | #2 route, #3 Stronger Synergy | 767 |
+| impulse | 1-2-2-2-2-2 | 9 | 66550 | 1 | 3 | periodic x2 | #2 route, #3 route | 242 |
+| laser | 2-2-1-2-2-2 | 10 | 70050 | 1 | 5 | periodic x2 | #2 More Developed Package, #3 route | 814 |
+| ethereal | 2-3-1-0-2-3 | 8 | 60600 | 1 | 2 | pure-darkness + pure-earth | #2 Lower Capital/Smaller Package, #3 Lower Capital/Smaller Package | 830 |
+| wisp | 2-1-2-2-2-2 | 9 | 65800 | 1 | 4 | periodic x2 | #2 route, #3 Lower Capital/Smaller Package | 629 |
+| haste | 0-2-2-3-1-3 | 8 | 59050 | 1 | 3 | pure-earth + pure-fire | #2 Stronger Synergy, #3 Stronger Synergy | 741 |
+| quake | 2-1-2-2-2-2 | 8 | 60800 | 1 | 4 | periodic x2 | #2 More Developed Package/Stronger Endgame, #3 Stronger Synergy | 393 |
 
 ## Distribution audit
 
-| Metric | Result |
-|---|---|
-| Package size | min 6, median 9, max 10 |
-| Complete-plan capital | min 47,850, median 57,600, max 70,800 |
-| Underdeveloped post-core towers (rank-1, summed over 22) | 23 (~1 per plan) |
-| Quad selections (rank-1, summed) | 60 (~2.7 per plan) |
-| Life Altar in the rank-1 package | 14 / 22 |
-| Periodic Essence uses (rank-1) | 16 (8 anchors run Periodic x2) |
-| **Pure Fire x2 packages** | **0** |
-| Pure copy counts (rank-1 endgame) | Darkness 8, Nature 6, Light 5, Water 4, Earth 3, Fire 2 |
-| Breadth-only winners | 0 |
-| Truncation | none on any anchor |
-| Full 22-anchor recommendation run | 15.6 s total, max 3.0 s (flamethrower) |
+| Metric | Result | vs `9a0b4e0` |
+|---|---|---|
+| Package size | min 6, median 8, max 10, mean 8.0 | median 9 → 8 |
+| Complete-plan capital | min 50,600, median 56,350, max 70,800 | — |
+| Underdeveloped post-core (rank-1, summed) | 30 | counts Duals below L3 |
+| Quad selections (rank-1, summed) | 59 (~2.7 per plan) | 60 → 59 |
+| Life Altar in the rank-1 package | 11 / 22 | 14 → 11 |
+| Blacksmith or Well developed to L3 (rank-1) | 2 / 22 (flamethrower, haste) | new |
+| Periodic Essence uses (rank-1) | 12 (6 anchors run Periodic x2) | 16 → 12 |
+| **Pure Fire x2 packages** | **0** | unchanged |
+| Pure copy counts (rank-1 endgame) | Darkness 8, Nature 6, Earth 5, Light 5, Fire 4, Water 4 | Fire 2 → 4 |
+| Breadth-only winners | 0 | unchanged |
+| Truncation | none on any anchor | unchanged |
+| Full 22-anchor recommendation run | 6.2 s total, max 0.83 s (ethereal) | 15.6 s → 6.2 s |
 
 ## Findings
 
-- **The Fire hypothesis is not supported.** On the reconciled post-1.9.4
-  numbers Pure Fire's sustained output is the lowest of the Pure roster
-  (51,840 base DPS vs Nature 143,640). Fire never appears as a doubled
-  Essence pick and only twice as a single copy. No model term
-  suppresses it — its base damage is simply low and Blaze's ramp does
-  not close the gap over a 20-second engagement.
+- **The Fire hypothesis is still not supported.** Pure Fire is never a
+  doubled Essence pick. It now appears as a single copy four times (was
+  twice) because the Trio-L1 ban reshaped several Trio-anchor allocations
+  away from all-six-at-L1, which makes a Fire-heavy allocation (and a
+  Pure Fire single) competitive where Periodic x2 previously won. No
+  model term suppresses Fire; its base damage is simply low.
 
-- **Trio anchors converge on 2-2-2-2-2-1 → Periodic x2.** Reaching every
-  element at L1 unlocks Periodic and a wide Quad pool; the planner then
-  fills the 3 post-core keystones with developed Quads. Every tower is
-  individually justified (0-1 underdeveloped, breadth-winners = 0), but
-  9-10 distinct tower types is a heavy field requirement — this is the
-  single biggest open question about the current Step 8 evidence
-  weights, carried over from the Phase 5C audit. No Step 8 strength was
-  altered.
+- **The Trio-L1 ban leaned Trio anchors off Periodic x2.** flamethrower
+  (1-2-2-2-2-2 → 0-2-2-3-1-3), haste, vapor and lightning now field a
+  Pure pair instead of Periodic x2. Reaching all six elements at L1 is no
+  longer "free": the keystones that used to unlock a wide L1 Trio pool
+  now have no legal L1 Trio to justify them, so concentrated allocations
+  Pareto-dominate. runic / flooding / laser still converge on
+  2-2-2-2-2-1 → Periodic x2 with 10-tower packages — their Quad pool is
+  deep enough to justify the spread without any Trio-L1.
 
-- **Life Altar appears in 64% of rank-1 packages.** It is a Nature Quad
-  ({Light, Water, Nature, Earth}) that both buffs neighbours and pairs
-  with Shredder for kill generation, so it satisfies several
-  justification atoms at once. Worth a dedicated look at whether its
-  mechanic facts over-credit it.
+- **Buff development now competes with breadth.** flamethrower and haste
+  take Blacksmith L3 (realized buff magnitude 90) with an 8-tower package
+  instead of Blacksmith L2 + two more towers. For the other 20 anchors
+  the allocation cannot reach a scaling buff at L3 while keeping the core
+  developed, so the buff stays at L2 and the term is inert — it never
+  overrides coverage or anchor synergy.
 
-- **Alternatives are honest, not padded.** Many #2/#3 entries are
-  "route" variants (identical package, different keystone order) because
-  within a given anchor's top combined plans the genuinely distinct
-  options are keystone-path choices. Where real substitutions exist the
-  labels reflect them (Smaller Package, Lower Capital, Stronger Synergy,
-  More Developed Package, Wider Utility).
+- **Life Altar down to 50%.** Excluding its flat Quad buff from
+  `realizedBuffMagnitude` and removing Trio-L1 partners (Shredder pairs)
+  cut its appearances from 14 to 11. Still worth a dedicated look at
+  whether its mechanic facts over-credit it.
+
+- **Alternatives remain honest.** "route" entries are identical packages
+  with a different keystone order; substitution labels (Smaller Package,
+  Lower Capital, Stronger Synergy, More Developed Package, Wider Utility)
+  reflect real evidence deltas.
 
 ## Performance note
 
-The Phase 5B Laser stress case now completes in ~1.7 s isolated (was
-6.3 s in the Phase 5B report) after the dominance-loop memoizations. The
-densest Trio anchors (flamethrower, ethereal) top out around 2-3 s. The
-need-directed architecture, frontier caps, and dominance rules are
-unchanged; only redundant recomputation was removed.
+Removing Trio-L1 candidates before justification-graph construction cut
+the full 22-anchor run from 15.6 s to 6.2 s, with the slowest anchor
+(ethereal) down from ~2 s to ~0.83 s. The need-directed architecture,
+frontier caps and dominance rules are unchanged — the candidate set is
+simply smaller.
