@@ -92,6 +92,8 @@ function selectedQuadCount(
 
 let laserPairFixture:
   SearchFixture;
+let astralPairFixture:
+  SearchFixture;
 let laserNarrowFixture:
   SearchFixture;
 let iceFixture:
@@ -100,29 +102,50 @@ let infernalFixture:
   SearchFixture;
 
 beforeAll(() => {
+  // A rich Laser context: enough justified candidates to exercise
+  // variable package size, multi-Quad support, and isolation-provider
+  // de-duplication. (Trio towers are only candidates here at L2 — an
+  // L1 Trio is never a discretionary package addition.)
   laserPairFixture = fixtureWhere(
     "laser",
     (_baseline, graph) => {
-      const candidates =
-        new Map(
-          graph.candidates.map(
-            (candidate) => [
-              candidate.towerId,
-              candidate,
-            ],
-          ),
-        );
+      const ids = graph.candidates.map(
+        (candidate) => candidate.towerId,
+      );
+
+      return (
+        graph.candidates.length >= 8 &&
+        ids.includes("phantom-zone") &&
+        ids.includes("rage")
+      );
+    },
+  );
+
+  // A surviving pair-only interaction: Singularity (Quad) groups for
+  // Runic (Trio at L2), and neither tower carries a direct
+  // justification on its own.
+  astralPairFixture = fixtureWhere(
+    "astral",
+    (_baseline, graph) => {
+      const candidates = new Map(
+        graph.candidates.map(
+          (candidate) => [
+            candidate.towerId,
+            candidate,
+          ],
+        ),
+      );
 
       return graph.pairEdges.some(
         (edge) =>
           edge.providerTowerId ===
-            "polar" &&
+            "singularity" &&
           edge.consumerTowerId ===
-            "disease" &&
-          candidates.get("polar")
+            "runic" &&
+          candidates.get("singularity")
             ?.directJustifications
             .length === 0 &&
-          candidates.get("disease")
+          candidates.get("runic")
             ?.directJustifications
             .length === 0,
       );
@@ -175,23 +198,23 @@ describe(
 
     it("preserves unique future interaction endpoints during dominance", () => {
       expect(
-        laserPairFixture.graph
+        astralPairFixture.graph
           .removedAsDominatedTowerIds,
-      ).not.toContain("polar");
+      ).not.toContain("singularity");
       expect(
-        laserPairFixture.graph
+        astralPairFixture.graph
           .removedAsDominatedTowerIds,
-      ).not.toContain("disease");
+      ).not.toContain("runic");
     });
 
-    it("discovers pair-only Polar and Disease synergy", () => {
+    it("discovers pair-only Singularity and Runic synergy", () => {
       expect(
-        laserPairFixture.results.some(
+        astralPairFixture.results.some(
           (result) =>
             result.postCoreTowerIds
-              .includes("polar") &&
+              .includes("singularity") &&
             result.postCoreTowerIds
-              .includes("disease"),
+              .includes("runic"),
         ),
       ).toBe(true);
     });

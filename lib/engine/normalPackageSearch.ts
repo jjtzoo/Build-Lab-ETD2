@@ -731,8 +731,25 @@ export function buildNormalPackageJustificationGraph(
         ),
       );
 
+  /*
+   * Doctrine: a Trio tower (canonical maxLevel 2) is not worth a
+   * discretionary package slot at L1 — the freed allocation is always
+   * better spent elsewhere. A Trio may only enter as a developed L2
+   * tower. Mandatory-core Trios are already in `selected` and reach this
+   * function through the core package, not as candidates, so this filter
+   * never touches the core exception.
+   */
+  const eligible =
+    unlocked.filter((entry) =>
+      !(
+        entry.tower.combination ===
+          "Trio" &&
+        entry.maxLevel < 2
+      ),
+    );
+
   const rawDescriptors =
-    unlocked.map((entry) => {
+    eligible.map((entry) => {
       const after =
         evaluateWithCache(
           baseline,

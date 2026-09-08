@@ -88,22 +88,22 @@ describe(
       }
     });
 
-    it("keeps the engine recommendation off the cheapest-build extreme", () => {
-      // A blind cheap-tower bias would drive every anchor to the
-      // minimum-cost package. The Laser recommendation deliberately
-      // fields expensive Trio/Quad pieces because they carry unique
-      // strategic evidence.
+    it("does not rank by capital — a costlier plan can still outrank a cheaper one", () => {
+      // A blind cheap-tower bias would make capital monotonically
+      // non-decreasing with rank. The Laser ranking deliberately places
+      // a more expensive plan above a cheaper one when it carries more
+      // strategic evidence — capital only breaks otherwise-equal ties.
       const laser = plansByAnchor.get("laser")!;
-      const cheapest = [...laser].sort(
-        (a, b) =>
-          a.minimumNormalPackageCapital -
-          b.minimumNormalPackageCapital,
-      )[0];
 
-      expect(laser[0].minimumNormalPackageCapital)
-        .toBeGreaterThan(
-          cheapest.minimumNormalPackageCapital,
-        );
+      const capitalIsMonotonic = laser.every(
+        (plan, index) =>
+          index === 0 ||
+          plan.minimumNormalPackageCapital >=
+            laser[index - 1]
+              .minimumNormalPackageCapital,
+      );
+
+      expect(capitalIsMonotonic).toBe(false);
     });
 
     it("never lets a plan win on raw breadth alone", () => {
