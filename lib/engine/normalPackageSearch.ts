@@ -1060,7 +1060,50 @@ function compareSearchDecisionVectors(
   return 0;
 }
 
+const searchDecisionVectorMemo =
+  new WeakMap<
+    AnchorPackageEvaluation,
+    WeakMap<
+      CorePackageEvidence,
+      readonly number[]
+    >
+  >();
+
 function searchDecisionVector(
+  baseline: AnchorPackageEvaluation,
+  evidence: CorePackageEvidence,
+): readonly number[] {
+  let byEvidence =
+    searchDecisionVectorMemo.get(
+      baseline,
+    );
+
+  if (!byEvidence) {
+    byEvidence = new WeakMap();
+    searchDecisionVectorMemo.set(
+      baseline,
+      byEvidence,
+    );
+  }
+
+  const memoized =
+    byEvidence.get(evidence);
+
+  if (memoized) {
+    return memoized;
+  }
+
+  const vector =
+    computeSearchDecisionVector(
+      baseline,
+      evidence,
+    );
+
+  byEvidence.set(evidence, vector);
+  return vector;
+}
+
+function computeSearchDecisionVector(
   baseline: AnchorPackageEvaluation,
   evidence: CorePackageEvidence,
 ): readonly number[] {

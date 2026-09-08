@@ -107,19 +107,34 @@ export function normalTowerDevelopmentStatus(
     : "underdeveloped";
 }
 
+const capitalMemo = new WeakMap<
+  readonly ResolvedTowerContribution[],
+  number
+>();
+
 export function minimumNormalPackageCapital(
   contributions:
     readonly ResolvedTowerContribution[],
 ): number {
-  return contributions.reduce(
-    (total, contribution) =>
-      total +
-      resolveNormalTowerCost(
-        contribution.towerId,
-        contribution.reachableLevel,
-      ).minimumFieldCost,
+  const memoized =
+    capitalMemo.get(contributions);
+
+  if (memoized !== undefined) {
+    return memoized;
+  }
+
+  // Each contribution already carries its verified cumulative field
+  // cost in `.economics`; sum those directly rather than re-resolving.
+  const total = contributions.reduce(
+    (sum, contribution) =>
+      sum +
+      contribution.economics
+        .minimumFieldCost,
     0,
   );
+
+  capitalMemo.set(contributions, total);
+  return total;
 }
 
 function mechanicStrengths(
