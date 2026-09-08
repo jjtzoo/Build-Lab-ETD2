@@ -216,10 +216,13 @@ export function rankCombinedBuildPlans(
   anchorTowerId: TowerId,
   limit = 3,
 ): RankedCombinedBuildPlans {
+  // The normal planner is re-sorted and sliced here, so a modest pool
+  // of normal candidates is enough to surface distinct combined plans
+  // without paying for a large retained search frontier.
   const normalSearch =
     rankAnchorBuildPlansWithDiagnostics(
       anchorTowerId,
-      Math.max(limit * 10, 30),
+      Math.max(limit + 12, 18),
     );
   const plans = normalSearch.plans
     .map((normalPlan) =>
