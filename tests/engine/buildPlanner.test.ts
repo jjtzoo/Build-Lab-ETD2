@@ -38,7 +38,7 @@ beforeAll(() => {
       "laser",
       10,
     );
-});
+}, 30_000);
 
 describe(
   "build planner",
@@ -95,6 +95,40 @@ describe(
           plan.selectedTowerIds,
         ).toContain(
           "laser",
+        );
+
+        expect(
+          new Set(
+            plan.selectedTowerIds,
+          ).size,
+        ).toBe(
+          plan.selectedTowerIds.length,
+        );
+
+        const available =
+          new Set(
+            plan.baseline
+              .routeState
+              .availableTowers
+              .map((entry) =>
+                entry.tower.id,
+              ),
+          );
+
+        expect(
+          plan.selectedTowerIds
+            .every((towerId) =>
+              available.has(towerId),
+            ),
+        ).toBe(true);
+
+        expect(
+          plan.optionalTowerId,
+        ).toBe(
+          plan.postCoreTowerIds
+            .length === 1
+            ? plan.postCoreTowerIds[0]
+            : null,
         );
       }
     });

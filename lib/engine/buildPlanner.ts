@@ -29,9 +29,8 @@ import {
   type AnchorPackageEvaluation,
 } from "@/lib/engine/anchorPackageEvaluations";
 
-import {
-  evaluatePackageAdditions,
-  type CandidateAdditionEvaluation,
+import type {
+  CandidateAdditionEvaluation,
 } from "@/lib/engine/candidateAdditionEvaluations";
 
 import {
@@ -47,6 +46,16 @@ import {
   evaluateKeystoneTransition,
   type KeystoneTransitionEvaluation,
 } from "@/lib/engine/keystoneTransitions";
+
+import {
+  emptyNormalPackageSearchDiagnostics,
+  mergeNormalPackageSearchDiagnostics,
+  normalPackageContextDominates,
+  normalPackageContextSignature,
+  searchNormalPackagesForBaseline,
+  type NormalPackageSearchDiagnostics,
+  type NormalPackageSearchResult,
+} from "@/lib/engine/normalPackageSearch";
 
 /**
  * Explicit planner evidence.
@@ -149,13 +158,19 @@ export type RankedBuildPlan = {
     AnchorPackageEvaluation;
 
   /**
-   * Optional strategic addition.
-   *
-   * null means the core package itself is
-   * the evaluated final package.
+   * Compatibility projection for legacy API consumers.
+   * Exactly one post-core tower maps to its ID; zero or multiple map to null.
+   * Planner logic must use postCoreTowerIds.
    */
   optionalTowerId:
     TowerId | null;
+
+  /**
+   * Every strategically justified tower selected after the mandatory
+   * Anchor / Slow / Damage Amp / Buff core.
+   */
+  postCoreTowerIds:
+    readonly TowerId[];
 
   selectedTowerIds:
     readonly TowerId[];
@@ -509,6 +524,20 @@ export function buildPlannerDecision(
         ).tensionCount
       : metrics.tensionCount;
 
+  const baselineSelected =
+    new Set(
+      baseline.package
+        .selectedTowerIds,
+    );
+
+  const postCoreContributions =
+    evidence.resolvedContributions
+      .filter((entry) =>
+        !baselineSelected.has(
+          entry.towerId,
+        ),
+      );
+
   return {
     coreDeveloped:
       baseline.package
@@ -577,12 +606,10 @@ export function buildPlannerDecision(
         .rangeExtensionFromAnchor,
 
     multiPurposeDimensionCount:
-      addition
-        ? countMultiPurposeDimensions(
-            addition.beforeEvidence,
-            addition.afterEvidence,
-          )
-        : 0,
+      countMultiPurposeDimensions(
+        baseline.evidence,
+        evidence,
+      ),
 
     tensionCount:
       metrics.tensionCount,
@@ -591,7 +618,11 @@ export function buildPlannerDecision(
       Math.max(
         0,
         metrics.tensionCount -
-          beforeTensionCount,
+          (addition
+            ? beforeTensionCount
+            : measureEvidence(
+                baseline.evidence,
+              ).tensionCount),
       ),
 
     totalKeystones:
@@ -599,20 +630,16 @@ export function buildPlannerDecision(
         .totalKeystones,
 
     optionalTowerReachableLevel:
-      addition?.candidateReachableLevel ??
-      0,
+      postCoreContributions.length === 1
+        ? postCoreContributions[0]
+            .reachableLevel
+        : 0,
 
     optionalTowerBaseDps:
-      addition
-        ? evidence
-            .resolvedContributions
-            .find(
-              (entry) =>
-                entry.towerId ===
-                addition.candidateTowerId,
-            )
-            ?.factualStatsAtLevel
-            .baseDps ?? 0
+      postCoreContributions.length === 1
+        ? postCoreContributions[0]
+            .factualStatsAtLevel
+            .baseDps
         : 0,
 
     selectedTowerReachableLevelTotal:
@@ -1035,61 +1062,30 @@ export function buildPreferredKeystonePath(
   return path;
 }
 
-function makeBaselinePlan(
+function makeNormalPackagePlan(
   baseline: AnchorPackageEvaluation,
+  result: NormalPackageSearchResult,
 ): UnpathedBuildPlan {
   return {
     anchorTowerId:
       baseline.package
         .anchorTowerId,
-
     baseline,
-
     optionalTowerId:
-      null,
-
+      result.postCoreTowerIds
+        .length === 1
+        ? result.postCoreTowerIds[0]
+        : null,
+    postCoreTowerIds:
+      result.postCoreTowerIds,
     selectedTowerIds:
-      baseline.package
-        .selectedTowerIds,
-
+      result.selectedTowerIds,
     evidence:
-      baseline.evidence,
-
+      result.evidence,
     decision:
       buildPlannerDecision(
         baseline,
-        baseline.evidence,
-      ),
-  };
-}
-
-function makeAdditionPlan(
-  addition: CandidateAdditionEvaluation,
-): UnpathedBuildPlan {
-  return {
-    anchorTowerId:
-      addition.baseline
-        .package
-        .anchorTowerId,
-
-    baseline:
-      addition.baseline,
-
-    optionalTowerId:
-      addition.candidateTowerId,
-
-    selectedTowerIds:
-      addition.afterEvidence
-        .selectedTowerIds,
-
-    evidence:
-      addition.afterEvidence,
-
-    decision:
-      buildPlannerDecision(
-        addition.baseline,
-        addition.afterEvidence,
-        addition,
+        result.evidence,
       ),
   };
 }
@@ -1117,27 +1113,69 @@ function deterministicPlanKey(
 
 /**
  * Searches the complete legal future allocation space,
- * evaluates actual selected core packages and optional
- * tower additions, and ranks those complete outcomes.
+ * evaluates actual selected cores plus zero or more justified post-core
+ * towers, and ranks those complete outcomes.
  *
  * The ranking happens AFTER future-state enumeration,
  * so this is not a greedy next-keystone algorithm.
  */
-export function rankAnchorBuildPlans(
+export type RankedAnchorBuildPlanSearch = {
+  plans: readonly RankedBuildPlan[];
+  diagnostics:
+    NormalPackageSearchDiagnostics;
+};
+
+const defaultRankedPlanCache =
+  new Map<
+    TowerId,
+    {
+      limit: number;
+      result:
+        RankedAnchorBuildPlanSearch;
+    }
+  >();
+
+export function rankAnchorBuildPlansWithDiagnostics(
   anchorTowerId: TowerId,
   limit = 10,
   matchups:
     ElementMatchupTable =
       ELEMENT_MATCHUPS,
-): readonly RankedBuildPlan[] {
+): RankedAnchorBuildPlanSearch {
   if (limit <= 0) {
-    return [];
+    return {
+      plans: [],
+      diagnostics:
+        emptyNormalPackageSearchDiagnostics(),
+    };
+  }
+
+  if (matchups === ELEMENT_MATCHUPS) {
+    const cached =
+      defaultRankedPlanCache.get(
+        anchorTowerId,
+      );
+
+    if (cached && cached.limit >= limit) {
+      return {
+        plans:
+          cached.result.plans.slice(
+            0,
+            limit,
+          ),
+        diagnostics:
+          cached.result.diagnostics,
+      };
+    }
   }
 
   const candidates:
     UnpathedBuildPlan[] = [];
 
-  const baselines =
+  const diagnostics =
+    emptyNormalPackageSearchDiagnostics();
+
+  const allBaselines =
     evaluateAnchorPackages(
         anchorTowerId,
         matchups,
@@ -1148,23 +1186,164 @@ export function rankAnchorBuildPlans(
         MAX_KEYSTONES,
     );
 
-  for (const baseline of baselines) {
-    candidates.push(
-      makeBaselinePlan(
-        baseline,
+  /*
+   * Core development is the first planner dimension. Once at least one
+   * final state develops every mandatory role, an undeveloped state has
+   * an admissible upper bound below every developed state.
+   */
+  const developedBaselines =
+    allBaselines.filter(
+      (baseline) =>
+        baseline.package
+          .coreDeveloped,
+    );
+  const eligibleBaselines =
+    developedBaselines.length > 0
+      ? developedBaselines
+      : allBaselines;
+
+  diagnostics.branchesPruned +=
+    allBaselines.length -
+    eligibleBaselines.length;
+
+  const uniqueContexts =
+    new Map<
+      string,
+      AnchorPackageEvaluation
+    >();
+
+  for (const baseline of
+    eligibleBaselines) {
+    const key = [
+      ...ELEMENTS.map((element) =>
+        baseline.routeState
+          .allocation[element],
       ),
+      normalPackageContextSignature(
+        baseline,
+        baseline.evidence,
+      ),
+    ].join("|");
+    const existing =
+      uniqueContexts.get(key);
+
+    if (
+      !existing ||
+      baseline.package
+        .selectedTowerIds
+        .join("|") <
+      existing.package
+        .selectedTowerIds
+        .join("|")
+    ) {
+      uniqueContexts.set(
+        key,
+        baseline,
+      );
+    }
+  }
+
+  const uniqueBaselines =
+    [...uniqueContexts.values()];
+
+  const availabilityDominates = (
+    alternative:
+      AnchorPackageEvaluation,
+    candidate:
+      AnchorPackageEvaluation,
+  ): boolean => {
+    const alternativeLevels =
+      new Map(
+        alternative.routeState
+          .availableTowers
+          .map((entry) => [
+            entry.tower.id,
+            entry.maxLevel,
+          ] as const),
+      );
+
+    return candidate.routeState
+      .availableTowers
+      .every((entry) =>
+        (alternativeLevels.get(
+          entry.tower.id,
+        ) ?? 0) >= entry.maxLevel,
+      );
+  };
+
+  const baselines =
+    uniqueBaselines.filter(
+      (candidate) =>
+        !uniqueBaselines.some(
+          (alternative) => {
+            if (
+              alternative === candidate ||
+              !availabilityDominates(
+                alternative,
+                candidate,
+              ) ||
+              !normalPackageContextDominates(
+                alternative,
+                candidate,
+              )
+            ) {
+              return false;
+            }
+
+            const equivalent =
+              availabilityDominates(
+                candidate,
+                alternative,
+              ) &&
+              normalPackageContextDominates(
+                candidate,
+                alternative,
+              );
+
+            if (!equivalent) {
+              return true;
+            }
+
+            const keyFor = (
+              baseline:
+                AnchorPackageEvaluation,
+            ) => [
+              ...ELEMENTS.map(
+                (element) =>
+                  baseline.routeState
+                    .allocation[element],
+              ),
+              ...baseline.package
+                .selectedTowerIds,
+            ].join("|");
+
+            return keyFor(alternative) <
+              keyFor(candidate);
+          },
+        ),
     );
 
-    const additions =
-      evaluatePackageAdditions(
+  diagnostics.branchesPruned +=
+    eligibleBaselines.length -
+    baselines.length;
+
+  for (const baseline of baselines) {
+    const search =
+      searchNormalPackagesForBaseline(
         baseline,
         matchups,
       );
 
-    for (const addition of additions) {
+    mergeNormalPackageSearchDiagnostics(
+      diagnostics,
+      search.diagnostics,
+    );
+
+    for (const result of search.results) {
       candidates.push(
-        makeAdditionPlan(
-          addition,
+        makeNormalPackagePlan(
+          baseline,
+          result,
         ),
       );
     }
@@ -1194,7 +1373,7 @@ export function rankAnchorBuildPlans(
     },
   );
 
-  return candidates
+  const plans = candidates
     .slice(
       0,
       limit,
@@ -1214,6 +1393,37 @@ export function rankAnchorBuildPlans(
           ),
       }),
     );
+
+  const result = {
+    plans,
+    diagnostics,
+  };
+
+  if (matchups === ELEMENT_MATCHUPS) {
+    defaultRankedPlanCache.set(
+      anchorTowerId,
+      {
+        limit,
+        result,
+      },
+    );
+  }
+
+  return result;
+}
+
+export function rankAnchorBuildPlans(
+  anchorTowerId: TowerId,
+  limit = 10,
+  matchups:
+    ElementMatchupTable =
+      ELEMENT_MATCHUPS,
+): readonly RankedBuildPlan[] {
+  return rankAnchorBuildPlansWithDiagnostics(
+    anchorTowerId,
+    limit,
+    matchups,
+  ).plans;
 }
 
 export function getBestAnchorBuildPlan(

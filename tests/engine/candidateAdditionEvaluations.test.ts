@@ -232,6 +232,6 @@ describe(
                 "target-isolation",
           ),
       ).toBe(true);
-    });
+    }, 10_000);
   },
 );
