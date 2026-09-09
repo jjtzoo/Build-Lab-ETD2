@@ -13,6 +13,7 @@ tsconfig.tsbuildinfo
 
 # Docs and reports stay local — never publish to the repo
 *.md
+!README.md
 # PDFs stay local too, except the core reference
 *.pdf
 !Element TD Engine.pdf
