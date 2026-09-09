@@ -38,12 +38,12 @@ type GraphEdge = {
   path: string;
 };
 
-const VIEW_W = 1000;
-const ROW_H = 92;
-const PAD_Y = 54;
-const NODE_R = 26;
-const COL_L = 150;
-const COL_R = VIEW_W - 150;
+const VIEW_W = 1040;
+const ROW_H = 94;
+const PAD_Y = 52;
+const NODE_R = 25;
+const COL_L = 190;
+const COL_R = VIEW_W - 190;
 
 const TIER_WEIGHT: Record<string, number> = {
   exceptional: 1,

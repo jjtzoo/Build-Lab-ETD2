@@ -351,8 +351,8 @@ select:hover {
   object-position: center 30%;
 }
 .tower-media-poster.is-static {
-  object-fit: contain;
-  object-position: center;
+  object-fit: cover;
+  object-position: center 32%;
 }
 .tower-media-video {
   opacity: 0;
@@ -1740,9 +1740,9 @@ select:hover {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -2007,7 +2007,7 @@ select:hover {
 }
 .synergy-node-label {
   fill: var(--text-2);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 550;
   font-family: var(--font-sans), system-ui, sans-serif;
   paint-order: stroke;
@@ -2562,9 +2562,9 @@ button.mechanic-chip {
   white-space: nowrap;
 }
 .qualification-badge[data-small="true"] {
-  font-size: 9px;
+  font-size: 9.5px;
   padding: 2px 6px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 .qualification-badge[data-tier="exceptional"] {
   --q: 226 178 128;
