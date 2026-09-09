@@ -1,32 +1,68 @@
 import "server-only";
 
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { extname, join } from "node:path";
 
 import type { ElementName } from "@/lib/domain/elements";
+import type { EndGameTowerId } from "@/lib/domain/endGameTower";
 import type { TowerId } from "@/lib/domain/tower";
 import { TOWERS } from "@/lib/domain/towerCatalog";
+
+/**
+ * Recorded in-game footage for one tower. Every field is optional: a
+ * tower with no recorded video still renders from its poster, and a
+ * tower with nothing at all falls back to the static form art. The hero
+ * is architected so footage can be added tower-by-tower without any code
+ * change — drop `assets/towers/hero/<id>.webm` (and optionally `.mp4`
+ * and `<id>.jpg` poster) and it appears.
+ */
+export type TowerHeroMedia = {
+  poster: string | null;
+  webm: string | null;
+  mp4: string | null;
+};
 
 export type BuildLabAssets = {
   towerForms: Record<TowerId, string | null>;
   towerIcons: Record<TowerId, string | null>;
+  towerHero: Record<TowerId, TowerHeroMedia>;
+  endGameForms: Record<EndGameTowerId, string | null>;
   elements: Record<ElementName, string | null>;
 };
 
 type AssetEntry = {
   stem: string;
+  extension: string;
   url: string;
 };
+
+const END_GAME_TOWER_IDS = [
+  "pure-light",
+  "pure-darkness",
+  "pure-water",
+  "pure-fire",
+  "pure-nature",
+  "pure-earth",
+  "periodic",
+] as const satisfies readonly EndGameTowerId[];
 
 function readAssets(relativeDirectory: string): AssetEntry[] {
   const directory = join(process.cwd(), "public", relativeDirectory);
 
+  if (!existsSync(directory)) {
+    return [];
+  }
+
   return readdirSync(directory, { withFileTypes: true })
     .filter((entry) => entry.isFile())
-    .map((entry) => ({
-      stem: entry.name.slice(0, -extname(entry.name).length).toLowerCase(),
-      url: `/${relativeDirectory.replaceAll("\\", "/")}/${entry.name}`,
-    }));
+    .map((entry) => {
+      const extension = extname(entry.name).toLowerCase();
+      return {
+        stem: entry.name.slice(0, -extension.length || undefined).toLowerCase(),
+        extension,
+        url: `/${relativeDirectory.replaceAll("\\", "/")}/${entry.name}`,
+      };
+    });
 }
 
 function resolveTowerAssets(
@@ -48,12 +84,50 @@ function resolveTowerAssets(
   );
 }
 
+function resolveHeroMedia(
+  entries: AssetEntry[],
+  forms: Record<TowerId, string | null>,
+): Record<TowerId, TowerHeroMedia> {
+  const byStem = new Map<string, AssetEntry[]>();
+  for (const entry of entries) {
+    byStem.set(entry.stem, [...(byStem.get(entry.stem) ?? []), entry]);
+  }
+
+  return Object.fromEntries(
+    TOWERS.map((tower) => {
+      const own = byStem.get(tower.id) ?? [];
+      const pick = (ext: string) =>
+        own.find((entry) => entry.extension === ext)?.url ?? null;
+
+      const media: TowerHeroMedia = {
+        webm: pick(".webm"),
+        mp4: pick(".mp4"),
+        poster:
+          pick(".jpg") ??
+          pick(".jpeg") ??
+          pick(".png") ??
+          pick(".webp") ??
+          forms[tower.id],
+      };
+
+      return [tower.id, media];
+    }),
+  );
+}
+
 export function resolveBuildLabAssets(): BuildLabAssets {
   const forms = readAssets("assets/towers/forms/Level1");
   const icons = readAssets("assets/towers/icons");
+  const hero = readAssets("assets/towers/hero");
+  const endGame = readAssets("assets/towers/forms/endgame");
   const elementFiles = readAssets("elements");
+
+  const towerForms = resolveTowerAssets(forms);
   const elementLookup = new Map(
     elementFiles.map((entry) => [entry.stem, entry.url]),
+  );
+  const endGameLookup = new Map(
+    endGame.map((entry) => [entry.stem, entry.url]),
   );
 
   const elements = [
@@ -66,8 +140,12 @@ export function resolveBuildLabAssets(): BuildLabAssets {
   ] as const satisfies readonly ElementName[];
 
   return {
-    towerForms: resolveTowerAssets(forms),
+    towerForms,
     towerIcons: resolveTowerAssets(icons),
+    towerHero: resolveHeroMedia(hero, towerForms),
+    endGameForms: Object.fromEntries(
+      END_GAME_TOWER_IDS.map((id) => [id, endGameLookup.get(id) ?? null]),
+    ) as Record<EndGameTowerId, string | null>,
     elements: Object.fromEntries(
       elements.map((element) => [
         element,

@@ -14,6 +14,13 @@ import type {
   CorePackageEvidence,
 } from "@/lib/engine/corePackageEvidence";
 
+import {
+  qualifySynergyRelation,
+  compareTier,
+  isPrimaryNetworkTier,
+  type SynergyQualification,
+} from "@/lib/engine/synergyQualification";
+
 /**
  * User-facing mechanic tag for each canonical synergy signal. These are
  * the only tags shown on tower cards and in the grouped synergy view.
@@ -115,6 +122,8 @@ export type SynergyRelationExplanation = {
   availabilityTag: string;
   contribution: "full" | "diminished";
   effectiveStrength: number;
+  consumerIsAnchor: boolean;
+  qualification: SynergyQualification;
   text: string;
 };
 
@@ -189,6 +198,12 @@ export function explainSynergyRelations(
           " Another provider already covers most of this, so the added effect is limited.";
       }
 
+      const contribution =
+        match.contribution as "full" | "diminished";
+      const consumerIsAnchor =
+        match.consumerTowerId ===
+        evidence.anchorTowerId;
+
       return {
         providerId:
           match.providerTowerId as TowerId,
@@ -202,15 +217,56 @@ export function explainSynergyRelations(
           match.signal,
         availabilityTag:
           AVAILABILITY_TAG[cls],
-        contribution:
-          match.contribution as
-            | "full"
-            | "diminished",
+        contribution,
         effectiveStrength:
           match.effectiveStrength,
+        consumerIsAnchor,
+        qualification: qualifySynergyRelation({
+          signal: match.signal,
+          effectiveStrength:
+            match.effectiveStrength,
+          contribution,
+          availabilityClass: cls,
+          consumerIsAnchor,
+        }),
         text,
       };
-    });
+    })
+    .sort(
+      (a, b) =>
+        compareTier(
+          a.qualification.tier,
+          b.qualification.tier,
+        ) ||
+        b.effectiveStrength -
+          a.effectiveStrength ||
+        a.consumerName.localeCompare(
+          b.consumerName,
+        ),
+    );
+}
+
+/**
+ * Splits relations into the set shown in the primary synergy network
+ * (Fair and above) and the weaker Situational tail kept for the "view
+ * all relationships" disclosure.
+ */
+export function partitionSynergyRelations(
+  relations: readonly SynergyRelationExplanation[],
+): {
+  primary: readonly SynergyRelationExplanation[];
+  secondary: readonly SynergyRelationExplanation[];
+} {
+  const primary: SynergyRelationExplanation[] = [];
+  const secondary: SynergyRelationExplanation[] = [];
+  for (const relation of relations) {
+    if (isPrimaryNetworkTier(relation.qualification.tier)) {
+      primary.push(relation);
+    } else {
+      secondary.push(relation);
+    }
+  }
+  return { primary, secondary };
 }
 
 /**
@@ -268,9 +324,16 @@ export function groupSynergyByMechanic(
       mechanicTag,
       relations: list,
     }))
-    .sort((a, b) =>
-      a.mechanicTag.localeCompare(
-        b.mechanicTag,
-      ),
+    .sort(
+      (a, b) =>
+        compareTier(
+          a.relations[0].qualification.tier,
+          b.relations[0].qualification.tier,
+        ) ||
+        b.relations.length -
+          a.relations.length ||
+        a.mechanicTag.localeCompare(
+          b.mechanicTag,
+        ),
     );
 }

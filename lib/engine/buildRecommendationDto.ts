@@ -40,6 +40,7 @@ import {
 import {
   explainSynergyRelations,
   groupSynergyByMechanic,
+  partitionSynergyRelations,
   synergyTagsForTower,
   type SynergyRelationExplanation,
 } from "@/lib/engine/synergyExplanation";
@@ -320,7 +321,11 @@ export type PlanDto = {
   };
   synergy: {
     tags: readonly string[];
+    /** Fair and above — shown in the primary synergy network. */
     relations:
+      readonly SynergyRelationExplanation[];
+    /** The Situational tail, kept for the "view all" disclosure. */
+    secondaryRelations:
       readonly SynergyRelationExplanation[];
     grouped: readonly {
       mechanicTag: string;
@@ -674,6 +679,8 @@ function toPlanDto(
     explainSynergyRelations(
       normal.evidence,
     );
+  const { primary: primaryRelations, secondary: secondaryRelations } =
+    partitionSynergyRelations(relations);
   const auditByTower = new Map(
     normal.normalPackageEconomics.towerAudits.map(
       (audit) => [audit.towerId, audit],
@@ -780,7 +787,7 @@ function toPlanDto(
             developmentReasonFor(audit),
           synergyTags:
             synergyTagsForTower(
-              relations,
+              primaryRelations,
               towerId,
             ),
           identity: towerIdentity(towerId),
@@ -816,7 +823,7 @@ function toPlanDto(
     );
 
   const anchorTags = new Set<string>();
-  for (const relation of relations) {
+  for (const relation of primaryRelations) {
     if (
       relation.providerId ===
         plan.anchorTowerId ||
@@ -877,9 +884,10 @@ function toPlanDto(
     },
     synergy: {
       tags: [...anchorTags].sort(),
-      relations,
+      relations: primaryRelations,
+      secondaryRelations,
       grouped:
-        groupSynergyByMechanic(relations),
+        groupSynergyByMechanic(primaryRelations),
     },
     tensions:
       normal.evidence.synergy.tensions.map(
