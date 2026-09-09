@@ -230,7 +230,7 @@ export function SynergyNetwork({
     return (
       <section className="lab-section synergy-section">
         <div className="section-rail">
-          <span className="section-index mono">06</span>
+          <span className="section-index mono">07</span>
           <div>
             <h2>Synergy network</h2>
             <p>
@@ -278,7 +278,7 @@ export function SynergyNetwork({
   return (
     <section className="lab-section synergy-section">
       <div className="section-rail">
-        <span className="section-index mono">06</span>
+        <span className="section-index mono">07</span>
         <div>
           <h2>Synergy network</h2>
           <p>

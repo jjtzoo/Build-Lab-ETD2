@@ -265,13 +265,24 @@ export type EndGameTowerDto = {
   unresolvedFacts: readonly string[];
 };
 
+export type EndGameRationaleDto = {
+  label: string;
+  detail: string;
+};
+
 export type EndGamePackageDto = {
   towers: readonly EndGameTowerDto[];
   essenceUses: number;
   minimumAddedCapital: number;
   anchorWeaknessesImproved: number;
   totalSustainedDps: number;
-  why: readonly string[];
+  engagementSeconds: number;
+  aoeCopies: number;
+  compositeCopies: number;
+  maxRange: number;
+  unresolvedFactorCount: number;
+  /** Structured tactical explanation — only statements the evidence supports. */
+  rationale: readonly EndGameRationaleDto[];
 };
 
 /**
@@ -315,6 +326,7 @@ export type PlanDto = {
     rows: readonly CoverageRowDto[];
     hasSingleTarget: boolean;
     hasAoe: boolean;
+    anchorRange: number;
     rangeMin: number;
     rangeMax: number;
     rangeExtensionFromAnchor: number;
@@ -566,38 +578,43 @@ function endGamePackageDto(
       }),
     );
 
-  const why: string[] = [];
-  if (
-    evaluation.decision
-      .anchorWeaknessesImproved > 0
-  ) {
-    why.push(
-      `Patches ${evaluation.decision.anchorWeaknessesImproved} of the Anchor's own element weakness(es).`,
-    );
-  }
-  why.push(
-    `About ${Math.round(evaluation.decision.totalSustainedEngagementDps).toLocaleString()} sustained DPS across both copies over a ${evaluation.engagementSeconds}s engagement.`,
+  const decision = evaluation.decision;
+  const totalDps = Math.round(
+    decision.totalSustainedEngagementDps,
   );
-  if (evaluation.decision.aoeCopies > 0) {
-    why.push(
-      `${evaluation.decision.aoeCopies} AoE copy(ies) for wave clear.`,
-    );
+  const maxRange = Math.max(
+    ...towers.map((tower) => tower.range),
+  );
+
+  const rationale: EndGameRationaleDto[] = [];
+  if (decision.anchorWeaknessesImproved > 0) {
+    rationale.push({
+      label: "Coverage",
+      detail: `Patches ${decision.anchorWeaknessesImproved} of the anchor's own element weakness${decision.anchorWeaknessesImproved > 1 ? "es" : ""}.`,
+    });
   }
-  if (
-    evaluation.decision.compositeCopies >
-    0
-  ) {
-    why.push(
-      "Composite damage keeps a flat rate against every armour type.",
-    );
+  rationale.push({
+    label: "Output",
+    detail: `About ${totalDps.toLocaleString()} sustained DPS across both copies over a ${evaluation.engagementSeconds}s engagement assumption.`,
+  });
+  if (decision.aoeCopies > 0) {
+    rationale.push({
+      label: "Wave clear",
+      detail: `${decision.aoeCopies} area cop${decision.aoeCopies > 1 ? "ies" : "y"} widen dense-wave coverage.`,
+    });
   }
-  if (
-    evaluation.decision
-      .unresolvedFactorCount > 0
-  ) {
-    why.push(
-      `${evaluation.decision.unresolvedFactorCount} ability factor(s) remain unverified and are not counted as damage.`,
-    );
+  if (decision.compositeCopies > 0) {
+    rationale.push({
+      label: "Damage profile",
+      detail:
+        "Composite damage keeps a flat rate against every armour type.",
+    });
+  }
+  if (decision.unresolvedFactorCount > 0) {
+    rationale.push({
+      label: "Unverified",
+      detail: `${decision.unresolvedFactorCount} ability factor${decision.unresolvedFactorCount > 1 ? "s" : ""} remain unverified and are not counted as damage.`,
+    });
   }
 
   return {
@@ -607,13 +624,15 @@ function endGamePackageDto(
     minimumAddedCapital:
       evaluation.minimumEndGameOptionCapital,
     anchorWeaknessesImproved:
-      evaluation.decision
-        .anchorWeaknessesImproved,
-    totalSustainedDps: Math.round(
-      evaluation.decision
-        .totalSustainedEngagementDps,
-    ),
-    why,
+      decision.anchorWeaknessesImproved,
+    totalSustainedDps: totalDps,
+    engagementSeconds: evaluation.engagementSeconds,
+    aoeCopies: decision.aoeCopies,
+    compositeCopies: decision.compositeCopies,
+    maxRange,
+    unresolvedFactorCount:
+      decision.unresolvedFactorCount,
+    rationale,
   };
 }
 
@@ -872,6 +891,9 @@ function toPlanDto(
         normal.evidence.coverage
           .damageShape
           .hasAoeCapability,
+      anchorRange: getTower(
+        plan.anchorTowerId,
+      ).stats.range,
       rangeMin:
         normal.evidence.coverage.range
           .packageMinRange,

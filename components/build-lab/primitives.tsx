@@ -233,37 +233,6 @@ export function Metric({
   );
 }
 
-export function MechanicTag({
-  tag,
-  small = false,
-  active,
-  onEnter,
-  onLeave,
-}: {
-  tag: string;
-  small?: boolean;
-  active?: boolean;
-  onEnter?: () => void;
-  onLeave?: () => void;
-}) {
-  const interactive = Boolean(onEnter);
-  const Comp = interactive ? "button" : "span";
-  return (
-    <Comp
-      className="mechanic-tag"
-      data-small={small || undefined}
-      data-active={active || undefined}
-      type={interactive ? "button" : undefined}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      onFocus={onEnter}
-      onBlur={onLeave}
-    >
-      {tag}
-    </Comp>
-  );
-}
-
 export function StatusBadge({
   children,
   tone = "neutral",

@@ -24,7 +24,7 @@ export function CoverageAnalysis({
   return (
     <section className="lab-section coverage-section">
       <div className="section-rail">
-        <span className="section-index mono">05</span>
+        <span className="section-index mono">06</span>
         <div>
           <h2>Coverage analysis</h2>
           <p>

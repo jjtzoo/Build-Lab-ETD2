@@ -16,6 +16,7 @@ import {
 import { FeaturedBuild } from "@/components/build-lab/FeaturedBuild";
 import { RouteDetailModal } from "@/components/build-lab/AlternativeRoutes";
 import { BuildProgression } from "@/components/build-lab/BuildProgression";
+import { EndGameSection } from "@/components/build-lab/EndGameSection";
 import { TowerPackage } from "@/components/build-lab/TowerPackage";
 import { CoverageAnalysis } from "@/components/build-lab/CoverageAnalysis";
 import { SynergyNetwork } from "@/components/build-lab/SynergyNetwork";
@@ -297,6 +298,10 @@ export function BuildLab({
                 plan={visiblePlan}
                 assets={assets}
               />
+              <EndGameSection
+                plan={visiblePlan}
+                assets={assets}
+              />
               <TowerPackage
                 plan={visiblePlan}
                 previewPlan={previewedPlan}
@@ -316,7 +321,7 @@ export function BuildLab({
                 <section className="lab-section tensions-section">
                   <div className="section-rail">
                     <span className="section-index mono">
-                      07
+                      08
                     </span>
                     <div>
                       <h3>Tensions</h3>
@@ -357,27 +362,20 @@ export function BuildLab({
       </div>
 
       <footer className="lab-footer">
-        <div className="footer-primary">
-          <span className="footer-product">
-            Element TD 2 Build Lab
-          </span>
-          <span>
-            Recommendations explain a plan.
-            Placement and execution remain
-            yours.
-          </span>
-        </div>
-        <div className="footer-signature">
-          <span className="signature-label">
-            Designed &amp; built by
-          </span>
-          <span className="signature-name">
-            JJ Toledo
-          </span>
-          <span className="signature-ign mono">
-            jjtzoo
-          </span>
-        </div>
+        <span className="footer-product">
+          Element TD 2 Build Lab
+        </span>
+        <span className="footer-by">
+          Built &amp; designed by JJ Toledo
+        </span>
+        <span className="footer-copy">
+          © 2026 JJ Toledo
+        </span>
+        <span className="footer-disclaimer">
+          Recommendations explain a plan — placement and execution remain
+          yours. Element TD 2 and its tower art are property of their
+          respective owners; this is an unofficial fan tool.
+        </span>
       </footer>
     </main>
   );
