@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
@@ -365,12 +366,32 @@ export function BuildLab({
         <span className="footer-product">
           Element TD 2 Build Lab
         </span>
-        <span className="footer-by">
-          Built &amp; designed by JJ Toledo
+        <span className="footer-signature">
+          <Image
+            src="/branding/jjtzoo-general-logo.png"
+            alt="jjtzoo"
+            width={1254}
+            height={1254}
+          />
         </span>
         <span className="footer-copy">
           © 2026 JJ Toledo
         </span>
+        <div className="footer-support">
+          <span>
+            Enjoying Build Lab? Help cover hosting and keep the Lab free for
+            everyone.
+          </span>
+          <a
+            href="https://ko-fi.com/jjtzoo"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Support the Lab on Ko-fi (opens in a new tab)"
+            className="footer-support-link"
+          >
+            Support the Lab
+          </a>
+        </div>
         <span className="footer-disclaimer">
           Recommendations explain a plan — placement and execution remain
           yours. Element TD 2 and its tower art are property of their
