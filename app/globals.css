@@ -2345,6 +2345,199 @@ select:hover {
   outline: 2px solid var(--amber);
   outline-offset: 3px;
 }
+.footer-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.footer-feedback-link {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--amber);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--amber) 55%,
+    transparent
+  );
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.footer-feedback-link:hover {
+  color: var(--text);
+  text-decoration-color: currentColor;
+}
+.feedback-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(6, 7, 8, 0.72);
+  backdrop-filter: blur(4px);
+}
+.feedback-modal {
+  width: min(520px, 100%);
+  max-height: min(760px, 88vh);
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+}
+.feedback-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.feedback-modal-head h2 {
+  margin: 0;
+  font-size: clamp(20px, 4vw, 24px);
+  letter-spacing: -0.02em;
+}
+.feedback-modal-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.feedback-form {
+  display: grid;
+  gap: 16px;
+  padding: 20px 24px 24px;
+}
+.feedback-modal-description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.feedback-field {
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+}
+.feedback-field em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--muted);
+}
+.feedback-field input,
+.feedback-field select,
+.feedback-field textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+.feedback-field input,
+.feedback-field select {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+.feedback-field textarea {
+  min-height: 132px;
+  padding: 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.feedback-field input::placeholder,
+.feedback-field textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+.feedback-field input:focus,
+.feedback-field select:focus,
+.feedback-field textarea:focus {
+  border-color: var(--focus);
+  outline: none;
+}
+.feedback-privacy-note {
+  margin: -4px 0 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.feedback-form-status,
+.feedback-form-error {
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.feedback-form-status {
+  border: 1px solid color-mix(in srgb, #9dc9a6 45%, var(--line));
+  background: color-mix(in srgb, #9dc9a6 8%, transparent);
+  color: #b7d9bd;
+}
+.feedback-form-error {
+  border: 1px solid color-mix(in srgb, #e6a58f 45%, var(--line));
+  background: color-mix(in srgb, #e6a58f 8%, transparent);
+  color: #efb09d;
+}
+.feedback-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
+}
+.feedback-cancel-button,
+.feedback-submit-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.feedback-cancel-button {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-2);
+}
+.feedback-submit-button {
+  border: 1px solid color-mix(in srgb, var(--amber) 62%, var(--line));
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  color: var(--amber);
+}
+.feedback-cancel-button:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.feedback-submit-button:hover:not(:disabled) {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  color: var(--text);
+}
+.feedback-submit-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 .footer-disclaimer {
   margin-top: 8px;
   max-width: 56ch;

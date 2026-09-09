@@ -21,6 +21,7 @@ import { EndGameSection } from "@/components/build-lab/EndGameSection";
 import { TowerPackage } from "@/components/build-lab/TowerPackage";
 import { CoverageAnalysis } from "@/components/build-lab/CoverageAnalysis";
 import { SynergyNetwork } from "@/components/build-lab/SynergyNetwork";
+import { FeedbackDialog } from "@/components/build-lab/FeedbackDialog";
 
 export function BuildLab({
   anchors,
@@ -391,6 +392,10 @@ export function BuildLab({
           >
             Support the Lab
           </a>
+        </div>
+        <div className="footer-feedback">
+          <span>Have a thought about the Lab?</span>
+          <FeedbackDialog />
         </div>
         <span className="footer-disclaimer">
           Recommendations explain a plan — placement and execution remain
