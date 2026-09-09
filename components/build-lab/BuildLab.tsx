@@ -308,6 +308,7 @@ export function BuildLab({
               />
               <SynergyNetwork
                 plan={visiblePlan}
+                assets={assets}
               />
 
               {visiblePlan.tensions.length >

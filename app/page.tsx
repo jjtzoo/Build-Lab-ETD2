@@ -11,10 +11,14 @@ import { maxReachableTowerLevel } from "@/lib/engine/allocation";
 export default function Home() {
   const anchors = CURATED_ANCHORS.map(({ towerId }) => {
     const tower = getTower(towerId);
+    const profile = getTowerProfile(towerId);
     return {
       ...tower,
       level: maxReachableTowerLevel(tower, getAnchorAssumedAllocation(towerId)),
-      shape: getTowerProfile(towerId).offense?.damageShape ?? "",
+      shape: profile.offense?.damageShape ?? null,
+      profile: profile.offense?.damageProfile ?? null,
+      delivery: profile.offense?.damageDelivery ?? null,
+      scaling: profile.offense?.scalingTriggers ?? [],
       allocation: getAnchorAssumedAllocation(towerId),
     };
   });

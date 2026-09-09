@@ -7,20 +7,59 @@ import {
 } from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import type { Tower } from "@/lib/domain/tower";
-import type { ElementAllocation } from "@/lib/domain/elements";
+import type {
+  DamageDelivery,
+  DamageProfile,
+  DamageShape,
+  ScalingTriggerMechanic,
+} from "@/lib/domain/attributes";
+import type { ElementAllocation, ElementName } from "@/lib/domain/elements";
+import { TowerMedia } from "@/components/build-lab/TowerMedia";
 import {
-  Recipe,
+  CombatFingerprint,
+  ElementPips,
   TowerArt,
-  readable,
+  roman,
 } from "@/components/build-lab/primitives";
 
 export type AnchorItem = Tower & {
   level: number;
-  shape: string;
+  shape: DamageShape | null;
+  profile: DamageProfile | null;
+  delivery: DamageDelivery | null;
+  scaling: readonly ScalingTriggerMechanic[];
   allocation: ElementAllocation;
 };
 
 const EASE = [0.32, 0.72, 0, 1] as const;
+
+function NeighborButton({
+  item,
+  assets,
+  direction,
+  onSelect,
+}: {
+  item: AnchorItem;
+  assets: BuildLabAssets;
+  direction: "prev" | "next";
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="anchor-peek"
+      data-direction={direction}
+      onClick={onSelect}
+      aria-label={`Select ${item.name}`}
+      tabIndex={-1}
+    >
+      <span className="anchor-peek-art">
+        <TowerArt tower={item} assets={assets} decorative />
+      </span>
+      <span className="anchor-peek-name">{item.name}</span>
+    </button>
+  );
+}
 
 export function AnchorSelector({
   anchors,
@@ -39,6 +78,8 @@ export function AnchorSelector({
 }) {
   const reduce = useReducedMotion();
   const anchor = anchors[index];
+  const prev = anchors[(index - 1 + anchors.length) % anchors.length];
+  const next = anchors[(index + 1) % anchors.length];
 
   return (
     <section
@@ -80,133 +121,84 @@ export function AnchorSelector({
       </div>
 
       <div
-        className="carousel"
-        role="region"
+        className="anchor-hero"
+        role="group"
         aria-roledescription="carousel"
         aria-label="Anchor towers"
         tabIndex={0}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
-          if (
-            event.key === "ArrowLeft" ||
-            event.key === "ArrowRight"
-          ) {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
             event.preventDefault();
-            onSelect(
-              index +
-                (event.key === "ArrowLeft" ? -1 : 1),
-            );
+            onSelect(index + (event.key === "ArrowLeft" ? -1 : 1));
           }
         }}
       >
-        <span className="carousel-spotlight" aria-hidden="true" />
-        <AnimatePresence initial={false} mode="popLayout">
-          {[-1, 0, 1].map((offset) => {
-            const item =
-              anchors[
-                (index + offset + anchors.length) %
-                  anchors.length
-              ];
-            return (
-              <motion.div
-                key={item.id}
-                layout={reduce ? false : "position"}
-                className="carousel-slot"
-                data-role={
-                  offset === 0 ? "selected" : "neighbor"
-                }
-                initial={
-                  reduce
-                    ? false
-                    : {
-                        opacity: 0,
-                        scale: 0.94,
-                        filter: "blur(3px)",
-                      }
-                }
-                animate={{
-                  opacity: offset === 0 ? 1 : 0.44,
-                  scale: offset === 0 ? 1 : 0.9,
-                  filter: "blur(0px)",
-                }}
-                exit={
-                  reduce
-                    ? undefined
-                    : {
-                        opacity: 0,
-                        scale: 0.94,
-                        filter: "blur(3px)",
-                      }
-                }
-                transition={{
-                  duration: reduce ? 0 : 0.42,
-                  ease: EASE,
-                }}
-              >
-                {offset === 0 ? (
-                  <article
-                    className="anchor-card selected"
-                    aria-live="polite"
-                  >
-                    <span
-                      className="anchor-card-glow"
-                      aria-hidden="true"
-                    />
-                    <TowerArt tower={item} assets={assets} />
-                    <div className="anchor-copy">
-                      <div className="anchor-meta">
-                        <span>Selected anchor</span>
-                        <span className="level mono">
-                          LV {item.level}
-                        </span>
-                      </div>
-                      <div className="anchor-title">
-                        <span className="tower-class">
-                          {item.combination} tower
-                        </span>
-                        <h3 className="anchor-name">
-                          {item.name}
-                        </h3>
-                      </div>
-                      <Recipe
-                        elements={item.recipe}
-                        assets={assets}
-                      />
-                      <div className="anchor-facts">
-                        <span>{readable(item.shape)}</span>
-                        <span>
-                          Range{" "}
-                          <b className="mono">
-                            {item.stats.range}
-                          </b>
-                        </span>
-                        <span data-element={item.damageElement}>
-                          {item.damageElement} damage
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                ) : (
-                  <button
-                    className={`anchor-card neighbor neighbor-${offset < 0 ? "prev" : "next"}`}
-                    onClick={() => onSelect(index + offset)}
-                    aria-label={`Select ${item.name}, level ${item.level}`}
-                    tabIndex={-1}
-                  >
-                    <TowerArt
-                      tower={item}
-                      assets={assets}
-                      decorative
-                    />
-                    <span className="neighbor-name">
-                      {item.name}
-                    </span>
-                  </button>
-                )}
-              </motion.div>
-            );
-          })}
+        <span className="anchor-hero-spotlight" aria-hidden="true" />
+
+        <NeighborButton
+          item={prev}
+          assets={assets}
+          direction="prev"
+          onSelect={() => onSelect(index - 1)}
+        />
+
+        <AnimatePresence initial={false} mode="wait">
+          <motion.article
+            key={anchor.id}
+            className="anchor-hero-main"
+            data-element={anchor.damageElement}
+            initial={reduce ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={{ duration: reduce ? 0 : 0.34, ease: EASE }}
+          >
+            <div className="anchor-hero-stage">
+              <TowerMedia
+                media={assets.towerHero[anchor.id]}
+                name={anchor.name}
+                priority
+              />
+              <span className="anchor-hero-tag">Selected anchor</span>
+            </div>
+
+            <div className="anchor-hero-identity">
+              <div className="anchor-hero-topline">
+                <span className="anchor-hero-class">
+                  {anchor.combination} tower
+                </span>
+                <span className="anchor-hero-level mono">
+                  LV {roman(anchor.level)}
+                </span>
+              </div>
+
+              <h3 className="anchor-hero-name">{anchor.name}</h3>
+
+              <ElementPips
+                elements={anchor.recipe as readonly ElementName[]}
+                assets={assets}
+                size={22}
+              />
+
+              <CombatFingerprint
+                shape={anchor.shape}
+                profile={anchor.profile}
+                range={anchor.stats.range}
+                element={anchor.damageElement as ElementName}
+                scaling={anchor.scaling}
+                role="Main DPS"
+                assets={assets}
+              />
+            </div>
+          </motion.article>
         </AnimatePresence>
+
+        <NeighborButton
+          item={next}
+          assets={assets}
+          direction="next"
+          onSelect={() => onSelect(index + 1)}
+        />
       </div>
 
       <div className="carousel-controls">
@@ -229,34 +221,41 @@ export function AnchorSelector({
         </button>
       </div>
 
-      <p className="assumption">
-        Planning baseline:{" "}
-        <span className="mono">
-          {anchor.recipe
-            .map(
-              (element) =>
-                `${element} ${anchor.allocation[element]}`,
-            )
-            .join(" · ")}
-        </span>
-        . Not your live-game allocation.
-      </p>
+      <div className="build-commitment" data-element={anchor.damageElement}>
+        <span className="commitment-glow" aria-hidden="true" />
+        <div className="commitment-core">
+          <span className="commitment-label">Planning core</span>
+          <ElementPips
+            elements={anchor.recipe as readonly ElementName[]}
+            allocation={anchor.allocation}
+            assets={assets}
+            size={24}
+          />
+          <span className="commitment-note">
+            {anchor.combination === "Dual"
+              ? "Simulation baseline — an assumed 3-3 element core."
+              : "Simulation baseline — an assumed 2-2-2 element core."}{" "}
+            Not your live-game allocation.
+          </span>
+        </div>
 
-      <motion.button
-        className="build-button"
-        onClick={onBuild}
-        disabled={requestState === "loading"}
-        whileTap={reduce ? undefined : { scale: 0.985 }}
-      >
-        <span>
-          {requestState === "loading"
-            ? `Planning ${anchor.name}…`
-            : `Build around ${anchor.name}`}
-        </span>
-        <span className="build-button-icon" aria-hidden="true">
-          →
-        </span>
-      </motion.button>
+        <motion.button
+          type="button"
+          className="build-cta"
+          onClick={onBuild}
+          disabled={requestState === "loading"}
+          whileTap={reduce ? undefined : { scale: 0.985 }}
+        >
+          <span className="build-cta-label">
+            {requestState === "loading"
+              ? `Planning ${anchor.name}…`
+              : `Build around ${anchor.name}`}
+          </span>
+          <span className="build-cta-arrow" aria-hidden="true">
+            →
+          </span>
+        </motion.button>
+      </div>
     </section>
   );
 }

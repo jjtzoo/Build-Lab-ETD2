@@ -2,11 +2,23 @@
 
 import Image from "next/image";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
+import type {
+  DamageProfile,
+  DamageShape,
+  ScalingTriggerMechanic,
+} from "@/lib/domain/attributes";
+import {
+  DAMAGE_PROFILE_LABEL,
+  DAMAGE_SHAPE_LABEL,
+  SCALING_TRIGGER_LABEL,
+} from "@/lib/domain/attributeLabels";
 import type { ElementName } from "@/lib/domain/elements";
 import type { Tower } from "@/lib/domain/tower";
 import {
+  DamageShapeGlyph,
   MechanicGlyph,
   mechanicFamily,
+  type DamageShapeKind,
 } from "@/components/build-lab/glyphs";
 import type { SynergyQualificationTier } from "@/lib/engine/synergyQualification";
 
@@ -343,42 +355,150 @@ export function QualificationBadge({
  */
 export function MechanicChip({
   tag,
+  label,
+  family,
   active,
   dimmed,
   count,
+  onClick,
   onEnter,
   onLeave,
   small = false,
 }: {
   tag: string;
+  /** Display text, when it differs from the family-lookup key `tag`. */
+  label?: string;
+  /** Override the family derived from `tag`. */
+  family?: string;
   active?: boolean;
   dimmed?: boolean;
   count?: number;
+  onClick?: () => void;
   onEnter?: () => void;
   onLeave?: () => void;
   small?: boolean;
 }) {
-  const interactive = Boolean(onEnter);
+  const interactive = Boolean(onClick || onEnter);
   const Comp = interactive ? "button" : "span";
   return (
     <Comp
       className="mechanic-chip"
-      data-family={mechanicFamily(tag)}
+      data-family={family ?? mechanicFamily(tag)}
       data-active={active || undefined}
       data-dimmed={dimmed || undefined}
       data-small={small || undefined}
       type={interactive ? "button" : undefined}
+      onClick={onClick}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onFocus={onEnter}
       onBlur={onLeave}
     >
-      <MechanicGlyph tag={tag} size={small ? 13 : 15} />
-      <span>{tag}</span>
+      <MechanicGlyph tag={tag} family={family} size={small ? 13 : 15} />
+      <span>{label ?? tag}</span>
       {count != null && (
         <span className="mechanic-chip-count mono">{count}</span>
       )}
     </Comp>
+  );
+}
+
+/** Picks the single most telling shape glyph from shape + profile. */
+export function shapeGlyphKind(
+  shape: DamageShape | null | undefined,
+  profile?: DamageProfile | null,
+): DamageShapeKind | null {
+  if (profile === "dot") return "dot";
+  if (profile === "execute") return "execute";
+  if (profile === "ramp") return "ramp";
+  if (shape === "aoe") return "aoe";
+  if (shape === "hybrid") return "hybrid";
+  if (shape === "single-target") return "single-target";
+  return null;
+}
+
+/**
+ * A tower's combat fingerprint — the compact, glyph-led readout of what
+ * it fundamentally does. Every field is optional and only canonical data
+ * is shown; nothing is fabricated. Used on the anchor hero and reusable
+ * anywhere a tower needs identifying.
+ */
+export function CombatFingerprint({
+  shape,
+  profile,
+  range,
+  element,
+  scaling = [],
+  role,
+  assets,
+}: {
+  shape: DamageShape | null;
+  profile: DamageProfile | null;
+  range?: number;
+  element: ElementName;
+  scaling?: readonly ScalingTriggerMechanic[];
+  role?: string;
+  assets: BuildLabAssets;
+}) {
+  const glyphKind = shapeGlyphKind(shape, profile);
+  const shapeText = [
+    shape ? DAMAGE_SHAPE_LABEL[shape] : null,
+    profile ? DAMAGE_PROFILE_LABEL[profile] : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <dl className="combat-fingerprint">
+      {shapeText && (
+        <div className="fingerprint-item">
+          <dt>
+            {glyphKind && (
+              <DamageShapeGlyph kind={glyphKind} size={16} />
+            )}
+            Damage
+          </dt>
+          <dd>{shapeText}</dd>
+        </div>
+      )}
+      {role && (
+        <div className="fingerprint-item">
+          <dt>Role</dt>
+          <dd>{role}</dd>
+        </div>
+      )}
+      <div className="fingerprint-item" data-element={element}>
+        <dt>
+          <ElementIcon element={element} assets={assets} size={15} />
+          Element
+        </dt>
+        <dd>{element}</dd>
+      </div>
+      {range != null && (
+        <div className="fingerprint-item">
+          <dt>
+            <MechanicGlyph tag="Range" size={15} />
+            Range
+          </dt>
+          <dd className="mono">{range}</dd>
+        </div>
+      )}
+      {scaling.length > 0 && (
+        <div className="fingerprint-item fingerprint-scaling">
+          <dt>Scales on</dt>
+          <dd>
+            {scaling
+              .map((trigger) =>
+                SCALING_TRIGGER_LABEL[trigger].replace(
+                  /^Scales with /,
+                  "",
+                ),
+              )
+              .join(", ")}
+          </dd>
+        </div>
+      )}
+    </dl>
   );
 }
 

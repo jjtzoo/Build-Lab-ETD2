@@ -75,7 +75,7 @@ export function DamageShapeGlyph({
   size = 18,
   title,
 }: GlyphProps & { kind: DamageShapeKind }) {
-  const label = title ?? DAMAGE_SHAPE_LABEL[kind];
+  const label = title;
   switch (kind) {
     case "single-target":
       return (
@@ -204,17 +204,31 @@ export const MECHANIC_FAMILY: Record<string, MechanicFamily> = {
   Range: "range",
 };
 
+const FAMILY_NAMES: ReadonlySet<string> = new Set([
+  "buff",
+  "amplification",
+  "control",
+  "positioning",
+  "kill-economy",
+  "replication",
+  "range",
+]);
+
 export function mechanicFamily(tag: string): MechanicFamily {
+  if (FAMILY_NAMES.has(tag)) return tag as MechanicFamily;
   return MECHANIC_FAMILY[tag] ?? "buff";
 }
 
 export function MechanicGlyph({
   tag,
+  family: familyOverride,
   size = 16,
   title,
-}: GlyphProps & { tag: string }) {
-  const family = mechanicFamily(tag);
-  const label = title ?? tag;
+}: GlyphProps & { tag: string; family?: string }) {
+  const family = familyOverride
+    ? (familyOverride as MechanicFamily)
+    : mechanicFamily(tag);
+  const label = title;
   switch (family) {
     case "buff":
       // fast-forward wedge — a stat pushed upward
