@@ -4706,3 +4706,202 @@ button.mechanic-chip {
     grid-column: span 2;
   }
 }
+
+/* ============================================================
+   Support rail (Ko-fi) — every page
+   ============================================================ */
+
+.support-rail {
+  position: fixed;
+  top: 96px;
+  right: clamp(12px, 4vw, 28px);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+.support-pill,
+.support-bubble {
+  pointer-events: auto;
+}
+.support-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition:
+    border-color 160ms var(--ease),
+    color 160ms var(--ease);
+}
+.support-pill:hover {
+  border-color: var(--focus);
+  color: var(--text);
+}
+.support-pill-mark {
+  font-size: 13px;
+}
+.support-bubble {
+  position: relative;
+  max-width: 300px;
+  padding: 14px 16px 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-2);
+  animation: support-in 220ms var(--ease-out);
+}
+@keyframes support-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.support-bubble p {
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin: 0 0 8px;
+}
+.support-bubble-link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.support-bubble-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px;
+}
+.support-bubble-close:hover {
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .support-rail {
+    top: auto;
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    align-items: stretch;
+  }
+  .support-pill {
+    align-self: flex-end;
+  }
+  .support-bubble {
+    max-width: none;
+  }
+}
+
+/* ============================================================
+   Live Tracker — phase stepper + basic tower group
+   ============================================================ */
+
+.live-phase {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.live-phase-nav {
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.live-phase-nav:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.live-phase-next {
+  margin-left: auto;
+  font-weight: 600;
+}
+.live-phase-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.live-phase-num {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.live-phase-label {
+  font-size: 13.5px;
+  color: var(--text);
+}
+.live-phase-behind {
+  font-size: 11px;
+  color: #e6a15f;
+}
+
+.live-build-basic-glyph {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-internal);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+@media (max-width: 559px) {
+  .live-phase {
+    flex-wrap: wrap;
+  }
+  .live-phase-next {
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
+  }
+}
+
+.live-essence-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.live-essence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-raised);
+  font-size: 11.5px;
+  color: var(--text);
+}
+.live-essence-chip:hover:not(:disabled) {
+  border-color: var(--focus);
+}
+.live-essence-spent {
+  font-size: 11px;
+  color: var(--muted);
+  align-self: center;
+}

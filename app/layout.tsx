@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SupportRail } from "@/components/SupportRail";
 
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
@@ -24,7 +25,10 @@ export default function RootLayout({
         } as React.CSSProperties
       }
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        <SupportRail />
+      </body>
     </html>
   );
 }

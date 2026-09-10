@@ -2,10 +2,17 @@
 
 import { useMemo } from "react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
-import { TowerIcon, roman } from "@/components/build-lab/primitives";
+import {
+  ElementIcon,
+  TowerIcon,
+  roman,
+} from "@/components/build-lab/primitives";
 import { getTower } from "@/lib/domain/towerCatalog";
 import { maxReachableTowerLevel } from "@/lib/engine/allocation";
-import { buildableByRole } from "@/lib/engine/liveGame";
+import {
+  basicBuildables,
+  buildableByRole,
+} from "@/lib/engine/liveGame";
 import { useLiveGame } from "@/components/live/store";
 
 /**
@@ -48,6 +55,11 @@ export function BuildablePanel({ assets }: { assets: BuildLabAssets }) {
     [allocation],
   );
 
+  const basics = useMemo(
+    () => basicBuildables(allocation),
+    [allocation],
+  );
+
   const planNotYet = useMemo(() => {
     if (!plan) return [];
     return plan.towers
@@ -74,11 +86,46 @@ export function BuildablePanel({ assets }: { assets: BuildLabAssets }) {
         <span className="live-panel-note">tap to log one</span>
       </header>
 
-      {groups.length === 0 && (
-        <p className="live-empty">
-          Nothing yet — spend your first element pick above.
-        </p>
-      )}
+      <div className="live-build-group">
+        <h4>Basic</h4>
+        <div className="live-build-grid">
+          {basics.map((tower) => (
+            <button
+              key={tower.id}
+              type="button"
+              className="live-build-chip"
+              data-built={builtIds.has(tower.id) || undefined}
+              onClick={() => addBuilt(tower.id)}
+              title={`Log a ${tower.name}${
+                tower.maxLevel > 1
+                  ? ` (max Lv ${roman(tower.maxLevel)})`
+                  : ""
+              }`}
+            >
+              {tower.element ? (
+                <ElementIcon
+                  element={tower.element}
+                  assets={assets}
+                  size={22}
+                />
+              ) : (
+                <span className="live-build-basic-glyph" aria-hidden="true">
+                  {tower.name[0]}
+                </span>
+              )}
+              <span className="live-build-name">{tower.name}</span>
+              {tower.maxLevel > 1 && (
+                <b className="mono">{roman(tower.maxLevel)}</b>
+              )}
+            </button>
+          ))}
+        </div>
+        {groups.length === 0 && (
+          <p className="live-empty">
+            Element towers appear here as you spend picks.
+          </p>
+        )}
+      </div>
 
       {groups.map((group) => {
         const sorted = [...group.towers].sort((a, b) => {

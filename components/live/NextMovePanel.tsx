@@ -10,6 +10,7 @@ import {
 } from "@/components/build-lab/primitives";
 import { resolveNormalTowerCost } from "@/lib/domain/towerEconomics";
 import { endGameReadiness, planProgress } from "@/lib/engine/liveGame";
+import { EssencePicker } from "@/components/live/EssencePicker";
 import { useLiveGame } from "@/components/live/store";
 
 /**
@@ -21,6 +22,7 @@ export function NextMovePanel({ assets }: { assets: BuildLabAssets }) {
   const plan = useLiveGame((s) => s.plan);
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
+  const phase = useLiveGame((s) => s.phase);
   const addBuilt = useLiveGame((s) => s.addBuilt);
 
   const progress = useMemo(
@@ -31,8 +33,8 @@ export function NextMovePanel({ assets }: { assets: BuildLabAssets }) {
     [plan, allocation, built],
   );
   const endGame = useMemo(
-    () => endGameReadiness(allocation, plan),
-    [allocation, plan],
+    () => endGameReadiness(allocation, plan, phase, built),
+    [allocation, plan, phase, built],
   );
 
   if (!progress) return null;
@@ -132,22 +134,26 @@ export function NextMovePanel({ assets }: { assets: BuildLabAssets }) {
         </div>
       )}
 
-      <div className="live-endgame" data-unlocked={endGame.unlocked || undefined}>
+      <div
+        className="live-endgame"
+        data-unlocked={
+          (endGame.unlocked && endGame.essenceAvailable > 0) || undefined
+        }
+      >
         <h4>End Game</h4>
-        {endGame.unlocked ? (
+        {endGame.essenceAvailable > 0 ? (
           <>
             <p>
+              Essence {endGame.essenceSpent} / {endGame.essenceAvailable}
+              {" · "}
               {[
                 endGame.access.pureCandidates.length > 0
-                  ? `${endGame.access.pureCandidates.length} Pure option${
-                      endGame.access.pureCandidates.length === 1 ? "" : "s"
-                    }`
+                  ? `${endGame.access.pureCandidates.length} Pure`
                   : null,
                 endGame.access.periodicCandidate ? "Periodic" : null,
               ]
                 .filter(Boolean)
-                .join(" + ")}{" "}
-              available · {endGame.access.essenceUsesAvailable} essence
+                .join(" + ") || "no option unlocked yet"}
             </p>
             {endGame.planSelections.length > 0 && (
               <p className="live-endgame-plan">
@@ -157,9 +163,18 @@ export function NextMovePanel({ assets }: { assets: BuildLabAssets }) {
                   .join(", ")}
               </p>
             )}
+            <EssencePicker assets={assets} />
           </>
         ) : (
-          <p className="live-locked-need">{endGame.requirement}</p>
+          <p className="live-locked-need">
+            Essence unlocks at the last phase (~wave 50). Plan wants{" "}
+            {endGame.planSelections.length > 0
+              ? endGame.planSelections
+                  .map((entry) => `${entry.quantity}× ${entry.name}`)
+                  .join(", ")
+              : "a Pure / Periodic finish"}
+            .
+          </p>
         )}
       </div>
     </section>

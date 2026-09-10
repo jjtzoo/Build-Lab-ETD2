@@ -3,14 +3,18 @@ import { describe, expect, it } from "vitest";
 import type { ElementAllocation } from "@/lib/domain/elements";
 import type { PortableProgressionStage } from "@/lib/domain/portableBuild";
 import {
+  basicBuildables,
   buildableByRole,
   coreRoleStatus,
   deriveGoldSpent,
   emptyLiveAllocation,
   endGameReadiness,
+  essenceForPhase,
   isEndGameTowerId,
+  livePhaseLabel,
   nextPickOptions,
   planProgress,
+  resolveLiveTowerCost,
 } from "@/lib/engine/liveGame";
 
 function alloc(
@@ -48,6 +52,48 @@ describe("deriveGoldSpent", () => {
         { towerId: "pure-nature", level: 1, quantity: 2 },
       ]),
     ).toBe(27500);
+  });
+
+  it("prices Arrow / Cannon flat and mono towers per level", () => {
+    expect(resolveLiveTowerCost("arrow", 1)).toBe(75);
+    expect(resolveLiveTowerCost("cannon", 1)).toBe(75);
+    expect(resolveLiveTowerCost("mono-fire", 1)).toBe(175);
+    expect(resolveLiveTowerCost("mono-fire", 2)).toBe(675);
+    expect(resolveLiveTowerCost("mono-fire", 3)).toBe(2500);
+    expect(
+      deriveGoldSpent([
+        { towerId: "cannon", level: 1, quantity: 2 },
+        { towerId: "mono-water", level: 2, quantity: 1 },
+      ]),
+    ).toBe(150 + 675);
+  });
+});
+
+describe("basicBuildables", () => {
+  it("always offers Arrow and Cannon regardless of picks", () => {
+    const ids = basicBuildables(emptyLiveAllocation()).map((t) => t.id);
+    expect(ids).toEqual(["arrow", "cannon"]);
+  });
+
+  it("opens a mono tower up to the level its element is held at", () => {
+    const list = basicBuildables(alloc({ Fire: 2 }));
+    const fire = list.find((t) => t.id === "mono-fire");
+    expect(fire?.maxLevel).toBe(2);
+    expect(fire?.element).toBe("Fire");
+    expect(list.some((t) => t.id === "mono-water")).toBe(false);
+  });
+});
+
+describe("phase helpers", () => {
+  it("labels phases by wave bracket and marks the last as Essence", () => {
+    expect(livePhaseLabel(1)).toBe("Waves 1–5");
+    expect(livePhaseLabel(4)).toBe("Waves 16–20");
+    expect(livePhaseLabel(11)).toBe("Waves 51–55 · Essence");
+  });
+
+  it("grants essence only at the final phase", () => {
+    expect(essenceForPhase(10)).toBe(0);
+    expect(essenceForPhase(11)).toBe(2);
   });
 });
 
@@ -133,17 +179,31 @@ describe("coreRoleStatus", () => {
 
 describe("endGameReadiness", () => {
   it("is locked until an element hits III or all six hit I", () => {
-    const locked = endGameReadiness(alloc({ Light: 2 }), null);
+    const locked = endGameReadiness(alloc({ Light: 2 }), null, 1);
     expect(locked.unlocked).toBe(false);
     expect(locked.requirement).toContain("III");
   });
 
   it("unlocks the matching Pure tower at element III", () => {
-    const ready = endGameReadiness(alloc({ Nature: 3 }), null);
+    const ready = endGameReadiness(alloc({ Nature: 3 }), null, 1);
     expect(ready.unlocked).toBe(true);
     expect(
       ready.access.pureCandidates.map((entry) => entry.towerId),
     ).toContain("pure-nature");
+  });
+
+  it("grants no essence before the last phase and 2 at it", () => {
+    expect(endGameReadiness(alloc({ Nature: 3 }), null, 10).essenceAvailable)
+      .toBe(0);
+    expect(endGameReadiness(alloc({ Nature: 3 }), null, 11).essenceAvailable)
+      .toBe(2);
+  });
+
+  it("counts logged end-game towers as essence spent", () => {
+    const spent = endGameReadiness(alloc({ Nature: 3 }), null, 11, [
+      { towerId: "pure-nature", level: 1, quantity: 2 },
+    ]);
+    expect(spent.essenceSpent).toBe(2);
   });
 });
 

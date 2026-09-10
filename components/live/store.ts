@@ -12,16 +12,22 @@ import type { ElementAllocation, ElementName } from "@/lib/domain/elements";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
 import {
   emptyLiveAllocation,
-  isEndGameTowerId,
+  isAuxiliaryTowerId,
+  LIVE_PHASE_COUNT,
   MAX_KEYSTONES,
   type BuiltTower,
 } from "@/lib/engine/liveGame";
+import {
+  getMonoTower,
+  isMonoTowerId,
+  MONO_MAX_LEVEL,
+} from "@/lib/domain/auxiliaryTowers";
 
 export type LiveSnapshot = {
   allocation: ElementAllocation;
   pickLog: ElementName[];
   built: BuiltTower[];
-  waveNote: number | null;
+  phase: number;
 };
 
 type LiveState = LiveSnapshot & {
@@ -39,7 +45,8 @@ type LiveState = LiveSnapshot & {
   removeBuilt: (towerId: string) => void;
 
   setPlan: (plan: PortableBuild | null) => void;
-  setWaveNote: (wave: number | null) => void;
+  nextPhase: () => void;
+  prevPhase: () => void;
   newGame: () => void;
   hydrate: (snapshot: Partial<LiveSnapshot>) => void;
 };
@@ -49,7 +56,7 @@ function emptySnapshot(): LiveSnapshot {
     allocation: emptyLiveAllocation(),
     pickLog: [],
     built: [],
-    waveNote: null,
+    phase: 1,
   };
 }
 
@@ -58,7 +65,14 @@ function defaultBuiltLevel(
   towerId: string,
   allocation: ElementAllocation,
 ): number {
-  if (isEndGameTowerId(towerId)) return 1;
+  if (isMonoTowerId(towerId)) {
+    const element = getMonoTower(towerId).element;
+    return Math.max(
+      1,
+      Math.min(MONO_MAX_LEVEL, allocation[element] ?? 1),
+    );
+  }
+  if (isAuxiliaryTowerId(towerId)) return 1;
   const reachable = maxReachableTowerLevel(getTower(towerId), allocation);
   return Math.max(1, reachable);
 }
@@ -129,9 +143,11 @@ export const useLiveGame = create<LiveState>((set) => ({
     set((state) => ({
       built: state.built.map((entry) => {
         if (entry.towerId !== towerId) return entry;
-        const cap = isEndGameTowerId(towerId)
-          ? 1
-          : getTower(towerId).maxLevel;
+        const cap = isMonoTowerId(towerId)
+          ? MONO_MAX_LEVEL
+          : isAuxiliaryTowerId(towerId)
+            ? 1
+            : getTower(towerId).maxLevel;
         return {
           ...entry,
           level: Math.max(1, Math.min(cap, level)),
@@ -157,7 +173,13 @@ export const useLiveGame = create<LiveState>((set) => ({
     })),
 
   setPlan: (plan) => set({ plan }),
-  setWaveNote: (waveNote) => set({ waveNote }),
+
+  nextPhase: () =>
+    set((state) => ({
+      phase: Math.min(LIVE_PHASE_COUNT, state.phase + 1),
+    })),
+  prevPhase: () =>
+    set((state) => ({ phase: Math.max(1, state.phase - 1) })),
 
   newGame: () => set({ ...emptySnapshot(), lastPick: null }),
 
@@ -166,7 +188,7 @@ export const useLiveGame = create<LiveState>((set) => ({
       allocation: snapshot.allocation ?? state.allocation,
       pickLog: snapshot.pickLog ?? state.pickLog,
       built: snapshot.built ?? state.built,
-      waveNote: snapshot.waveNote ?? state.waveNote,
+      phase: snapshot.phase ?? state.phase,
       lastPick: null,
     })),
 }));

@@ -18,6 +18,15 @@ import {
   END_GAME_TOWER_FACT_CATALOG,
 } from "@/lib/domain/endGameTowerFacts";
 import type { EndGameTowerId } from "@/lib/domain/endGameTower";
+import {
+  BASIC_TOWERS,
+  MONO_TOWERS,
+  MONO_MAX_LEVEL,
+  getBasicTower,
+  isBasicTowerId,
+  isMonoTowerId,
+  monoTowerCost,
+} from "@/lib/domain/auxiliaryTowers";
 import type {
   PortableBuild,
   PortableProgressionStage,
@@ -64,34 +73,54 @@ export function isEndGameTowerId(towerId: string): boolean {
   return END_GAME_TOWER_IDS.has(towerId);
 }
 
+/** True for a tower the recommendation catalog (`towers.v2.json`) does not carry. */
+export function isAuxiliaryTowerId(towerId: string): boolean {
+  return (
+    isEndGameTowerId(towerId) ||
+    isBasicTowerId(towerId) ||
+    isMonoTowerId(towerId)
+  );
+}
+
 // ---------------------------------------------------------------- gold
 
 /**
- * Gold the player has committed, summed from what they logged.
- *
- * Catalog costs are *cumulative* minimum field cost — the value at a level
- * is the total to stand that tower up at that level — so a tower counts
- * once at its current level; upgrades are not summed on top.
+ * Cumulative gold to field one copy of any loggable tower at `level` —
+ * end-game, basic (Arrow/Cannon), mono, or a normal Dual/Trio/Quad.
+ * Costs are cumulative per level, so a tower counts once at its level;
+ * upgrades are not summed on top.
  */
+export function resolveLiveTowerCost(
+  towerId: string,
+  level: number,
+): number {
+  if (isEndGameTowerId(towerId)) {
+    return getEndGameTowerFact(towerId as EndGameTowerId)
+      .minimumFieldCost;
+  }
+  if (isBasicTowerId(towerId)) {
+    return getBasicTower(towerId).cost;
+  }
+  if (isMonoTowerId(towerId)) {
+    return monoTowerCost(level);
+  }
+  const tower = getTower(towerId);
+  const clamped = Math.max(
+    1,
+    Math.min(tower.maxLevel, Math.round(level)),
+  );
+  return resolveNormalTowerCost(towerId, clamped).minimumFieldCost;
+}
+
+/** Gold the player has committed, summed from what they logged. */
 export function deriveGoldSpent(
   built: readonly BuiltTower[],
 ): number {
   return built.reduce((total, entry) => {
     if (entry.quantity <= 0) return total;
-    if (isEndGameTowerId(entry.towerId)) {
-      const fact = getEndGameTowerFact(
-        entry.towerId as EndGameTowerId,
-      );
-      return total + fact.minimumFieldCost * entry.quantity;
-    }
-    const tower = getTower(entry.towerId);
-    const level = Math.max(
-      1,
-      Math.min(tower.maxLevel, Math.round(entry.level)),
-    );
     return (
       total +
-      resolveNormalTowerCost(entry.towerId, level).minimumFieldCost *
+      resolveLiveTowerCost(entry.towerId, entry.level) *
         entry.quantity
     );
   }, 0);
@@ -133,6 +162,74 @@ export function buildableByRole(
     if (towers.length === 0) return [];
     return [{ role, label: roleLabel(role), towers }];
   });
+}
+
+// --------------------------------------------------- basic / mono towers
+
+export type BasicBuildable = {
+  id: string;
+  name: string;
+  /** Highest level currently fieldable. Arrow/Cannon are flat at 1. */
+  maxLevel: number;
+  /** The element a mono tower belongs to; null for Arrow / Cannon. */
+  element: ElementName | null;
+};
+
+/**
+ * The starter towers and mono towers a player can log. Arrow and Cannon
+ * are always available; a mono tower opens at Level N once its element is
+ * held at allocation level N (1–3).
+ */
+export function basicBuildables(
+  allocation: ElementAllocation,
+): readonly BasicBuildable[] {
+  const out: BasicBuildable[] = BASIC_TOWERS.map((tower) => ({
+    id: tower.id,
+    name: tower.name,
+    maxLevel: 1,
+    element: null,
+  }));
+
+  for (const mono of MONO_TOWERS) {
+    const level = Math.min(
+      MONO_MAX_LEVEL,
+      allocation[mono.element] ?? 0,
+    );
+    if (level >= 1) {
+      out.push({
+        id: mono.id,
+        name: mono.name,
+        maxLevel: level,
+        element: mono.element,
+      });
+    }
+  }
+
+  return out;
+}
+
+// --------------------------------------------------------- game phases
+
+/** Element picks are offered roughly one per 5-wave phase, to wave 55. */
+export const LIVE_PHASE_COUNT = 11;
+
+export function livePhaseLabel(phase: number): string {
+  const p = Math.max(1, Math.min(LIVE_PHASE_COUNT, phase));
+  const lo = (p - 1) * 5 + 1;
+  const hi = p * 5;
+  return p === LIVE_PHASE_COUNT
+    ? `Waves ${lo}–${hi} · Essence`
+    : `Waves ${lo}–${hi}`;
+}
+
+/** Pure Essence uses the player holds by this phase (auto, 0 → 2 at the last). */
+export function essenceForPhase(phase: number): number {
+  return phase >= LIVE_PHASE_COUNT ? 2 : 0;
+}
+
+/** Element picks a player would normally have been offered by this phase. */
+export function expectedPicksForPhase(phase: number): number {
+  return Math.max(0, Math.min(MAX_KEYSTONES, phase));
 }
 
 // ------------------------------------------------------------ reveal
@@ -229,7 +326,7 @@ export function coreRoleStatus(
     const builtTowerNames = fielded
       .filter(
         (placed) =>
-          !isEndGameTowerId(placed.towerId) &&
+          !isAuxiliaryTowerId(placed.towerId) &&
           getTowerProfile(placed.towerId).coreRoles.includes(
             entry.role,
           ),
@@ -259,9 +356,14 @@ export function coreRoleStatus(
 
 export type EndGameReadiness = {
   access: EndGameAccessResult;
+  /** Allocation opens at least one Pure/Periodic option. */
   unlocked: boolean;
   /** Plain-language requirement when still locked. */
   requirement: string;
+  /** Pure Essence uses granted by the current phase (0 or 2). */
+  essenceAvailable: number;
+  /** Essence already committed — one per end-game tower copy logged. */
+  essenceSpent: number;
   /** The imported plan's End Game picks, when one is loaded. */
   planSelections: readonly { name: string; quantity: number }[];
 };
@@ -269,9 +371,14 @@ export type EndGameReadiness = {
 export function endGameReadiness(
   allocation: ElementAllocation,
   plan: PortableBuild | null,
+  phase: number,
+  built: readonly BuiltTower[] = [],
 ): EndGameReadiness {
   const access = evaluateEndGameAccess(allocation);
   const unlocked = access.candidates.length > 0;
+  const essenceSpent = built
+    .filter((entry) => isEndGameTowerId(entry.towerId))
+    .reduce((total, entry) => total + Math.max(0, entry.quantity), 0);
 
   return {
     access,
@@ -279,6 +386,8 @@ export function endGameReadiness(
     requirement: unlocked
       ? ""
       : "Take an element to III for a Pure tower, or all six to I for Periodic.",
+    essenceAvailable: essenceForPhase(phase),
+    essenceSpent,
     planSelections: plan?.endGame ?? [],
   };
 }

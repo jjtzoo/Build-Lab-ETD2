@@ -10,6 +10,7 @@ import {
   type PortableBuild,
 } from "@/lib/domain/portableBuild";
 import { KeystoneInput } from "@/components/live/KeystoneInput";
+import { PhaseStepper } from "@/components/live/PhaseStepper";
 import { BuildablePanel } from "@/components/live/BuildablePanel";
 import { FieldPanel } from "@/components/live/FieldPanel";
 import { NextMovePanel } from "@/components/live/NextMovePanel";
@@ -35,8 +36,7 @@ export function LiveTracker({
   const allocation = useLiveGame((s) => s.allocation);
   const pickLog = useLiveGame((s) => s.pickLog);
   const built = useLiveGame((s) => s.built);
-  const waveNote = useLiveGame((s) => s.waveNote);
-  const setWaveNote = useLiveGame((s) => s.setWaveNote);
+  const phase = useLiveGame((s) => s.phase);
 
   const [tab, setTab] = useState<Tab>("next");
   const hydrated = useRef(false);
@@ -75,12 +75,12 @@ export function LiveTracker({
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ allocation, pickLog, built, waveNote }),
+        JSON.stringify({ allocation, pickLog, built, phase }),
       );
     } catch {
       /* storage unavailable */
     }
-  }, [allocation, pickLog, built, waveNote]);
+  }, [allocation, pickLog, built, phase]);
 
   const anchorName = plan
     ? (() => {
@@ -126,23 +126,6 @@ export function LiveTracker({
         </div>
 
         <div className="live-bar-actions">
-          <label className="live-wave">
-            Wave
-            <input
-              type="number"
-              min={0}
-              max={99}
-              value={waveNote ?? ""}
-              onChange={(event) =>
-                setWaveNote(
-                  event.target.value === ""
-                    ? null
-                    : Number(event.target.value),
-                )
-              }
-              aria-label="Wave (for your own reference)"
-            />
-          </label>
           <button
             type="button"
             className="live-bar-btn"
@@ -153,6 +136,7 @@ export function LiveTracker({
         </div>
       </div>
 
+      <PhaseStepper />
       <KeystoneInput assets={assets} />
 
       <nav className="live-tabs" aria-label="Tracker sections">

@@ -35,8 +35,6 @@ import {
 } from "@/lib/engine/synergyExplanation";
 import type { CoverageRowDto } from "@/lib/engine/buildRecommendationDto";
 
-export { CORE_ROLE_LABEL };
-
 export type CustomBuildWarning = {
   kind:
     | "missing-core-role"

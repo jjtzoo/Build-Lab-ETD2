@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "verifiedThrough": "2026-09-11",
+  "currency": "gold",
+  "note": "SPOT-CHECK. Arrow and Cannon are the non-elemental starter towers, always buildable regardless of element picks. Sourced from the Steam beginner's guide, patch notes ('Arrow damage 60 / Cannon damage 70 / cost 75'), and the dev DPS-Gold sheet ('Cannon 75g, upgrades into any elemental tower'). Treated here as flat single-tier seed towers: you build one for 75g, then upgrade it into a Level 1 element tower and follow that tower's own path. Damage type is Composite. Replace any wrong number in this one file.",
+  "towers": [
+    {
+      "id": "arrow",
+      "name": "Arrow",
+      "damageType": "Composite",
+      "cost": 75,
+      "shape": "single-target"
+    },
+    {
+      "id": "cannon",
+      "name": "Cannon",
+      "damageType": "Composite",
+      "cost": 75,
+      "shape": "aoe"
+    }
+  ]
+}

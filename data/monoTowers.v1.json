@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "verifiedThrough": "2026-09-11",
+  "currency": "gold",
+  "costSemantics": "cumulative-minimum-field-cost",
+  "note": "SPOT-CHECK. Mono / single-element towers, one per element. Buildable at Level N in normal play when that element is held at allocation level N (1-3). Level 4 needs Pure Essence and is the separate endgame layer (data/endGameTowerFacts.v1.json). Per-level gold from the dev DPS-Gold sheet, which lists Fire and Nature single-element towers at 175 / 675 / 2500 for L1/L2/L3; assumed uniform across all six elements. Each mono tower deals its own element's damage. Replace any wrong number in this one file; if costs differ per element, expand 'costsByLevel' into a per-tower field.",
+  "costsByLevel": [175, 675, 2500],
+  "maxLevel": 3,
+  "towers": [
+    { "id": "mono-light", "name": "Light", "element": "Light" },
+    { "id": "mono-darkness", "name": "Darkness", "element": "Darkness" },
+    { "id": "mono-water", "name": "Water", "element": "Water" },
+    { "id": "mono-fire", "name": "Fire", "element": "Fire" },
+    { "id": "mono-nature", "name": "Nature", "element": "Nature" },
+    { "id": "mono-earth", "name": "Earth", "element": "Earth" }
+  ]
+}

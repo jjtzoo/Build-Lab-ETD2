@@ -10,6 +10,7 @@ import {
   endGameReadiness,
   nextPickOptions,
 } from "@/lib/engine/liveGame";
+import { EssencePicker } from "@/components/live/EssencePicker";
 import { useLiveGame } from "@/components/live/store";
 
 const STATUS_MARK: Record<string, string> = {
@@ -25,6 +26,7 @@ const STATUS_MARK: Record<string, string> = {
 export function CoreRolePanel({ assets }: { assets: BuildLabAssets }) {
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
+  const phase = useLiveGame((s) => s.phase);
 
   const roles = useMemo(
     () => coreRoleStatus(allocation, built),
@@ -35,8 +37,8 @@ export function CoreRolePanel({ assets }: { assets: BuildLabAssets }) {
     [allocation],
   );
   const endGame = useMemo(
-    () => endGameReadiness(allocation, null),
-    [allocation],
+    () => endGameReadiness(allocation, null, phase, built),
+    [allocation, phase, built],
   );
 
   return (
@@ -115,19 +117,27 @@ export function CoreRolePanel({ assets }: { assets: BuildLabAssets }) {
         data-unlocked={endGame.unlocked || undefined}
       >
         <h4>End Game</h4>
-        {endGame.unlocked ? (
+        {endGame.essenceAvailable > 0 ? (
           <p>
-            {endGame.access.pureCandidates
-              .map((candidate) => candidate.element)
-              .join(", ")}
-            {endGame.access.periodicCandidate
-              ? `${endGame.access.pureCandidates.length ? " · " : ""}Periodic`
-              : ""}{" "}
-            available · {endGame.access.essenceUsesAvailable} essence
+            Essence {endGame.essenceSpent} / {endGame.essenceAvailable} ·{" "}
+            {endGame.unlocked
+              ? `${endGame.access.pureCandidates
+                  .map((candidate) => candidate.element)
+                  .join(", ")}${
+                  endGame.access.periodicCandidate
+                    ? `${endGame.access.pureCandidates.length ? " · " : ""}Periodic`
+                    : ""
+                }`
+              : "no option unlocked — need an element at III or all six at I"}
           </p>
         ) : (
-          <p className="live-locked-need">{endGame.requirement}</p>
+          <p className="live-locked-need">
+            {endGame.unlocked
+              ? "Options are in reach — Essence arrives at the last phase (~wave 50)."
+              : endGame.requirement}
+          </p>
         )}
+        <EssencePicker assets={assets} />
       </div>
     </section>
   );

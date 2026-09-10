@@ -2,34 +2,51 @@
 
 import { useMemo } from "react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
-import { TowerIcon, gold, roman } from "@/components/build-lab/primitives";
+import {
+  ElementIcon,
+  TowerIcon,
+  gold,
+  roman,
+} from "@/components/build-lab/primitives";
 import { getTower } from "@/lib/domain/towerCatalog";
 import { getEndGameTowerFact } from "@/lib/domain/endGameTowerFacts";
 import type { EndGameTowerId } from "@/lib/domain/endGameTower";
-import { resolveNormalTowerCost } from "@/lib/domain/towerEconomics";
-import { deriveGoldSpent, isEndGameTowerId } from "@/lib/engine/liveGame";
+import {
+  getBasicTower,
+  getMonoTower,
+  isBasicTowerId,
+  isMonoTowerId,
+  MONO_MAX_LEVEL,
+} from "@/lib/domain/auxiliaryTowers";
+import type { BasicTowerId, MonoTowerId } from "@/lib/domain/auxiliaryTowers";
+import {
+  deriveGoldSpent,
+  isEndGameTowerId,
+  resolveLiveTowerCost,
+} from "@/lib/engine/liveGame";
 import { useLiveGame } from "@/components/live/store";
 
 function towerName(towerId: string): string {
-  return isEndGameTowerId(towerId)
-    ? getEndGameTowerFact(towerId as EndGameTowerId).name
-    : getTower(towerId).name;
+  if (isEndGameTowerId(towerId)) {
+    return getEndGameTowerFact(towerId as EndGameTowerId).name;
+  }
+  if (isBasicTowerId(towerId)) {
+    return getBasicTower(towerId as BasicTowerId).name;
+  }
+  if (isMonoTowerId(towerId)) {
+    return getMonoTower(towerId as MonoTowerId).name;
+  }
+  return getTower(towerId).name;
 }
 
 function maxLevelFor(towerId: string): number {
-  return isEndGameTowerId(towerId) ? 1 : getTower(towerId).maxLevel;
+  if (isMonoTowerId(towerId)) return MONO_MAX_LEVEL;
+  if (isEndGameTowerId(towerId) || isBasicTowerId(towerId)) return 1;
+  return getTower(towerId).maxLevel;
 }
 
 function rowCost(towerId: string, level: number, quantity: number): number {
-  if (isEndGameTowerId(towerId)) {
-    return (
-      getEndGameTowerFact(towerId as EndGameTowerId).minimumFieldCost *
-      quantity
-    );
-  }
-  return (
-    resolveNormalTowerCost(towerId, level).minimumFieldCost * quantity
-  );
+  return resolveLiveTowerCost(towerId, level) * quantity;
 }
 
 /**
@@ -72,12 +89,22 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
             );
             return (
               <li key={entry.towerId} className="live-field-row">
-                <TowerIcon
-                  towerId={entry.towerId}
-                  name={towerName(entry.towerId)}
-                  assets={assets}
-                  size={28}
-                />
+                {isMonoTowerId(entry.towerId) ? (
+                  <ElementIcon
+                    element={
+                      getMonoTower(entry.towerId as MonoTowerId).element
+                    }
+                    assets={assets}
+                    size={24}
+                  />
+                ) : (
+                  <TowerIcon
+                    towerId={entry.towerId}
+                    name={towerName(entry.towerId)}
+                    assets={assets}
+                    size={28}
+                  />
+                )}
                 <span className="live-field-name">
                   {towerName(entry.towerId)}
                 </span>
