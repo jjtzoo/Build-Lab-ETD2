@@ -181,7 +181,7 @@ export function BuildLab({
         Skip to build result
       </a>
 
-      <LabHeader current="recommend" />
+      <LabHeader current="build-lab" />
 
       <div className="intro">
         <div>

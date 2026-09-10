@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { FeedbackDialog } from "@/components/build-lab/FeedbackDialog";
 
-type LabSurface = "recommend" | "theorycraft";
+type LabSurface = "build-lab" | "theorycraft" | "live";
 
 /** Shared header + primary navigation for every Build Lab surface. */
 export function LabHeader({ current }: { current: LabSurface }) {
@@ -11,13 +11,13 @@ export function LabHeader({ current }: { current: LabSurface }) {
       <Link href="/" className="wordmark">
         ELEMENT TD 2 <span>BUILD LAB</span>
       </Link>
-      <nav className="lab-nav" aria-label="Build Lab sections">
+      <nav className="lab-nav" aria-label="Sections">
         <Link
-          href="/"
+          href="/build-lab"
           className="lab-nav-link"
-          aria-current={current === "recommend" ? "page" : undefined}
+          aria-current={current === "build-lab" ? "page" : undefined}
         >
-          Recommend
+          Build Lab
         </Link>
         <Link
           href="/theorycraft"
@@ -25,6 +25,13 @@ export function LabHeader({ current }: { current: LabSurface }) {
           aria-current={current === "theorycraft" ? "page" : undefined}
         >
           Theory Craft
+        </Link>
+        <Link
+          href="/live"
+          className="lab-nav-link"
+          aria-current={current === "live" ? "page" : undefined}
+        >
+          Live Tracking
         </Link>
       </nav>
     </header>

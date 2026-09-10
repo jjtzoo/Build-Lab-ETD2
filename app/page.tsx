@@ -1,32 +1,106 @@
-import { BuildLab } from "@/components/build-lab/BuildLab";
+import type { Metadata } from "next";
+import { LabFooter } from "@/components/build-lab/LabChrome";
 import { resolveBuildLabAssets } from "@/components/build-lab/assetResolver";
+import { buildRecommendationSetDto } from "@/lib/engine/buildRecommendationDto";
 import {
-  CURATED_ANCHORS,
-  getAnchorAssumedAllocation,
-} from "@/lib/domain/anchorPolicy";
-import { getTower, TOWERS } from "@/lib/domain/towerCatalog";
-import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
-import { maxReachableTowerLevel } from "@/lib/engine/allocation";
+  FeatureCarousel,
+  type CarouselItem,
+} from "@/components/landing/FeatureCarousel";
+import {
+  BuildLabPreview,
+  type BuildLabPreviewData,
+} from "@/components/landing/previews/BuildLabPreview";
+import { TheorycraftPreview } from "@/components/landing/previews/TheorycraftPreview";
+import { LivePreview } from "@/components/landing/previews/LivePreview";
+
+export const metadata: Metadata = {
+  title: "Element TD 2 Build Lab",
+  description:
+    "Three tools for planning an Element TD 2 game — a recommendation engine, a theory-craft sandbox, and live tracking.",
+  authors: [{ name: "JJ Toledo" }],
+  creator: "JJ Toledo (jjtzoo)",
+};
 
 export default function Home() {
-  const anchors = CURATED_ANCHORS.map(({ towerId }) => {
-    const tower = getTower(towerId);
-    const profile = getTowerProfile(towerId);
-    return {
-      ...tower,
-      level: maxReachableTowerLevel(tower, getAnchorAssumedAllocation(towerId)),
-      shape: profile.offense?.damageShape ?? null,
-      profile: profile.offense?.damageProfile ?? null,
-      delivery: profile.offense?.damageDelivery ?? null,
-      scaling: profile.offense?.scalingTriggers ?? [],
-      allocation: getAnchorAssumedAllocation(towerId),
-    };
-  });
+  const assets = resolveBuildLabAssets();
+  const laser = buildRecommendationSetDto("laser").plans[0];
+
+  const buildLabData: BuildLabPreviewData = {
+    anchorId: laser.anchor.id,
+    anchorName: laser.anchor.name,
+    package: laser.package.map((tower) => ({
+      id: tower.id,
+      name: tower.name,
+      level: tower.level,
+    })),
+    synergyTags: laser.synergy.tags,
+    coverage: laser.coverage.rows.map((row) => ({
+      defender: row.defender,
+      multiplier: row.anchorMultiplier,
+      weak: row.isAnchorWeakness,
+    })),
+    keystoneCount: laser.keystoneCount,
+  };
+
+  const items: CarouselItem[] = [
+    {
+      id: "build-lab",
+      eyebrow: "Recommend",
+      title: "Build Lab",
+      blurb:
+        "Pick a main DPS anchor; the engine returns a full plan — package, keystone route, coverage, synergy, End Game.",
+      href: "/build-lab",
+      cta: "Open Build Lab",
+      preview: (
+        <BuildLabPreview data={buildLabData} assets={assets} />
+      ),
+    },
+    {
+      id: "theorycraft",
+      eyebrow: "Sandbox",
+      title: "Theory Craft",
+      blurb:
+        "Build it your way, slot by slot, against the 11-keystone budget — graded with the same engine evidence.",
+      href: "/theorycraft",
+      cta: "Open Theory Craft",
+      preview: <TheorycraftPreview assets={assets} />,
+    },
+    {
+      id: "live",
+      eyebrow: "In progress",
+      title: "Live Tracking",
+      blurb:
+        "Bring a plan into a real game. Tick your picks, see what unlocks, get the one move that matters next.",
+      href: "/live",
+      cta: "See what's coming",
+      badge: "Soon",
+      preview: <LivePreview assets={assets} />,
+    },
+  ];
+
   return (
-    <BuildLab
-      anchors={anchors}
-      names={Object.fromEntries(TOWERS.map((tower) => [tower.id, tower.name]))}
-      assets={resolveBuildLabAssets()}
-    />
+    <main className="landing-shell">
+      <span className="lab-grain" aria-hidden="true" />
+
+      <header className="lab-header">
+        <span className="wordmark">
+          ELEMENT TD 2 <span>BUILD LAB</span>
+        </span>
+        <span className="header-note">Companion tools</span>
+      </header>
+
+      <div className="landing-hero">
+        <p className="eyebrow">Element TD 2</p>
+        <h1>Plan the whole game, three ways.</h1>
+        <p>
+          A recommendation engine, a theory-craft sandbox, and — soon — a
+          live tracker that walks your plan wave by wave.
+        </p>
+      </div>
+
+      <FeatureCarousel items={items} />
+
+      <LabFooter />
+    </main>
   );
 }
