@@ -169,9 +169,18 @@ img {
   border-bottom: 1px solid var(--line);
 }
 .wordmark {
+  display: inline-flex;
+  align-items: center;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.16em;
+}
+.wordmark-mark {
+  width: 26px;
+  height: 26px;
+  margin-right: 12px;
+  border-radius: 6px;
+  flex: none;
 }
 .wordmark span {
   margin-left: 20px;
@@ -182,6 +191,15 @@ img {
 .header-note {
   color: var(--muted);
   font-size: 12.5px;
+}
+.header-aside {
+  display: inline-flex;
+  align-items: center;
+}
+.header-aside .header-note {
+  margin-right: 16px;
+  padding-right: 16px;
+  border-right: 1px solid var(--line);
 }
 
 .intro {
@@ -4711,45 +4729,39 @@ button.mechanic-chip {
    Support rail (Ko-fi) — every page
    ============================================================ */
 
-.support-rail {
-  position: fixed;
-  top: 96px;
-  right: clamp(12px, 4vw, 28px);
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  pointer-events: none;
-}
-.support-pill,
-.support-bubble {
-  pointer-events: auto;
-}
-.support-pill {
+/* Inline header link — the always-visible ask */
+.support-link {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 13px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
-  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
-  backdrop-filter: blur(8px);
-  font-size: 12px;
-  font-weight: 600;
+  gap: 6px;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: color 160ms var(--ease);
+}
+.support-link:hover {
   color: var(--text-2);
-  transition:
-    border-color 160ms var(--ease),
-    color 160ms var(--ease);
 }
-.support-pill:hover {
-  border-color: var(--focus);
-  color: var(--text);
+.support-link .support-mark {
+  flex: none;
+  opacity: 0.85;
 }
-.support-pill-mark {
-  font-size: 13px;
+.lab-nav-support {
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+}
+
+/* Delayed corner note — mounted once at the app root */
+.support-rail {
+  position: fixed;
+  bottom: clamp(12px, 4vw, 24px);
+  right: clamp(12px, 4vw, 24px);
+  z-index: 60;
+  pointer-events: none;
 }
 .support-bubble {
+  pointer-events: auto;
   position: relative;
   max-width: 300px;
   padding: 14px 16px 13px;
@@ -4762,7 +4774,7 @@ button.mechanic-chip {
 @keyframes support-in {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(8px);
   }
 }
 .support-bubble p {
@@ -4791,17 +4803,21 @@ button.mechanic-chip {
 
 @media (max-width: 640px) {
   .support-rail {
-    top: auto;
     bottom: 12px;
     right: 12px;
     left: 12px;
-    align-items: stretch;
-  }
-  .support-pill {
-    align-self: flex-end;
   }
   .support-bubble {
     max-width: none;
+  }
+  /* Header gets tight on phones — the footer link + corner note carry it there. */
+  .support-link {
+    display: none;
+  }
+  .header-aside .header-note {
+    margin-right: 0;
+    padding-right: 0;
+    border-right: 0;
   }
 }
 

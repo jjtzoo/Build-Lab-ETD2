@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FeedbackDialog } from "@/components/build-lab/FeedbackDialog";
+import { SupportLink } from "@/components/SupportRail";
 
 type LabSurface = "build-lab" | "theorycraft" | "live";
 
@@ -9,6 +10,15 @@ export function LabHeader({ current }: { current: LabSurface }) {
   return (
     <header className="lab-header">
       <Link href="/" className="wordmark">
+        <Image
+          className="wordmark-mark"
+          src="/branding/buildlab-icon.png"
+          alt=""
+          width={26}
+          height={26}
+          sizes="26px"
+          priority
+        />
         ELEMENT TD 2 <span>BUILD LAB</span>
       </Link>
       <nav className="lab-nav" aria-label="Sections">
@@ -33,6 +43,7 @@ export function LabHeader({ current }: { current: LabSurface }) {
         >
           Live Tracking
         </Link>
+        <SupportLink className="lab-nav-support" />
       </nav>
     </header>
   );

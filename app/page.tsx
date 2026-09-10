@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { LabFooter } from "@/components/build-lab/LabChrome";
 import { resolveBuildLabAssets } from "@/components/build-lab/assetResolver";
 import { buildRecommendationSetDto } from "@/lib/engine/buildRecommendationDto";
@@ -12,6 +13,7 @@ import {
 } from "@/components/landing/previews/BuildLabPreview";
 import { TheorycraftPreview } from "@/components/landing/previews/TheorycraftPreview";
 import { LivePreview } from "@/components/landing/previews/LivePreview";
+import { SupportLink } from "@/components/SupportRail";
 
 export const metadata: Metadata = {
   title: "Element TD 2 Build Lab",
@@ -67,13 +69,12 @@ export default function Home() {
     },
     {
       id: "live",
-      eyebrow: "In progress",
+      eyebrow: "Track",
       title: "Live Tracking",
       blurb:
         "Bring a plan into a real game. Tick your picks, see what unlocks, get the one move that matters next.",
       href: "/live",
-      cta: "See what's coming",
-      badge: "Soon",
+      cta: "Open Live Tracking",
       preview: <LivePreview assets={assets} />,
     },
   ];
@@ -84,17 +85,29 @@ export default function Home() {
 
       <header className="lab-header">
         <span className="wordmark">
+          <Image
+            className="wordmark-mark"
+            src="/branding/buildlab-icon.png"
+            alt=""
+            width={26}
+            height={26}
+            sizes="26px"
+            priority
+          />
           ELEMENT TD 2 <span>BUILD LAB</span>
         </span>
-        <span className="header-note">Companion tools</span>
+        <span className="header-aside">
+          <span className="header-note">Companion tools</span>
+          <SupportLink />
+        </span>
       </header>
 
       <div className="landing-hero">
         <p className="eyebrow">Element TD 2</p>
         <h1>Plan the whole game, three ways.</h1>
         <p>
-          A recommendation engine, a theory-craft sandbox, and — soon — a
-          live tracker that walks your plan wave by wave.
+          A recommendation engine, a theory-craft sandbox, and a live
+          tracker that walks your plan wave by wave.
         </p>
       </div>
 
