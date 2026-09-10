@@ -8,7 +8,7 @@ import { getTower } from "@/lib/domain/towerCatalog";
 import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
 import { getTowerMechanicFacts } from "@/lib/domain/towerMechanicFacts";
 import { ELEMENT_MATCHUPS } from "@/lib/domain/elementMatchupCatalog";
-import type { CoreRole } from "@/lib/domain/roles";
+import { CORE_ROLE_LABEL, type CoreRole } from "@/lib/domain/roles";
 
 import {
   deriveAllocation,
@@ -35,12 +35,7 @@ import {
 } from "@/lib/engine/synergyExplanation";
 import type { CoverageRowDto } from "@/lib/engine/buildRecommendationDto";
 
-export const CORE_ROLE_LABEL: Record<CoreRole, string> = {
-  "main-dps": "Main DPS",
-  slow: "Slow",
-  "damage-amp": "Damage Amp",
-  buff: "Buff",
-};
+export { CORE_ROLE_LABEL };
 
 export type CustomBuildWarning = {
   kind:

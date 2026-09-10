@@ -3099,6 +3099,90 @@ button.mechanic-chip {
   font-size: 20px;
   font-weight: 300;
 }
+.tc-slot-portrait-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.tc-slot-portrait[tabindex] {
+  cursor: help;
+}
+
+/* hover / focus summary popover */
+.tc-summary {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  width: 258px;
+  z-index: 30;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 140ms var(--ease),
+    transform 140ms var(--ease);
+}
+.tc-slot-portrait-wrap:hover .tc-summary,
+.tc-slot-portrait-wrap:focus-within .tc-summary {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+.tc-summary-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.tc-summary-head strong {
+  font-size: 14px;
+  color: var(--text);
+}
+.tc-summary-head .mono {
+  color: var(--muted);
+  font-size: 12px;
+}
+.tc-summary-line {
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 0;
+}
+.tc-summary-recipe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 0;
+}
+.tc-summary-recipe > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.tc-summary-mechs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 3px 0 0;
+}
+.tc-summary-chip {
+  font-size: 10.5px;
+  color: var(--text-2);
+  background: var(--surface-internal);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
 .tc-slot-controls {
   display: flex;
   gap: 10px;
@@ -3507,5 +3591,16 @@ button.mechanic-chip {
   }
   .tc-alloc-count {
     align-items: flex-start;
+  }
+  .tc-summary {
+    left: 0;
+    right: auto;
+    top: calc(100% + 8px);
+    transform: none;
+    width: min(258px, 78vw);
+  }
+  .tc-slot-portrait-wrap:hover .tc-summary,
+  .tc-slot-portrait-wrap:focus-within .tc-summary {
+    transform: none;
   }
 }

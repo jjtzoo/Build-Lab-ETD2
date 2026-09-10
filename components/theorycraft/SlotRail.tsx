@@ -4,6 +4,15 @@ import { useMemo } from "react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { TowerIcon, roman } from "@/components/build-lab/primitives";
 import type { CombinationClass } from "@/lib/domain/tower";
+import { getTower } from "@/lib/domain/towerCatalog";
+import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
+import { TowerSummary } from "@/components/theorycraft/TowerSummary";
+import {
+  CORE_ROLE_LABEL,
+  CORE_ROLE_PRIORITY,
+  SUPPORT_ROLE_LABEL,
+  type CoreRole,
+} from "@/lib/domain/roles";
 import {
   useTheoryCraft,
   selectCandidates,
@@ -18,6 +27,22 @@ const KIND_LABEL: Record<Slot["kind"], string> = {
 };
 
 const COMBINATIONS: readonly CombinationClass[] = ["Dual", "Trio", "Quad"];
+
+/** Role → group order key; towers with no core role sort last. */
+const ROLE_ORDER: readonly (CoreRole | "support")[] = [
+  ...CORE_ROLE_PRIORITY,
+  "support",
+];
+
+function primaryRole(towerId: string): CoreRole | "support" {
+  return getTowerProfile(towerId).coreRoles[0] ?? "support";
+}
+
+function roleLabel(role: CoreRole | "support"): string {
+  return role === "support"
+    ? SUPPORT_ROLE_LABEL
+    : CORE_ROLE_LABEL[role];
+}
 
 function SlotRow({
   slot,
@@ -44,13 +69,30 @@ function SlotRow({
     [slots, slot.id],
   );
 
+  // Group by role first (Main DPS / Slow / Damage Amp / Buff / Support),
+  // then by combination — every group still names its Dual/Trio/Quad tag.
   const grouped = useMemo(() => {
-    return COMBINATIONS.map((combination) => ({
-      combination,
-      items: candidates.filter(
-        (candidate) => candidate.tower.combination === combination,
-      ),
-    })).filter((group) => group.items.length > 0);
+    const groups: {
+      key: string;
+      label: string;
+      items: typeof candidates;
+    }[] = [];
+    for (const role of ROLE_ORDER) {
+      for (const combination of COMBINATIONS) {
+        const items = candidates.filter(
+          (candidate) =>
+            candidate.tower.combination === combination &&
+            primaryRole(candidate.tower.id) === role,
+        );
+        if (items.length === 0) continue;
+        groups.push({
+          key: `${role}-${combination}`,
+          label: `${roleLabel(role)} · ${combination}`,
+          items,
+        });
+      }
+    }
+    return groups;
   }, [candidates]);
 
   const minLevel = slot.kind === "anchor" ? 2 : 1;
@@ -59,9 +101,7 @@ function SlotRow({
     levelOptions.push(level);
   }
 
-  const tower = slot.towerId
-    ? candidates.find((c) => c.tower.id === slot.towerId)?.tower ?? null
-    : null;
+  const tower = slot.towerId ? getTower(slot.towerId) : null;
 
   return (
     <li
@@ -99,16 +139,33 @@ function SlotRow({
       </button>
 
       <div className="tc-slot-body">
-        <span className="tc-slot-portrait" aria-hidden="true">
-          {slot.towerId ? (
-            <TowerIcon
-              towerId={slot.towerId}
-              name={tower?.name ?? slot.towerId}
+        <span className="tc-slot-portrait-wrap">
+          <span
+            className="tc-slot-portrait"
+            tabIndex={slot.towerId ? 0 : undefined}
+            aria-label={
+              tower && slot.level
+                ? `${tower.name} level ${slot.level} — properties`
+                : undefined
+            }
+          >
+            {slot.towerId ? (
+              <TowerIcon
+                towerId={slot.towerId}
+                name={tower?.name ?? slot.towerId}
+                assets={assets}
+                size={44}
+              />
+            ) : (
+              <span className="tc-slot-portrait-empty">+</span>
+            )}
+          </span>
+          {tower && slot.level && (
+            <TowerSummary
+              towerId={tower.id}
+              level={slot.level}
               assets={assets}
-              size={44}
             />
-          ) : (
-            <span className="tc-slot-portrait-empty">+</span>
           )}
         </span>
 
@@ -130,10 +187,7 @@ function SlotRow({
                   : "Nothing fits the remaining budget"}
               </option>
               {grouped.map((group) => (
-                <optgroup
-                  key={group.combination}
-                  label={group.combination}
-                >
+                <optgroup key={group.key} label={group.label}>
                   {group.items.map((candidate) => (
                     <option
                       key={candidate.tower.id}

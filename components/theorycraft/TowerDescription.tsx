@@ -11,8 +11,6 @@ import {
 import { getTower } from "@/lib/domain/towerCatalog";
 import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
 import { getTowerMechanicFacts } from "@/lib/domain/towerMechanicFacts";
-import { ELEMENT_MATCHUPS } from "@/lib/domain/elementMatchupCatalog";
-import { ELEMENTS, type ElementName } from "@/lib/domain/elements";
 import {
   DAMAGE_DELIVERY_LABEL,
   DAMAGE_PROFILE_LABEL,
@@ -20,40 +18,10 @@ import {
   SCALING_TRIGGER_LABEL,
 } from "@/lib/domain/attributeLabels";
 import { MECHANIC_TAG } from "@/lib/engine/synergyExplanation";
-import { CORE_ROLE_LABEL } from "@/lib/engine/customBuildAnalysis";
+import { CORE_ROLE_LABEL } from "@/lib/domain/roles";
 import { resolveNormalTowerCost } from "@/lib/domain/towerEconomics";
 import { useTheoryCraft } from "@/components/theorycraft/store";
-
-function matchupNote(element: ElementName): {
-  strong: ElementName | null;
-  weak: ElementName | null;
-} {
-  const row = ELEMENT_MATCHUPS[element];
-  let strong: ElementName | null = null;
-  let weak: ElementName | null = null;
-  for (const defender of ELEMENTS) {
-    if (row[defender] === 2) strong = defender;
-    if (row[defender] === 0.5) weak = defender;
-  }
-  return { strong, weak };
-}
-
-function magnitudeText(
-  unit: string,
-  value: number,
-): string {
-  switch (unit) {
-    case "percent":
-    case "percent-damage":
-      return `${value}%`;
-    case "percent-speed-increase":
-      return `+${value}% speed`;
-    case "seconds":
-      return `${value}s`;
-    default:
-      return String(value);
-  }
-}
+import { matchupNote, magnitudeText } from "@/components/theorycraft/towerFacts";
 
 export function TowerDescription({
   assets,
