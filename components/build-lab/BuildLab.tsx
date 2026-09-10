@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
+import { LabHeader, LabFooter } from "@/components/build-lab/LabChrome";
 import {
   resolvePreviewPlan,
   resolveVisiblePlan,
@@ -21,7 +20,6 @@ import { EndGameSection } from "@/components/build-lab/EndGameSection";
 import { TowerPackage } from "@/components/build-lab/TowerPackage";
 import { CoverageAnalysis } from "@/components/build-lab/CoverageAnalysis";
 import { SynergyNetwork } from "@/components/build-lab/SynergyNetwork";
-import { FeedbackDialog } from "@/components/build-lab/FeedbackDialog";
 
 export function BuildLab({
   anchors,
@@ -183,14 +181,7 @@ export function BuildLab({
         Skip to build result
       </a>
 
-      <header className="lab-header">
-        <Link href="/" className="wordmark">
-          ELEMENT TD 2 <span>BUILD LAB</span>
-        </Link>
-        <span className="header-note">
-          Strategy planner
-        </span>
-      </header>
+      <LabHeader current="recommend" />
 
       <div className="intro">
         <div>
@@ -363,46 +354,7 @@ export function BuildLab({
           )}
       </div>
 
-      <footer className="lab-footer">
-        <span className="footer-product">
-          Element TD 2 Build Lab
-        </span>
-        <span className="footer-signature">
-          <Image
-            src="/branding/jjtzoo-general-logo.png"
-            alt="jjtzoo"
-            width={1254}
-            height={1254}
-          />
-        </span>
-        <span className="footer-copy">
-          © 2026 JJ Toledo
-        </span>
-        <div className="footer-support">
-          <span>
-            Enjoying Build Lab? Help cover hosting and keep the Lab free for
-            everyone.
-          </span>
-          <a
-            href="https://ko-fi.com/jjtzoo"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Support the Lab on Ko-fi (opens in a new tab)"
-            className="footer-support-link"
-          >
-            Support the Lab
-          </a>
-        </div>
-        <div className="footer-feedback">
-          <span>Have a thought about the Lab?</span>
-          <FeedbackDialog />
-        </div>
-        <span className="footer-disclaimer">
-          Recommendations explain a plan — placement and execution remain
-          yours. Element TD 2 and its tower art are property of their
-          respective owners; this is an unofficial fan tool.
-        </span>
-      </footer>
+      <LabFooter />
     </main>
   );
 }

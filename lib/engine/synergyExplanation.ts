@@ -146,104 +146,118 @@ function availabilityClass(
   );
 }
 
+/**
+ * Builds one graded, human-readable synergy relation from a confirmed
+ * provider→consumer mechanic match. Shared by the search pipeline
+ * ({@link explainSynergyRelations}) and the hand-built-build analysis, so
+ * both describe and grade a relationship the same way.
+ */
+export function buildSynergyRelation(input: {
+  providerTowerId: string;
+  consumerTowerId: string;
+  signal: string;
+  effectiveStrength: number;
+  contribution: "full" | "diminished";
+  availabilityClass: MechanicAvailabilityClass;
+  anchorTowerId: string;
+}): SynergyRelationExplanation {
+  const providerName = getTower(
+    input.providerTowerId as TowerId,
+  ).name;
+  const consumerName = getTower(
+    input.consumerTowerId as TowerId,
+  ).name;
+  const cls = input.availabilityClass;
+
+  const override =
+    PAIR_OVERRIDE[
+      `${input.providerTowerId}>${input.consumerTowerId}>${input.signal}`
+    ];
+  const template = SIGNAL_TEMPLATE[input.signal];
+  let text =
+    override ??
+    (template
+      ? template(providerName, consumerName)
+      : `${providerName} supports ${consumerName}.`);
+
+  if (
+    cls === "burst-window" ||
+    cls === "triggered" ||
+    cls === "periodic"
+  ) {
+    text += " The effect is not always active.";
+  }
+  if (input.contribution === "diminished") {
+    text +=
+      " Another provider already covers most of this, so the added effect is limited.";
+  }
+
+  const consumerIsAnchor =
+    input.consumerTowerId === input.anchorTowerId;
+
+  return {
+    providerId: input.providerTowerId as TowerId,
+    providerName,
+    consumerId: input.consumerTowerId as TowerId,
+    consumerName,
+    signal: input.signal,
+    mechanicTag:
+      MECHANIC_TAG[input.signal] ?? input.signal,
+    availabilityTag: AVAILABILITY_TAG[cls],
+    contribution: input.contribution,
+    effectiveStrength: input.effectiveStrength,
+    consumerIsAnchor,
+    qualification: qualifySynergyRelation({
+      signal: input.signal,
+      effectiveStrength: input.effectiveStrength,
+      contribution: input.contribution,
+      availabilityClass: cls,
+      consumerIsAnchor,
+    }),
+    text,
+  };
+}
+
+/** Orders synergy relations strongest-first (tier, then strength, then name). */
+export function sortSynergyRelations(
+  relations: readonly SynergyRelationExplanation[],
+): readonly SynergyRelationExplanation[] {
+  return [...relations].sort(
+    (a, b) =>
+      compareTier(
+        a.qualification.tier,
+        b.qualification.tier,
+      ) ||
+      b.effectiveStrength - a.effectiveStrength ||
+      a.consumerName.localeCompare(b.consumerName),
+  );
+}
+
 export function explainSynergyRelations(
   evidence: CorePackageEvidence,
 ): readonly SynergyRelationExplanation[] {
-  return evidence.synergy.applicable
-    .filter(
-      (match) =>
-        match.contribution !== "ignored",
-    )
-    .map((match) => {
-      const providerName = getTower(
-        match.providerTowerId as TowerId,
-      ).name;
-      const consumerName = getTower(
-        match.consumerTowerId as TowerId,
-      ).name;
-      const cls = availabilityClass(
-        evidence,
-        match.providerTowerId,
-        match.signal,
-      );
-
-      const override =
-        PAIR_OVERRIDE[
-          `${match.providerTowerId}>${match.consumerTowerId}>${match.signal}`
-        ];
-      const template =
-        SIGNAL_TEMPLATE[match.signal];
-      let text =
-        override ??
-        (template
-          ? template(
-              providerName,
-              consumerName,
-            )
-          : `${providerName} supports ${consumerName}.`);
-
-      if (
-        cls === "burst-window" ||
-        cls === "triggered" ||
-        cls === "periodic"
-      ) {
-        text +=
-          " The effect is not always active.";
-      }
-      if (
-        match.contribution ===
-        "diminished"
-      ) {
-        text +=
-          " Another provider already covers most of this, so the added effect is limited.";
-      }
-
-      const contribution =
-        match.contribution as "full" | "diminished";
-      const consumerIsAnchor =
-        match.consumerTowerId ===
-        evidence.anchorTowerId;
-
-      return {
-        providerId:
-          match.providerTowerId as TowerId,
-        providerName,
-        consumerId:
-          match.consumerTowerId as TowerId,
-        consumerName,
-        signal: match.signal,
-        mechanicTag:
-          MECHANIC_TAG[match.signal] ??
-          match.signal,
-        availabilityTag:
-          AVAILABILITY_TAG[cls],
-        contribution,
-        effectiveStrength:
-          match.effectiveStrength,
-        consumerIsAnchor,
-        qualification: qualifySynergyRelation({
+  return sortSynergyRelations(
+    evidence.synergy.applicable
+      .filter(
+        (match) => match.contribution !== "ignored",
+      )
+      .map((match) =>
+        buildSynergyRelation({
+          providerTowerId: match.providerTowerId,
+          consumerTowerId: match.consumerTowerId,
           signal: match.signal,
-          effectiveStrength:
-            match.effectiveStrength,
-          contribution,
-          availabilityClass: cls,
-          consumerIsAnchor,
+          effectiveStrength: match.effectiveStrength,
+          contribution:
+            match.contribution as "full" | "diminished",
+          availabilityClass: availabilityClass(
+            evidence,
+            match.providerTowerId,
+            match.signal,
+          ),
+          anchorTowerId: evidence.anchorTowerId,
         }),
-        text,
-      };
-    })
-    .sort(
-      (a, b) =>
-        compareTier(
-          a.qualification.tier,
-          b.qualification.tier,
-        ) ||
-        b.effectiveStrength -
-          a.effectiveStrength ||
-        a.consumerName.localeCompare(
-          b.consumerName,
-        ),
-    );
+      ),
+  );
 }
 
 /**
