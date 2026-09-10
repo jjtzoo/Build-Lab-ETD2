@@ -4,20 +4,61 @@ import type { TowerId } from "./tower";
 /**
  * A build in a transport-stable shape that any Build Lab surface can
  * produce and any other can consume — the recommendation flow, the
- * hand-built "theory craft" flow, and (later) the live game tracker.
- * Keep the schema string bumped whenever the shape changes.
+ * hand-built "theory craft" flow, and the live game tracker.
+ *
+ * Schema history:
+ * - v1: anchor + towers + allocation. Still accepted by the decoder.
+ * - v2: adds optional coaching fields (`progression`, `coverageWeaknesses`,
+ *   `endGame`). Build Lab fills them from its engine plan; Theory Craft
+ *   omits them (no engine plan) and Live Tracking then coaches in
+ *   standalone / core-role mode.
  */
+
+export type PortableStage = "EARLY" | "MID" | "LATE" | "END_GAME";
+
+export type PortableTowerAction = {
+  kind: "build" | "upgrade";
+  towerId: TowerId;
+  towerName: string;
+  toLevel: number;
+  roles: readonly string[];
+};
+
+export type PortableKeystoneStep = {
+  element: ElementName;
+  from: number;
+  to: number;
+  unlocks: readonly PortableTowerAction[];
+};
+
+export type PortableProgressionStage = {
+  stage: PortableStage;
+  headline: string;
+  reason: string;
+  primaryAction: PortableTowerAction | null;
+  keystoneSteps: readonly PortableKeystoneStep[];
+};
+
 export type PortableBuild = {
-  schema: "etd2-build/1";
+  schema: "etd2-build/1" | "etd2-build/2";
   source: "engine" | "theorycraft";
   anchorTowerId: TowerId;
   towers: readonly { towerId: TowerId; level: number }[];
   allocation: Record<ElementName, number>;
   createdAt: string;
+
+  /** v2, optional — present only for `source: "engine"`. */
+  progression?: readonly PortableProgressionStage[];
+  /** v2, optional — armour elements the plan leaves uncovered. */
+  coverageWeaknesses?: readonly ElementName[];
+  /** v2, optional — the plan's End Game selections. */
+  endGame?: readonly { name: string; quantity: number }[];
 };
 
-/** localStorage key the (future) live game tracker reads for a handed-off build. */
+/** localStorage key the live game tracker reads for a handed-off build. */
 export const PENDING_IMPORT_KEY = "etd2:pending-import";
+
+export const PORTABLE_BUILD_SCHEMA = "etd2-build/2" as const;
 
 function toBase64Url(input: string): string {
   const bytes = new TextEncoder().encode(input);
@@ -57,16 +98,16 @@ export function decodePortableBuild(
 ): PortableBuild | null {
   try {
     const parsed = JSON.parse(fromBase64Url(encoded)) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const build = parsed as PortableBuild;
     if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      (parsed as PortableBuild).schema !== "etd2-build/1" ||
-      typeof (parsed as PortableBuild).anchorTowerId !== "string" ||
-      !Array.isArray((parsed as PortableBuild).towers)
+      (build.schema !== "etd2-build/1" &&
+        build.schema !== "etd2-build/2") ||
+      typeof build.anchorTowerId !== "string" ||
+      !Array.isArray(build.towers)
     ) {
       return null;
     }
-    const build = parsed as PortableBuild;
     if (
       build.towers.some(
         (entry) =>

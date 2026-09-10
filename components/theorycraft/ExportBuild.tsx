@@ -5,6 +5,7 @@ import { ELEMENTS } from "@/lib/domain/elements";
 import {
   encodePortableBuild,
   PENDING_IMPORT_KEY,
+  PORTABLE_BUILD_SCHEMA,
   type PortableBuild,
 } from "@/lib/domain/portableBuild";
 import {
@@ -18,7 +19,7 @@ export function buildPortable(
   allocation: Record<string, number>,
 ): PortableBuild {
   return {
-    schema: "etd2-build/1",
+    schema: PORTABLE_BUILD_SCHEMA,
     source: "theorycraft",
     anchorTowerId: placed[0]?.towerId ?? "",
     towers: placed.map((entry) => ({
@@ -64,15 +65,28 @@ export function ExportBuild() {
     }
   }
 
+  function openInLive() {
+    const portable = buildPortable(placed, allocation);
+    try {
+      window.localStorage.setItem(
+        PENDING_IMPORT_KEY,
+        JSON.stringify(portable),
+      );
+    } catch {
+      /* storage unavailable — the URL still carries it */
+    }
+    window.location.href = `/live?b=${encodePortableBuild(portable)}`;
+  }
+
   return (
     <section className="tc-export lab-section">
       <div className="section-rail">
         <span className="section-index mono">03</span>
         <div>
-          <h3>Export build</h3>
+          <h3>Take it with you</h3>
           <p>
-            Share a link that rebuilds this exact plan. The live game
-            tracker will read it too.
+            Share a link that rebuilds this exact plan, or carry it into a
+            live game.
           </p>
         </div>
       </div>
@@ -91,6 +105,19 @@ export function ExportBuild() {
         >
           {copied ? "Copied" : "Copy link"}
         </button>
+      </div>
+      <div className="tc-export-actions">
+        <button
+          type="button"
+          className="primary-button"
+          onClick={openInLive}
+        >
+          Open in Live Tracker →
+        </button>
+        <span className="tc-export-note">
+          Live Tracking coaches a hand-built plan from your core roles —
+          a Build Lab plan also brings its staged roadmap.
+        </span>
       </div>
     </section>
   );

@@ -7,6 +7,7 @@ import {
   gold,
 } from "@/components/build-lab/primitives";
 import { AlternativeRouteExplorer } from "@/components/build-lab/AlternativeRoutes";
+import { OpenInLive } from "@/components/build-lab/OpenInLive";
 import type { ElementName } from "@/lib/domain/elements";
 
 export function FeaturedBuild({
@@ -136,6 +137,8 @@ export function FeaturedBuild({
           Minimum capital is the gold to field one copy of every tower
           at the shown levels — not expected match spend.
         </p>
+
+        <OpenInLive plan={plan} />
 
         <AlternativeRouteExplorer
           alternatives={alternatives}
