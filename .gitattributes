@@ -1,0 +1,17 @@
+# Line endings are the repository's decision, not each machine's git
+# config. Without this, core.autocrlf differs per clone and the same file
+# shows as wholly rewritten depending on who touched it last.
+* text=auto eol=lf
+
+# Never let the above near binary assets — map screenshots, tower art and
+# fonts must round-trip byte for byte.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.xlsx binary

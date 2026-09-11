@@ -20,3 +20,6 @@ tsconfig.tsbuildinfo
 
 # Real-game reference captures — local evidence, not shipped
 archive games/
+
+# Per-machine Claude Code config: launch ports and local permissions
+.claude/
