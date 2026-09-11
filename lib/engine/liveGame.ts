@@ -5,6 +5,7 @@ import {
 } from "@/lib/domain/elements";
 import type { Tower, TowerId } from "@/lib/domain/tower";
 import { getTower } from "@/lib/domain/towerCatalog";
+import { ELEMENT_MATCHUPS } from "@/lib/domain/elementMatchupCatalog";
 import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
 import {
   CORE_ROLE_LABEL,
@@ -23,9 +24,14 @@ import {
   MONO_TOWERS,
   MONO_MAX_LEVEL,
   getBasicTower,
+  getMonoTower,
   isBasicTowerId,
   isMonoTowerId,
   monoTowerCost,
+} from "@/lib/domain/auxiliaryTowers";
+import type {
+  BasicTowerId,
+  MonoTowerId,
 } from "@/lib/domain/auxiliaryTowers";
 import type {
   PortableBuild,
@@ -36,7 +42,9 @@ import type {
 
 import {
   availableTowers,
+  isTowerAvailable,
   legalNextAllocations,
+  maxReachableTowerLevel,
   totalKeystones,
   MAX_KEYSTONES,
 } from "@/lib/engine/allocation";
@@ -59,11 +67,32 @@ import {
  * and end-game primitives into the shapes the tracker UI renders.
  */
 
+/**
+ * One row of the field log. Rows are identified by tower **and level**: a
+ * player really does hold, say, two Light I alongside one Light II, and
+ * keying on the tower alone made that unrepresentable.
+ */
 export type BuiltTower = {
   towerId: string;
   level: number;
   quantity: number;
 };
+
+/** Stable identity for a field row — also the React key. */
+export function builtRowKey(
+  towerId: string,
+  level: number,
+): string {
+  return `${towerId}@${level}`;
+}
+
+export function isSameBuiltRow(
+  entry: BuiltTower,
+  towerId: string,
+  level: number,
+): boolean {
+  return entry.towerId === towerId && entry.level === level;
+}
 
 const END_GAME_TOWER_IDS: ReadonlySet<string> = new Set(
   END_GAME_TOWER_FACT_CATALOG.facts.map((fact) => fact.towerId),
@@ -110,6 +139,123 @@ export function resolveLiveTowerCost(
     Math.min(tower.maxLevel, Math.round(level)),
   );
   return resolveNormalTowerCost(towerId, clamped).minimumFieldCost;
+}
+
+/** Display name for any loggable tower id — normal, basic, mono or end-game. */
+export function liveTowerName(towerId: string): string {
+  if (isEndGameTowerId(towerId)) {
+    return getEndGameTowerFact(towerId as EndGameTowerId).name;
+  }
+  if (isBasicTowerId(towerId)) {
+    return getBasicTower(towerId as BasicTowerId).name;
+  }
+  if (isMonoTowerId(towerId)) {
+    return getMonoTower(towerId as MonoTowerId).name;
+  }
+  return getTower(towerId).name;
+}
+
+/** Highest level a loggable tower can reach at all (ignores allocation). */
+export function liveTowerMaxLevel(towerId: string): number {
+  if (isMonoTowerId(towerId)) return MONO_MAX_LEVEL;
+  if (isEndGameTowerId(towerId) || isBasicTowerId(towerId)) return 1;
+  return getTower(towerId).maxLevel;
+}
+
+/** Highest level a loggable tower can reach *at this allocation*. */
+export function liveTowerReachableLevel(
+  towerId: string,
+  allocation: ElementAllocation,
+): number {
+  if (isBasicTowerId(towerId)) return 1;
+  if (isMonoTowerId(towerId)) {
+    return Math.min(
+      MONO_MAX_LEVEL,
+      allocation[getMonoTower(towerId).element] ?? 0,
+    );
+  }
+  if (isEndGameTowerId(towerId)) return 1;
+  try {
+    return maxReachableTowerLevel(getTower(towerId), allocation);
+  } catch {
+    return 0;
+  }
+}
+
+const ROMAN_LABEL = ["", "I", "II", "III"] as const;
+
+/**
+ * True when this tower could legitimately be on the field at the current
+ * allocation. Arrow/Cannon are always loggable; a mono tower needs its
+ * element at ≥ I; an end-game tower needs its Pure/Periodic access; a
+ * normal Dual/Trio/Quad needs its recipe satisfied. The field log and the
+ * plan's next-move card both gate on this so a player is never allowed to
+ * log — or told to build — a tower they cannot reach.
+ */
+export function isTowerLoggable(
+  towerId: string,
+  allocation: ElementAllocation,
+): boolean {
+  if (isBasicTowerId(towerId)) return true;
+  if (isMonoTowerId(towerId)) {
+    return (allocation[getMonoTower(towerId).element] ?? 0) >= 1;
+  }
+  if (isEndGameTowerId(towerId)) {
+    return evaluateEndGameAccess(allocation).candidates.some(
+      (candidate) => candidate.towerId === towerId,
+    );
+  }
+  try {
+    return isTowerAvailable(getTower(towerId), allocation);
+  } catch {
+    return false;
+  }
+}
+
+/** Keystones still missing before `towerId` reaches `level`, e.g. ["Darkness II"]. */
+export function towerReachGap(
+  towerId: string,
+  allocation: ElementAllocation,
+  level = 1,
+): readonly string[] {
+  let recipe: readonly ElementName[];
+  try {
+    recipe = getTower(towerId).recipe;
+  } catch {
+    return [];
+  }
+  return recipe
+    .filter((element) => (allocation[element] ?? 0) < level)
+    .map((element) => `${element} ${ROMAN_LABEL[level] ?? level}`);
+}
+
+/**
+ * Field rows that no longer fit the allocation — normal towers logged at a
+ * level (or at all) the current picks can't support, e.g. after undoing a
+ * keystone. The tracker flags these rather than silently keeping a lie.
+ */
+export function staleFieldRows(
+  allocation: ElementAllocation,
+  built: readonly BuiltTower[],
+): readonly BuiltTower[] {
+  return built.filter((entry) => {
+    if (entry.quantity <= 0) return false;
+    if (isAuxiliaryTowerId(entry.towerId)) {
+      return (
+        isMonoTowerId(entry.towerId) &&
+        (allocation[getMonoTower(entry.towerId).element] ?? 0) <
+          entry.level
+      );
+    }
+    try {
+      return (
+        maxReachableTowerLevel(getTower(entry.towerId), allocation) <
+        entry.level
+      );
+    } catch {
+      return false;
+    }
+  });
 }
 
 /** Gold the player has committed, summed from what they logged. */
@@ -208,13 +354,98 @@ export function basicBuildables(
   return out;
 }
 
+// ---------------------------------------------------- loggable towers
+
+export type LoggableTower = {
+  id: string;
+  name: string;
+  /** Highest level fieldable at the current allocation. */
+  maxLevel: number;
+  group: "basic" | "element" | "end-game";
+  role: CoreRole | "support" | null;
+  element: ElementName | null;
+};
+
+/**
+ * One flat, searchable list of everything the player could log right now —
+ * the buildable element towers, Arrow/Cannon + in-reach mono towers, and
+ * any Pure/Periodic already unlocked. Powers the Field view's "log a
+ * tower" search, so logging off the summon moment costs one search + tap.
+ */
+export function loggableTowers(
+  allocation: ElementAllocation,
+): readonly LoggableTower[] {
+  const out: LoggableTower[] = [];
+
+  for (const basic of basicBuildables(allocation)) {
+    out.push({
+      id: basic.id,
+      name: basic.name,
+      maxLevel: basic.maxLevel,
+      group: "basic",
+      role: null,
+      element: basic.element,
+    });
+  }
+
+  for (const group of buildableByRole(allocation)) {
+    for (const { tower, maxLevel } of group.towers) {
+      out.push({
+        id: tower.id,
+        name: tower.name,
+        maxLevel,
+        group: "element",
+        role: group.role,
+        element: tower.damageElement,
+      });
+    }
+  }
+
+  const endGame = evaluateEndGameAccess(allocation);
+  for (const candidate of endGame.candidates) {
+    out.push({
+      id: candidate.towerId,
+      name: getEndGameTowerFact(candidate.towerId as EndGameTowerId).name,
+      maxLevel: 1,
+      group: "end-game",
+      role: null,
+      element:
+        candidate.element === "Composite" ? null : candidate.element,
+    });
+  }
+
+  return out;
+}
+
 // --------------------------------------------------------- game phases
 
 /** Element picks are offered roughly one per 5-wave phase, to wave 55. */
 export const LIVE_PHASE_COUNT = 11;
 
+/**
+ * The wave bracket the player is in, inferred rather than hand-stepped.
+ *
+ * Element TD 2 offers a pick roughly once per 5-wave phase. Normally
+ * `phase === picks spent`. But holding a summon (declining the offered
+ * pick because your field can't yet kill that creep) is common play, so
+ * the two legitimately diverge: `phase = picks + holds`. There is no
+ * upper cap — after the 11th pick the game runs on to the boss.
+ */
+export function derivedPhase(
+  allocation: ElementAllocation,
+  holds: number,
+): number {
+  return totalKeystones(allocation) + Math.max(0, holds);
+}
+
+/** True once every keystone is spent — the tracker's End Game view. */
+export function isEndGame(allocation: ElementAllocation): boolean {
+  return totalKeystones(allocation) >= MAX_KEYSTONES;
+}
+
 export function livePhaseLabel(phase: number): string {
-  const p = Math.max(1, Math.min(LIVE_PHASE_COUNT, phase));
+  const p = Math.max(1, phase);
+  if (p > LIVE_PHASE_COUNT) return "Waves 56+ · Boss";
   const lo = (p - 1) * 5 + 1;
   const hi = p * 5;
   return p === LIVE_PHASE_COUNT
@@ -227,9 +458,75 @@ export function essenceForPhase(phase: number): number {
   return phase >= LIVE_PHASE_COUNT ? 2 : 0;
 }
 
-/** Element picks a player would normally have been offered by this phase. */
-export function expectedPicksForPhase(phase: number): number {
-  return Math.max(0, Math.min(MAX_KEYSTONES, phase));
+// ---------------------------------------------------- coverage gaps
+
+export type CoverageGaps = {
+  /**
+   * Armour types most of your fielded damage is resisted by — a
+   * quantity-weighted average multiplier below ~0.85. A single minor
+   * off-element tower does not paper over a hole here.
+   */
+  weakAgainst: readonly ElementName[];
+  /** Armour types nothing on the field hits for ≥ 2×. */
+  unanswered: readonly ElementName[];
+};
+
+/** The damage element a logged tower actually deals, or null if it has none. */
+function damageElementOf(towerId: string): ElementName | null {
+  if (isMonoTowerId(towerId)) return getMonoTower(towerId).element;
+  if (isEndGameTowerId(towerId)) {
+    const fact = getEndGameTowerFact(towerId as EndGameTowerId);
+    return fact.element === "Composite" ? null : fact.element;
+  }
+  if (isBasicTowerId(towerId)) return null; // Arrow / Cannon are Composite
+  try {
+    return getTower(towerId).damageElement;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Which armour types the player's fielded damage can't handle — the
+ * Nature-into-Fire-armour hole that costs games. Computed from the
+ * `damageElement` of everything on the field against `ELEMENT_MATCHUPS`.
+ */
+export function coverageGaps(
+  built: readonly BuiltTower[],
+): CoverageGaps {
+  const weightByElement = new Map<ElementName, number>();
+  for (const entry of built) {
+    if (entry.quantity <= 0) continue;
+    const element = damageElementOf(entry.towerId);
+    if (!element) continue;
+    weightByElement.set(
+      element,
+      (weightByElement.get(element) ?? 0) + entry.quantity,
+    );
+  }
+  const totalWeight = [...weightByElement.values()].reduce(
+    (sum, weight) => sum + weight,
+    0,
+  );
+  if (totalWeight === 0) {
+    return { weakAgainst: [], unanswered: [] };
+  }
+
+  const weakAgainst: ElementName[] = [];
+  const unanswered: ElementName[] = [];
+  for (const defender of ELEMENTS) {
+    let weighted = 0;
+    let best = 0;
+    for (const [attacker, weight] of weightByElement) {
+      const mult = ELEMENT_MATCHUPS[attacker][defender];
+      weighted += mult * weight;
+      best = Math.max(best, mult);
+    }
+    weighted /= totalWeight;
+    if (weighted < 0.85) weakAgainst.push(defender);
+    if (best < 2) unanswered.push(defender);
+  }
+  return { weakAgainst, unanswered };
 }
 
 // ------------------------------------------------------------ reveal
@@ -320,7 +617,19 @@ export function coreRoleStatus(
   built: readonly BuiltTower[],
 ): readonly CoreRoleLiveStatus[] {
   const feasibility = getCoreRoleFeasibility(allocation);
-  const fielded = built.filter((entry) => entry.quantity > 0);
+  // A row stranded by an undone keystone no longer counts as "built" — it's
+  // flagged out-of-reach in the field view instead of silently satisfying a
+  // role it can no longer back up.
+  const staleKeys = new Set(
+    staleFieldRows(allocation, built).map((entry) =>
+      builtRowKey(entry.towerId, entry.level),
+    ),
+  );
+  const fielded = built.filter(
+    (entry) =>
+      entry.quantity > 0 &&
+      !staleKeys.has(builtRowKey(entry.towerId, entry.level)),
+  );
 
   return feasibility.map((entry) => {
     const builtTowerNames = fielded
@@ -392,6 +701,118 @@ export function endGameReadiness(
   };
 }
 
+// ------------------------------------------- plan without a roadmap
+
+export type PlanTarget = {
+  towerId: TowerId;
+  name: string;
+  level: number;
+  status: "built" | "buildable" | "out-of-reach";
+  /** Keystones still missing, e.g. ["Light III", "Nature III"]. */
+  missing: readonly string[];
+};
+
+const ROMAN = ["", "I", "II", "III"] as const;
+
+/**
+ * Every tower an imported build is aiming for, against what is on the
+ * field now. A Theory Craft build carries its towers and target
+ * allocation but no staged roadmap, so this is what the tracker coaches
+ * from: the target list itself, plus what each one is still waiting on.
+ */
+export function planTargets(
+  plan: PortableBuild | null,
+  allocation: ElementAllocation,
+  built: readonly BuiltTower[],
+): readonly PlanTarget[] {
+  if (!plan) return [];
+  const staleKeys = new Set(
+    staleFieldRows(allocation, built).map((entry) =>
+      builtRowKey(entry.towerId, entry.level),
+    ),
+  );
+  const fielded = built.filter(
+    (entry) =>
+      entry.quantity > 0 &&
+      !staleKeys.has(builtRowKey(entry.towerId, entry.level)),
+  );
+
+  return plan.towers.map((entry) => {
+    const tower = getTower(entry.towerId);
+    const missing = tower.recipe
+      .filter(
+        (element) => (allocation[element] ?? 0) < entry.level,
+      )
+      .map(
+        (element) =>
+          `${element} ${ROMAN[entry.level] ?? entry.level}`,
+      );
+    const onField = fielded.some(
+      (placed) =>
+        placed.towerId === entry.towerId &&
+        placed.level >= entry.level,
+    );
+
+    return {
+      towerId: entry.towerId,
+      name: tower.name,
+      level: entry.level,
+      status: onField
+        ? "built"
+        : missing.length === 0
+          ? "buildable"
+          : "out-of-reach",
+      missing,
+    };
+  });
+}
+
+export type PlanKeystoneRow = {
+  element: ElementName;
+  held: number;
+  planned: number;
+};
+
+export type PlanKeystoneProgress = {
+  rows: readonly PlanKeystoneRow[];
+  heldTotal: number;
+  plannedTotal: number;
+  /** Elements the plan still wants more of, deepest shortfall first. */
+  stillNeeded: readonly ElementName[];
+};
+
+/**
+ * The plan's target allocation measured against the picks actually spent.
+ * Order-independent: the game hands out keystones in its own sequence, so
+ * only the depth held per element matters.
+ */
+export function planKeystoneProgress(
+  plan: PortableBuild | null,
+  allocation: ElementAllocation,
+): PlanKeystoneProgress {
+  const rows = ELEMENTS.map((element) => ({
+    element,
+    held: allocation[element] ?? 0,
+    planned: plan?.allocation?.[element] ?? 0,
+  }));
+
+  return {
+    rows,
+    heldTotal: rows.reduce((sum, row) => sum + row.held, 0),
+    plannedTotal: rows.reduce(
+      (sum, row) => sum + row.planned,
+      0,
+    ),
+    stillNeeded: rows
+      .filter((row) => row.held < row.planned)
+      .sort(
+        (a, b) =>
+          b.planned - b.held - (a.planned - a.held),
+      )
+      .map((row) => row.element),
+  };
+}
+
 // -------------------------------------------------------- plan mode
 
 export type RoadmapEntry = {
@@ -407,8 +828,16 @@ export type PlanProgress = {
   stage: PortableStage;
   headline: string;
   reason: string;
+  /** The next planned build the player can actually make right now. */
   nextAction: PortableTowerAction | null;
   nextActionDone: boolean;
+  /**
+   * The next planned build that is still out of reach — shown as a
+   * non-tappable "needs X" hint so the plan never invites an illegal log.
+   */
+  blockedAction:
+    | { action: PortableTowerAction; missing: readonly string[] }
+    | null;
   roadmap: readonly RoadmapEntry[];
   keystonesPlanned: number;
   keystonesDone: number;
@@ -416,6 +845,7 @@ export type PlanProgress = {
 
 function actionSatisfied(
   action: PortableTowerAction | null,
+  allocation: ElementAllocation,
   built: readonly BuiltTower[],
 ): boolean {
   if (!action) return false;
@@ -423,7 +853,9 @@ function actionSatisfied(
     (entry) =>
       entry.towerId === action.towerId &&
       entry.quantity > 0 &&
-      entry.level >= action.toLevel,
+      entry.level >= action.toLevel &&
+      // Not a row an undone keystone has since stranded.
+      liveTowerReachableLevel(entry.towerId, allocation) >= entry.level,
   );
 }
 
@@ -464,14 +896,34 @@ export function planProgress(
     progression.find((entry) => entry.stage === stageId) ??
     progression[progression.length - 1];
 
-  // Walk forward to the first stage action the player has not done yet.
+  // Walk forward to the first unbuilt stage action. Offer it only when the
+  // player can actually reach that tower now; otherwise surface it as a
+  // "needs X" hint so tapping can never log an illegal tower.
   const stageIndex = progression.indexOf(stage);
   let nextAction: PortableTowerAction | null = null;
+  let blockedAction: PlanProgress["blockedAction"] = null;
   for (let i = stageIndex; i < progression.length; i += 1) {
     const candidate = progression[i].primaryAction;
-    if (candidate && !actionSatisfied(candidate, built)) {
+    if (!candidate || actionSatisfied(candidate, allocation, built))
+      continue;
+    const reachTo = isEndGameTowerId(candidate.towerId)
+      ? isTowerLoggable(candidate.towerId, allocation)
+        ? 1
+        : 0
+      : liveTowerReachableLevel(candidate.towerId, allocation);
+    if (reachTo >= candidate.toLevel) {
       nextAction = candidate;
       break;
+    }
+    if (!blockedAction) {
+      blockedAction = {
+        action: candidate,
+        missing: towerReachGap(
+          candidate.towerId,
+          allocation,
+          candidate.toLevel,
+        ),
+      };
     }
   }
 
@@ -480,7 +932,12 @@ export function planProgress(
     headline: stage.headline,
     reason: stage.reason,
     nextAction,
-    nextActionDone: actionSatisfied(stage.primaryAction, built),
+    nextActionDone: actionSatisfied(
+      stage.primaryAction,
+      allocation,
+      built,
+    ),
+    blockedAction,
     roadmap,
     keystonesPlanned: roadmap.length,
     keystonesDone: roadmap.filter((entry) => entry.done).length,

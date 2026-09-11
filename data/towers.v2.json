@@ -771,9 +771,9 @@
       "combination": "Quad",
       "recipe": [
         "Light",
-        "Darkness",
         "Water",
-        "Nature"
+        "Fire",
+        "Earth"
       ],
       "maxLevel": 1,
       "damageElement": "Light",
@@ -812,10 +812,10 @@
       "name": "Doom",
       "combination": "Quad",
       "recipe": [
-        "Light",
         "Darkness",
         "Fire",
-        "Nature"
+        "Nature",
+        "Earth"
       ],
       "maxLevel": 1,
       "damageElement": "Darkness",
@@ -834,8 +834,8 @@
       "combination": "Quad",
       "recipe": [
         "Light",
-        "Darkness",
         "Fire",
+        "Nature",
         "Earth"
       ],
       "maxLevel": 1,
@@ -876,9 +876,9 @@
       "combination": "Quad",
       "recipe": [
         "Light",
-        "Fire",
-        "Nature",
-        "Earth"
+        "Darkness",
+        "Water",
+        "Nature"
       ],
       "maxLevel": 1,
       "damageElement": "Nature",
@@ -918,9 +918,9 @@
       "combination": "Quad",
       "recipe": [
         "Light",
-        "Water",
-        "Nature",
-        "Earth"
+        "Darkness",
+        "Fire",
+        "Nature"
       ],
       "maxLevel": 1,
       "damageElement": "Nature",
@@ -1003,7 +1003,7 @@
       "recipe": [
         "Light",
         "Water",
-        "Fire",
+        "Nature",
         "Earth"
       ],
       "maxLevel": 1,
@@ -1022,9 +1022,9 @@
       "name": "Shredder",
       "combination": "Quad",
       "recipe": [
+        "Light",
         "Darkness",
         "Fire",
-        "Nature",
         "Earth"
       ],
       "maxLevel": 1,

@@ -17,3 +17,6 @@ tsconfig.tsbuildinfo
 # PDFs stay local too, except the core reference
 *.pdf
 !Element TD Engine.pdf
+
+# Real-game reference captures — local evidence, not shipped
+archive games/

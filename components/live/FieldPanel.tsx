@@ -1,134 +1,192 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
+import { gold, roman } from "@/components/build-lab/primitives";
 import {
-  ElementIcon,
-  TowerIcon,
-  gold,
-  roman,
-} from "@/components/build-lab/primitives";
-import { getTower } from "@/lib/domain/towerCatalog";
-import { getEndGameTowerFact } from "@/lib/domain/endGameTowerFacts";
-import type { EndGameTowerId } from "@/lib/domain/endGameTower";
-import {
-  getBasicTower,
-  getMonoTower,
-  isBasicTowerId,
-  isMonoTowerId,
-  MONO_MAX_LEVEL,
-} from "@/lib/domain/auxiliaryTowers";
-import type { BasicTowerId, MonoTowerId } from "@/lib/domain/auxiliaryTowers";
-import {
+  builtRowKey,
   deriveGoldSpent,
-  isEndGameTowerId,
+  liveTowerName,
+  liveTowerReachableLevel,
+  loggableTowers,
   resolveLiveTowerCost,
+  staleFieldRows,
 } from "@/lib/engine/liveGame";
+import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { useLiveGame } from "@/components/live/store";
-
-function towerName(towerId: string): string {
-  if (isEndGameTowerId(towerId)) {
-    return getEndGameTowerFact(towerId as EndGameTowerId).name;
-  }
-  if (isBasicTowerId(towerId)) {
-    return getBasicTower(towerId as BasicTowerId).name;
-  }
-  if (isMonoTowerId(towerId)) {
-    return getMonoTower(towerId as MonoTowerId).name;
-  }
-  return getTower(towerId).name;
-}
-
-function maxLevelFor(towerId: string): number {
-  if (isMonoTowerId(towerId)) return MONO_MAX_LEVEL;
-  if (isEndGameTowerId(towerId) || isBasicTowerId(towerId)) return 1;
-  return getTower(towerId).maxLevel;
-}
 
 function rowCost(towerId: string, level: number, quantity: number): number {
   return resolveLiveTowerCost(towerId, level) * quantity;
 }
 
 /**
- * What the player actually has on the field. Levels and counts are theirs to
- * set; gold is derived, never typed — catalog costs are cumulative, so a
- * tower counts once at its current level.
+ * What the player has on the field. Rows are per tower **and** level, so a
+ * pair of Light I sits beside a Light II. Gold is derived, never typed.
+ * Logging a tower off the summon moment happens through the search here —
+ * no wall of chips.
  */
 export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
   const built = useLiveGame((s) => s.built);
+  const allocation = useLiveGame((s) => s.allocation);
+  const addBuilt = useLiveGame((s) => s.addBuilt);
   const setBuiltLevel = useLiveGame((s) => s.setBuiltLevel);
   const setBuiltQuantity = useLiveGame((s) => s.setBuiltQuantity);
   const removeBuilt = useLiveGame((s) => s.removeBuilt);
+  const reduce = useReducedMotion();
+
+  const [query, setQuery] = useState("");
 
   const goldSpent = useMemo(() => deriveGoldSpent(built), [built]);
   const towerCount = built.reduce(
     (total, entry) => total + entry.quantity,
     0,
   );
+  const staleKeys = useMemo(
+    () =>
+      new Set(
+        staleFieldRows(allocation, built).map((entry) =>
+          builtRowKey(entry.towerId, entry.level),
+        ),
+      ),
+    [allocation, built],
+  );
+
+  const catalog = useMemo(
+    () => loggableTowers(allocation),
+    [allocation],
+  );
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return catalog
+      .filter((tower) => tower.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [catalog, query]);
 
   return (
-    <section className="live-panel" aria-label="Your field">
+    <motion.section
+      className="live-field"
+      aria-label="Your field"
+      initial={reduce ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+    >
       <header className="live-panel-head">
-        <h3>Your field</h3>
+        <h2>Your field</h2>
         <span className="live-panel-note">
-          {towerCount} tower{towerCount === 1 ? "" : "s"}
+          {towerCount} tower{towerCount === 1 ? "" : "s"} ·{" "}
+          <b className="mono">{gold(goldSpent)}</b>
         </span>
       </header>
 
+      <div className="live-log">
+        <input
+          type="text"
+          className="live-log-input"
+          placeholder="＋ log a tower — type a name"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          aria-label="Search for a tower to log"
+        />
+        {matches.length > 0 && (
+          <ul className="live-log-results">
+            {matches.map((tower) => (
+              <li key={tower.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    addBuilt(tower.id, 1);
+                    setQuery("");
+                  }}
+                >
+                  <LiveTowerIcon
+                    towerId={tower.id}
+                    assets={assets}
+                    size={20}
+                  />
+                  <span>{tower.name}</span>
+                  {tower.maxLevel > 1 && (
+                    <span className="live-log-max mono">
+                      to {roman(tower.maxLevel)}
+                    </span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {built.length === 0 ? (
         <p className="live-empty">
-          Nothing logged yet. Tap a tower above as you build it.
+          Nothing logged yet — use the summon chips or the search above.
         </p>
       ) : (
         <ul className="live-field-list">
           {built.map((entry) => {
-            const max = maxLevelFor(entry.towerId);
-            const levels = Array.from(
-              { length: max },
-              (_, index) => index + 1,
+            const key = builtRowKey(entry.towerId, entry.level);
+            const stale = staleKeys.has(key);
+            // Cap the level buttons at what the picks support — but never
+            // below this row's own level, so a stale row can still be
+            // corrected downward.
+            const max = Math.max(
+              entry.level,
+              liveTowerReachableLevel(entry.towerId, allocation),
             );
+            const name = liveTowerName(entry.towerId);
             return (
-              <li key={entry.towerId} className="live-field-row">
-                {isMonoTowerId(entry.towerId) ? (
-                  <ElementIcon
-                    element={
-                      getMonoTower(entry.towerId as MonoTowerId).element
-                    }
-                    assets={assets}
-                    size={24}
-                  />
-                ) : (
-                  <TowerIcon
-                    towerId={entry.towerId}
-                    name={towerName(entry.towerId)}
-                    assets={assets}
-                    size={28}
-                  />
-                )}
+              <li
+                key={key}
+                className="live-field-row"
+                data-stale={stale || undefined}
+              >
+                <LiveTowerIcon
+                  towerId={entry.towerId}
+                  assets={assets}
+                  size={26}
+                />
                 <span className="live-field-name">
-                  {towerName(entry.towerId)}
+                  {name}
+                  {stale && (
+                    <span className="live-field-stale" title="Not reachable at your current picks">
+                      out of reach
+                    </span>
+                  )}
                 </span>
 
-                <span
-                  className="live-level-group"
-                  role="group"
-                  aria-label={`${towerName(entry.towerId)} level`}
-                >
-                  {levels.map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      className="live-level"
-                      data-on={entry.level === level || undefined}
-                      onClick={() =>
-                        setBuiltLevel(entry.towerId, level)
-                      }
-                      aria-pressed={entry.level === level}
-                    >
-                      {roman(level)}
-                    </button>
-                  ))}
-                </span>
+                {max > 1 ? (
+                  <span
+                    className="live-level-group"
+                    role="group"
+                    aria-label={`${name} level`}
+                  >
+                    {Array.from({ length: max }, (_, i) => i + 1).map(
+                      (level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          className="live-level"
+                          data-on={entry.level === level || undefined}
+                          onClick={() =>
+                            setBuiltLevel(
+                              entry.towerId,
+                              entry.level,
+                              level,
+                            )
+                          }
+                          aria-pressed={entry.level === level}
+                        >
+                          {roman(level)}
+                        </button>
+                      ),
+                    )}
+                  </span>
+                ) : (
+                  <span className="live-level-fixed mono">
+                    {roman(entry.level)}
+                  </span>
+                )}
 
                 <span className="live-qty">
                   <button
@@ -136,10 +194,11 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
                     onClick={() =>
                       setBuiltQuantity(
                         entry.towerId,
+                        entry.level,
                         entry.quantity - 1,
                       )
                     }
-                    aria-label={`One fewer ${towerName(entry.towerId)}`}
+                    aria-label={`One fewer ${name}`}
                   >
                     −
                   </button>
@@ -149,10 +208,11 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
                     onClick={() =>
                       setBuiltQuantity(
                         entry.towerId,
+                        entry.level,
                         entry.quantity + 1,
                       )
                     }
-                    aria-label={`One more ${towerName(entry.towerId)}`}
+                    aria-label={`One more ${name}`}
                   >
                     +
                   </button>
@@ -167,8 +227,10 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
                 <button
                   type="button"
                   className="live-field-remove"
-                  onClick={() => removeBuilt(entry.towerId)}
-                  aria-label={`Remove ${towerName(entry.towerId)}`}
+                  onClick={() =>
+                    removeBuilt(entry.towerId, entry.level)
+                  }
+                  aria-label={`Remove ${name} ${roman(entry.level)}`}
                 >
                   ✕
                 </button>
@@ -177,11 +239,6 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
           })}
         </ul>
       )}
-
-      <footer className="live-field-total">
-        <span>Gold spent</span>
-        <b className="mono">{gold(goldSpent)}</b>
-      </footer>
-    </section>
+    </motion.section>
   );
 }

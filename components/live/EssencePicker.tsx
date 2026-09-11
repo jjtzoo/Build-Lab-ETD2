@@ -5,7 +5,7 @@ import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { ElementIcon } from "@/components/build-lab/primitives";
 import { getEndGameTowerFact } from "@/lib/domain/endGameTowerFacts";
 import type { EndGameTowerId } from "@/lib/domain/endGameTower";
-import { endGameReadiness } from "@/lib/engine/liveGame";
+import { derivedPhase, endGameReadiness } from "@/lib/engine/liveGame";
 import { useLiveGame } from "@/components/live/store";
 
 /**
@@ -15,13 +15,19 @@ import { useLiveGame } from "@/components/live/store";
 export function EssencePicker({ assets }: { assets: BuildLabAssets }) {
   const allocation = useLiveGame((s) => s.allocation);
   const plan = useLiveGame((s) => s.plan);
-  const phase = useLiveGame((s) => s.phase);
+  const holds = useLiveGame((s) => s.holds);
   const built = useLiveGame((s) => s.built);
   const addBuilt = useLiveGame((s) => s.addBuilt);
 
   const readiness = useMemo(
-    () => endGameReadiness(allocation, plan, phase, built),
-    [allocation, plan, phase, built],
+    () =>
+      endGameReadiness(
+        allocation,
+        plan,
+        derivedPhase(allocation, holds),
+        built,
+      ),
+    [allocation, plan, holds, built],
   );
 
   if (

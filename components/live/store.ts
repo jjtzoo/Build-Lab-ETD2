@@ -4,49 +4,59 @@ import { create } from "zustand";
 
 import {
   MAX_ELEMENT_LEVEL,
-  maxReachableTowerLevel,
   totalKeystones,
 } from "@/lib/engine/allocation";
-import { getTower } from "@/lib/domain/towerCatalog";
 import type { ElementAllocation, ElementName } from "@/lib/domain/elements";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
 import {
   emptyLiveAllocation,
-  isAuxiliaryTowerId,
-  LIVE_PHASE_COUNT,
+  isSameBuiltRow,
+  isTowerLoggable,
+  liveTowerMaxLevel,
+  liveTowerReachableLevel,
   MAX_KEYSTONES,
   type BuiltTower,
 } from "@/lib/engine/liveGame";
-import {
-  getMonoTower,
-  isMonoTowerId,
-  MONO_MAX_LEVEL,
-} from "@/lib/domain/auxiliaryTowers";
 
 export type LiveSnapshot = {
   allocation: ElementAllocation;
+  /** Ordered pick history — powers undo and "what this pick unlocked". */
   pickLog: ElementName[];
+  /** Field rows, identified by tower **and** level (Light I ≠ Light II). */
   built: BuiltTower[];
-  phase: number;
+  /**
+   * Summons deliberately skipped. `phase = picks + holds`, so the wave
+   * marker stays honest when a player declines a pick their field can't
+   * yet answer. See `derivedPhase` in `lib/engine/liveGame.ts`.
+   */
+  holds: number;
 };
 
 type LiveState = LiveSnapshot & {
   plan: PortableBuild | null;
-  /** Set for one render after a pick, so the UI can flash what changed. */
+  /** Set for one render after a pick, so the UI can show what changed. */
   lastPick: { before: ElementAllocation; after: ElementAllocation } | null;
 
   spendPick: (element: ElementName) => void;
   undoPick: () => void;
   clearReveal: () => void;
+  hold: () => void;
+  unhold: () => void;
 
   addBuilt: (towerId: string, level?: number) => void;
-  setBuiltLevel: (towerId: string, level: number) => void;
-  setBuiltQuantity: (towerId: string, quantity: number) => void;
-  removeBuilt: (towerId: string) => void;
+  setBuiltLevel: (
+    towerId: string,
+    fromLevel: number,
+    toLevel: number,
+  ) => void;
+  setBuiltQuantity: (
+    towerId: string,
+    level: number,
+    quantity: number,
+  ) => void;
+  removeBuilt: (towerId: string, level: number) => void;
 
   setPlan: (plan: PortableBuild | null) => void;
-  nextPhase: () => void;
-  prevPhase: () => void;
   newGame: () => void;
   hydrate: (snapshot: Partial<LiveSnapshot>) => void;
 };
@@ -56,25 +66,27 @@ function emptySnapshot(): LiveSnapshot {
     allocation: emptyLiveAllocation(),
     pickLog: [],
     built: [],
-    phase: 1,
+    holds: 0,
   };
 }
 
-/** Max level of a tower the player could actually have, for a sane default. */
-function defaultBuiltLevel(
+/** Clamp a requested level to 1..absolute-max (ignores allocation). */
+function clampLevel(towerId: string, level: number): number {
+  return Math.max(
+    1,
+    Math.min(liveTowerMaxLevel(towerId), Math.round(level)),
+  );
+}
+
+/** Clamp to what the current picks actually support — used when logging. */
+function clampReachable(
   towerId: string,
+  level: number,
   allocation: ElementAllocation,
 ): number {
-  if (isMonoTowerId(towerId)) {
-    const element = getMonoTower(towerId).element;
-    return Math.max(
-      1,
-      Math.min(MONO_MAX_LEVEL, allocation[element] ?? 1),
-    );
-  }
-  if (isAuxiliaryTowerId(towerId)) return 1;
-  const reachable = maxReachableTowerLevel(getTower(towerId), allocation);
-  return Math.max(1, reachable);
+  const reachable = liveTowerReachableLevel(towerId, allocation);
+  const ceiling = reachable > 0 ? reachable : liveTowerMaxLevel(towerId);
+  return Math.max(1, Math.min(ceiling, Math.round(level)));
 }
 
 export const useLiveGame = create<LiveState>((set) => ({
@@ -113,73 +125,96 @@ export const useLiveGame = create<LiveState>((set) => ({
 
   clearReveal: () => set({ lastPick: null }),
 
+  hold: () => set((state) => ({ holds: state.holds + 1 })),
+  unhold: () =>
+    set((state) => ({ holds: Math.max(0, state.holds - 1) })),
+
   addBuilt: (towerId, level) =>
     set((state) => {
-      const existing = state.built.find(
-        (entry) => entry.towerId === towerId,
+      // The tracker mirrors the game — it must not let you log a tower the
+      // current keystones can't reach. The UI already hides those; this is
+      // the backstop.
+      if (!isTowerLoggable(towerId, state.allocation)) return state;
+
+      const lvl = clampReachable(towerId, level ?? 1, state.allocation);
+      const existing = state.built.find((entry) =>
+        isSameBuiltRow(entry, towerId, lvl),
       );
       if (existing) {
         return {
           built: state.built.map((entry) =>
-            entry.towerId === towerId
+            isSameBuiltRow(entry, towerId, lvl)
               ? { ...entry, quantity: entry.quantity + 1 }
               : entry,
           ),
         };
       }
       return {
-        built: [
-          ...state.built,
-          {
-            towerId,
-            level: level ?? defaultBuiltLevel(towerId, state.allocation),
-            quantity: 1,
-          },
-        ],
+        built: [...state.built, { towerId, level: lvl, quantity: 1 }],
       };
     }),
 
-  setBuiltLevel: (towerId, level) =>
-    set((state) => ({
-      built: state.built.map((entry) => {
-        if (entry.towerId !== towerId) return entry;
-        const cap = isMonoTowerId(towerId)
-          ? MONO_MAX_LEVEL
-          : isAuxiliaryTowerId(towerId)
-            ? 1
-            : getTower(towerId).maxLevel;
-        return {
-          ...entry,
-          level: Math.max(1, Math.min(cap, level)),
-        };
-      }),
-    })),
+  setBuiltLevel: (towerId, fromLevel, toLevel) =>
+    set((state) => {
+      const lvl = clampLevel(towerId, toLevel);
+      if (lvl === fromLevel) return state;
+      const moving = state.built.find((entry) =>
+        isSameBuiltRow(entry, towerId, fromLevel),
+      );
+      if (!moving) return state;
 
-  setBuiltQuantity: (towerId, quantity) =>
+      const mergeInto = state.built.find((entry) =>
+        isSameBuiltRow(entry, towerId, lvl),
+      );
+      if (!mergeInto) {
+        // No row at the target level — just relabel this one in place.
+        return {
+          built: state.built.map((entry) =>
+            isSameBuiltRow(entry, towerId, fromLevel)
+              ? { ...entry, level: lvl }
+              : entry,
+          ),
+        };
+      }
+      // Fold the moving row's count into the existing target row.
+      return {
+        built: state.built
+          .filter(
+            (entry) => !isSameBuiltRow(entry, towerId, fromLevel),
+          )
+          .map((entry) =>
+            isSameBuiltRow(entry, towerId, lvl)
+              ? {
+                  ...entry,
+                  quantity: entry.quantity + moving.quantity,
+                }
+              : entry,
+          ),
+      };
+    }),
+
+  setBuiltQuantity: (towerId, level, quantity) =>
     set((state) => ({
       built:
         quantity <= 0
-          ? state.built.filter((entry) => entry.towerId !== towerId)
+          ? state.built.filter(
+              (entry) => !isSameBuiltRow(entry, towerId, level),
+            )
           : state.built.map((entry) =>
-              entry.towerId === towerId
+              isSameBuiltRow(entry, towerId, level)
                 ? { ...entry, quantity }
                 : entry,
             ),
     })),
 
-  removeBuilt: (towerId) =>
+  removeBuilt: (towerId, level) =>
     set((state) => ({
-      built: state.built.filter((entry) => entry.towerId !== towerId),
+      built: state.built.filter(
+        (entry) => !isSameBuiltRow(entry, towerId, level),
+      ),
     })),
 
   setPlan: (plan) => set({ plan }),
-
-  nextPhase: () =>
-    set((state) => ({
-      phase: Math.min(LIVE_PHASE_COUNT, state.phase + 1),
-    })),
-  prevPhase: () =>
-    set((state) => ({ phase: Math.max(1, state.phase - 1) })),
 
   newGame: () => set({ ...emptySnapshot(), lastPick: null }),
 
@@ -187,8 +222,34 @@ export const useLiveGame = create<LiveState>((set) => ({
     set((state) => ({
       allocation: snapshot.allocation ?? state.allocation,
       pickLog: snapshot.pickLog ?? state.pickLog,
-      built: snapshot.built ?? state.built,
-      phase: snapshot.phase ?? state.phase,
+      built: mergeLegacyBuilt(snapshot.built) ?? state.built,
+      holds: snapshot.holds ?? state.holds,
       lastPick: null,
     })),
 }));
+
+/**
+ * A persisted `built` array from before rows were keyed by `(towerId,
+ * level)` had at most one row per tower, so it loads unchanged — but a
+ * hand-edited or corrupt store could carry duplicates. Fold any
+ * same-(tower, level) rows together defensively.
+ */
+function mergeLegacyBuilt(
+  built: BuiltTower[] | undefined,
+): BuiltTower[] | undefined {
+  if (!built) return undefined;
+  const byKey = new Map<string, BuiltTower>();
+  for (const entry of built) {
+    if (!entry || typeof entry.towerId !== "string") continue;
+    const level = clampLevel(entry.towerId, entry.level ?? 1);
+    const key = `${entry.towerId}@${level}`;
+    const prior = byKey.get(key);
+    const quantity = Math.max(0, Math.round(entry.quantity ?? 1));
+    if (prior) {
+      prior.quantity += quantity;
+    } else {
+      byKey.set(key, { towerId: entry.towerId, level, quantity });
+    }
+  }
+  return [...byKey.values()].filter((entry) => entry.quantity > 0);
+}
