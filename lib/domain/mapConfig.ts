@@ -13,6 +13,24 @@ export type MapGridBasis = {
   rowVector: PixelPoint;
 };
 
+/**
+ * Standard spawns the whole wave on the one main path. Advance splits the
+ * same wave across every path it has — sometimes genuinely separate routes
+ * (Forest), sometimes the main path run in reverse (Lava, Tropical, where
+ * the portals show blended entrance/exit colours).
+ */
+export type WaveMode = "standard" | "advance";
+
+export const WAVE_MODES: readonly WaveMode[] = ["standard", "advance"];
+
+export type MapPath = {
+  id: string;
+  /** Ordered polyline, spawn -> exit, in grid coordinates. */
+  points: readonly GridPoint[];
+  /** Which mode(s) run creeps down this path. */
+  modes: readonly WaveMode[];
+};
+
 export type MapConfig = {
   id: string;
   name: string;
@@ -21,10 +39,14 @@ export type MapConfig = {
   imageSize: { w: number; h: number };
   grid: MapGridBasis;
   buildableCells: readonly GridPoint[];
-  /** Ordered polyline, spawn -> exit, in grid coordinates. */
-  path: readonly GridPoint[];
-  /** Official in-game "Path Length" stat, in seconds. */
-  pathDurationSeconds: number;
+  paths: readonly MapPath[];
+  /**
+   * Official in-game "Path Length" stat, in seconds — it times the
+   * standard path, and the creep speed derived from it applies to every
+   * path on the map. `null` where the stat hasn't been captured yet:
+   * never guess it.
+   */
+  pathDurationSeconds: number | null;
   /**
    * ASSUMPTION, not a verified game fact: how many grid cells one unit of
    * a tower's `range` stat spans. Defaults to 1:1 pending a range-circle

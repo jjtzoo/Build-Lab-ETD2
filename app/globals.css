@@ -4740,12 +4740,116 @@ button.mechanic-chip {
   font-size: 11px;
   color: var(--muted);
 }
+.live-map-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.live-map-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+.live-map-select select {
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 12.5px;
+}
+.live-map-modes {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.live-map-modes .live-view-tab {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+}
+.live-map-modes .live-view-tab:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 .live-map-stage {
   margin-top: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-sunken);
+}
+.live-map-stage[data-schematic] {
+  background: var(--bg);
+  padding: 10px;
+}
+.live-map-stage[data-schematic] .live-map-svg {
+  max-height: 62vh;
+}
+.live-map-block {
+  fill: var(--surface-internal);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  transition: fill 140ms var(--ease);
+}
+.live-map-block:hover {
+  fill: var(--surface-raised);
+}
+.live-map-block[data-rank] {
+  fill: rgb(154 203 163 / 0.3);
+  stroke: rgb(154 203 163 / 0.55);
+}
+.live-map-block[data-rank="0"] {
+  fill: rgb(154 203 163 / 0.62);
+  stroke: rgb(154 203 163 / 0.95);
+}
+.live-map-block[data-selected] {
+  fill: #e6c15f;
+  stroke: #e6c15f;
+}
+.live-map-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.live-map-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.live-map-path-tab {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+.live-map-path-tab[data-on] {
+  border-color: var(--line-strong);
+  background: var(--surface-internal);
+  color: var(--text);
+}
+.live-map-path-tab .mono {
+  color: var(--muted);
+}
+.live-map-mode-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+  font-size: 11px;
+  color: var(--text-2);
 }
 .live-map-svg {
   display: block;
@@ -4766,29 +4870,6 @@ button.mechanic-chip {
   fill: #e6c15f;
   stroke: #0e1012;
   stroke-width: 2;
-}
-.live-map-cell {
-  fill: rgb(var(--mech-range) / 0.35);
-  stroke: rgb(var(--mech-range) / 0.7);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-  cursor: pointer;
-  transition: fill 140ms var(--ease);
-}
-.live-map-cell:hover {
-  fill: rgb(var(--mech-range) / 0.55);
-}
-.live-map-cell[data-rank="0"] {
-  fill: rgb(154 203 163 / 0.55);
-  stroke: rgb(154 203 163 / 0.9);
-}
-.live-map-cell[data-rank] {
-  fill: rgb(154 203 163 / 0.32);
-  stroke: rgb(154 203 163 / 0.65);
-}
-.live-map-cell[data-selected] {
-  fill: #e6c15f;
-  stroke: #0e1012;
 }
 .live-map-range {
   fill: rgb(230 193 95 / 0.14);

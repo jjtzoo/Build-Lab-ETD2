@@ -1,7 +1,7 @@
 {
-  "id": "forest",
-  "name": "Forest",
-  "image": "/maps/map-1-forest-grid.png",
+  "id": "lava",
+  "name": "Lava",
+  "image": "/maps/map-1-grid-fire tower-875-range.png",
   "imageSize": { "w": 1920, "h": 1080 },
   "grid": {
     "origin": { "x": 0, "y": 0 },
@@ -10,6 +10,6 @@
   },
   "buildableCells": [],
   "paths": [{ "id": "main", "points": [], "modes": ["standard"] }],
-  "pathDurationSeconds": 48,
+  "pathDurationSeconds": 42,
   "rangeUnitsPerCell": 1
 }

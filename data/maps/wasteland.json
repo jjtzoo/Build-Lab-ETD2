@@ -1,7 +1,7 @@
 {
-  "id": "forest",
-  "name": "Forest",
-  "image": "/maps/map-1-forest-grid.png",
+  "id": "wasteland",
+  "name": "Wasteland",
+  "image": "/maps/map-4-wasteland-grid-1000-range-vapor.png",
   "imageSize": { "w": 1920, "h": 1080 },
   "grid": {
     "origin": { "x": 0, "y": 0 },
@@ -10,6 +10,6 @@
   },
   "buildableCells": [],
   "paths": [{ "id": "main", "points": [], "modes": ["standard"] }],
-  "pathDurationSeconds": 48,
+  "pathDurationSeconds": null,
   "rangeUnitsPerCell": 1
 }

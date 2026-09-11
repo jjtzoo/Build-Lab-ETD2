@@ -1,7 +1,9 @@
 import type {
   GridPoint,
   MapConfig,
+  MapPath,
   PixelPoint,
+  WaveMode,
 } from "@/lib/domain/mapConfig";
 
 /**
@@ -42,42 +44,55 @@ export function worldToGrid(
   };
 }
 
-function distance(a: PixelPoint, b: PixelPoint): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
 /**
- * One grid cell's edge length in pixels, averaged across the two basis
- * vectors. The camera tilt means they're not always equal — this is an
- * approximation, good enough to turn pixel distances into "cell units".
+ * Distance between two cells, in cells.
+ *
+ * All coverage math runs in grid space rather than pixel space, because
+ * the game's camera is tilted: a tower's range is a circle in the game
+ * world but projects to a squashed ellipse on screen. Grid coordinates
+ * are the undistorted space — cells are square there — so Euclidean
+ * distance over (col, row) is the true in-game distance. Pixels are only
+ * for drawing over a screenshot.
  */
-function pixelsPerCell(map: MapConfig): number {
-  const { colVector, rowVector } = map.grid;
-  const colLen = Math.hypot(colVector.x, colVector.y);
-  const rowLen = Math.hypot(rowVector.x, rowVector.y);
-  return (colLen + rowLen) / 2;
+function cellDistance(a: GridPoint, b: GridPoint): number {
+  return Math.hypot(a.col - b.col, a.row - b.row);
 }
 
-export function pathLengthCells(map: MapConfig): number {
-  if (map.path.length < 2) return 0;
-  const px = pixelsPerCell(map);
-  if (px <= 0) return 0;
+
+/** Every path the given wave mode runs creeps down. */
+export function pathsForMode(
+  map: MapConfig,
+  mode: WaveMode,
+): MapPath[] {
+  return map.paths.filter((path) => path.modes.includes(mode));
+}
+
+export function pathLengthCells(
+  map: MapConfig,
+  path: MapPath,
+): number {
+  if (path.points.length < 2) return 0;
 
   let total = 0;
-  for (let i = 1; i < map.path.length; i++) {
-    total +=
-      distance(
-        gridToWorld(map, map.path[i - 1]),
-        gridToWorld(map, map.path[i]),
-      ) / px;
+  for (let i = 1; i < path.points.length; i++) {
+    total += cellDistance(path.points[i - 1], path.points[i]);
   }
   return total;
 }
 
-/** Derived from the traced path length and the map's known path duration. */
+/**
+ * Creep speed, from the standard path's traced length against the map's
+ * official "Path Length" stat. The same speed applies to every path on the
+ * map, so an advance-mode route's duration follows from its own length.
+ */
 export function creepSpeedCellsPerSecond(map: MapConfig): number {
-  if (map.pathDurationSeconds <= 0) return 0;
-  return pathLengthCells(map) / map.pathDurationSeconds;
+  const duration = map.pathDurationSeconds;
+  if (duration == null || duration <= 0) return 0;
+
+  const reference = pathsForMode(map, "standard")[0];
+  if (!reference) return 0;
+
+  return pathLengthCells(map, reference) / duration;
 }
 
 /**
@@ -86,18 +101,18 @@ export function creepSpeedCellsPerSecond(map: MapConfig): number {
  * parameter t, clipped to t in [0,1]).
  */
 function circleSegmentOverlapLength(
-  a: PixelPoint,
-  b: PixelPoint,
-  center: PixelPoint,
+  a: GridPoint,
+  b: GridPoint,
+  center: GridPoint,
   radius: number,
 ): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
+  const dx = b.col - a.col;
+  const dy = b.row - a.row;
   const segLen = Math.hypot(dx, dy);
   if (segLen === 0) return 0;
 
-  const fx = a.x - center.x;
-  const fy = a.y - center.y;
+  const fx = a.col - center.col;
+  const fy = a.row - center.row;
 
   const A = dx * dx + dy * dy;
   const B = 2 * (fx * dx + fy * dy);
@@ -128,34 +143,31 @@ const EMPTY_COVERAGE: SpotCoverage = {
 };
 
 /**
- * What fraction of the wave's route a tower with `towerRangeUnits` range
- * would cover if built at `cell`.
+ * What fraction of one path a tower with `towerRangeUnits` range would
+ * cover if built at `cell`.
  */
 export function coverageForSpot(
   map: MapConfig,
   cell: GridPoint,
   towerRangeUnits: number,
+  path: MapPath,
 ): SpotCoverage {
-  const totalLengthCells = pathLengthCells(map);
+  const totalLengthCells = pathLengthCells(map, path);
   if (totalLengthCells <= 0) return EMPTY_COVERAGE;
+  if (map.rangeUnitsPerCell <= 0) return EMPTY_COVERAGE;
 
-  const px = pixelsPerCell(map);
-  if (px <= 0 || map.rangeUnitsPerCell <= 0) return EMPTY_COVERAGE;
+  const rangeCells = towerRangeUnits / map.rangeUnitsPerCell;
 
-  const rangePixels = (towerRangeUnits / map.rangeUnitsPerCell) * px;
-  const spotWorld = gridToWorld(map, cell);
-
-  let coveredPixels = 0;
-  for (let i = 1; i < map.path.length; i++) {
-    coveredPixels += circleSegmentOverlapLength(
-      gridToWorld(map, map.path[i - 1]),
-      gridToWorld(map, map.path[i]),
-      spotWorld,
-      rangePixels,
+  let coveredLengthCells = 0;
+  for (let i = 1; i < path.points.length; i++) {
+    coveredLengthCells += circleSegmentOverlapLength(
+      path.points[i - 1],
+      path.points[i],
+      cell,
+      rangeCells,
     );
   }
 
-  const coveredLengthCells = coveredPixels / px;
   const speed = creepSpeedCellsPerSecond(map);
 
   return {
@@ -165,21 +177,73 @@ export function coverageForSpot(
   };
 }
 
-export type RankedSpot = {
-  cell: GridPoint;
-  coverage: SpotCoverage;
+export type ModeCoverage = SpotCoverage & {
+  perPath: readonly { pathId: string; coverage: SpotCoverage }[];
 };
 
-/** Every buildable cell, ranked best-first by how much of the route it covers. */
+const EMPTY_MODE_COVERAGE: ModeCoverage = {
+  ...EMPTY_COVERAGE,
+  perPath: [],
+};
+
+/**
+ * Coverage pooled across every path the mode runs. Advance mode splits one
+ * wave over several paths, so a spot's worth is how much of the *combined*
+ * route it reaches — with the per-path split kept alongside, since a spot
+ * covering one lane fully and another not at all is worth knowing about.
+ */
+export function coverageForMode(
+  map: MapConfig,
+  cell: GridPoint,
+  towerRangeUnits: number,
+  mode: WaveMode,
+): ModeCoverage {
+  const paths = pathsForMode(map, mode);
+  if (paths.length === 0) return EMPTY_MODE_COVERAGE;
+
+  const perPath = paths.map((path) => ({
+    pathId: path.id,
+    coverage: coverageForSpot(map, cell, towerRangeUnits, path),
+  }));
+
+  const totalLengthCells = paths.reduce(
+    (sum, path) => sum + pathLengthCells(map, path),
+    0,
+  );
+  if (totalLengthCells <= 0) return { ...EMPTY_MODE_COVERAGE, perPath };
+
+  const coveredLengthCells = perPath.reduce(
+    (sum, entry) => sum + entry.coverage.coveredLengthCells,
+    0,
+  );
+
+  return {
+    coveredLengthCells,
+    coveredSeconds: perPath.reduce(
+      (sum, entry) => sum + entry.coverage.coveredSeconds,
+      0,
+    ),
+    coveragePercent: (coveredLengthCells / totalLengthCells) * 100,
+    perPath,
+  };
+}
+
+export type RankedSpot = {
+  cell: GridPoint;
+  coverage: ModeCoverage;
+};
+
+/** Every buildable cell, ranked best-first by how much of the mode's route it covers. */
 export function bestSpotsForTower(
   map: MapConfig,
   towerRangeUnits: number,
+  mode: WaveMode,
   topN = 5,
 ): RankedSpot[] {
   return map.buildableCells
     .map((cell) => ({
       cell,
-      coverage: coverageForSpot(map, cell, towerRangeUnits),
+      coverage: coverageForMode(map, cell, towerRangeUnits, mode),
     }))
     .sort(
       (a, b) => b.coverage.coveragePercent - a.coverage.coveragePercent,

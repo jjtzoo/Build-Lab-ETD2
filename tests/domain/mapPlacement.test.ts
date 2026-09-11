@@ -3,19 +3,22 @@ import { describe, expect, it } from "vitest";
 import type { MapConfig } from "@/lib/domain/mapConfig";
 import {
   bestSpotsForTower,
+  coverageForMode,
   coverageForSpot,
   creepSpeedCellsPerSecond,
   gridToWorld,
   pathLengthCells,
+  pathsForMode,
   worldToGrid,
 } from "@/lib/engine/mapPlacement";
 
 /**
- * Synthetic map — deliberately not the real Forest trace, so this locks
- * the coverage math itself rather than depending on authored data.
+ * Synthetic maps — deliberately not a real traced map, so these lock the
+ * coverage math itself rather than depending on authored data.
  *
- * Axis-aligned grid, 100px per cell. Path is a straight 10-cell line along
- * row 0, col 0 -> col 10, traversed in 10 seconds (1 cell/sec).
+ * Axis-aligned grid, 100px per cell. The standard path is a straight
+ * 10-cell line along row 0, col 0 -> col 10, traversed in 10 seconds
+ * (1 cell/sec).
  */
 function straightPathMap(
   overrides: Partial<MapConfig> = {},
@@ -35,9 +38,15 @@ function straightPathMap(
       { col: 5, row: 5 }, // far from the path
       { col: 0, row: 1 }, // near the start
     ],
-    path: [
-      { col: 0, row: 0 },
-      { col: 10, row: 0 },
+    paths: [
+      {
+        id: "main",
+        points: [
+          { col: 0, row: 0 },
+          { col: 10, row: 0 },
+        ],
+        modes: ["standard", "advance"],
+      },
     ],
     pathDurationSeconds: 10,
     rangeUnitsPerCell: 1,
@@ -45,19 +54,83 @@ function straightPathMap(
   };
 }
 
+const MAIN_PATH = straightPathMap().paths[0];
+
+/**
+ * Advance mode adds a second, parallel 10-cell lane 4 cells below the
+ * first (row 4, col 0 -> col 10) — far enough that a 2-cell-range tower
+ * sitting by one lane can't touch the other.
+ */
+function twoLaneMap(): MapConfig {
+  return straightPathMap({
+    paths: [
+      {
+        id: "main",
+        points: [
+          { col: 0, row: 0 },
+          { col: 10, row: 0 },
+        ],
+        modes: ["standard", "advance"],
+      },
+      {
+        id: "south",
+        points: [
+          { col: 0, row: 4 },
+          { col: 10, row: 4 },
+        ],
+        modes: ["advance"],
+      },
+    ],
+  });
+}
+
+describe("pathsForMode", () => {
+  it("returns only the paths the mode runs", () => {
+    const map = twoLaneMap();
+    expect(pathsForMode(map, "standard").map((p) => p.id)).toEqual([
+      "main",
+    ]);
+    expect(pathsForMode(map, "advance").map((p) => p.id)).toEqual([
+      "main",
+      "south",
+    ]);
+  });
+});
+
 describe("pathLengthCells / creepSpeedCellsPerSecond", () => {
   it("measures a straight 10-cell path as 10 cells", () => {
-    expect(pathLengthCells(straightPathMap())).toBeCloseTo(10, 6);
+    expect(pathLengthCells(straightPathMap(), MAIN_PATH)).toBeCloseTo(
+      10,
+      6,
+    );
   });
 
-  it("derives speed from the known path duration", () => {
+  it("derives speed from the standard path and its known duration", () => {
     expect(creepSpeedCellsPerSecond(straightPathMap())).toBeCloseTo(1, 6);
   });
 
+  it("uses the standard path for speed even when advance adds lanes", () => {
+    // The second lane must not change the creep speed — the official
+    // Path Length stat times the standard route only.
+    expect(creepSpeedCellsPerSecond(twoLaneMap())).toBeCloseTo(1, 6);
+  });
+
   it("is zero for a path with fewer than two points", () => {
-    const map = straightPathMap({ path: [{ col: 0, row: 0 }] });
-    expect(pathLengthCells(map)).toBe(0);
+    const map = straightPathMap({
+      paths: [
+        { id: "main", points: [{ col: 0, row: 0 }], modes: ["standard"] },
+      ],
+    });
+    expect(pathLengthCells(map, map.paths[0])).toBe(0);
     expect(creepSpeedCellsPerSecond(map)).toBe(0);
+  });
+
+  it("is zero when the map has no captured path duration", () => {
+    expect(
+      creepSpeedCellsPerSecond(
+        straightPathMap({ pathDurationSeconds: null }),
+      ),
+    ).toBe(0);
   });
 });
 
@@ -68,7 +141,7 @@ describe("coverageForSpot", () => {
     // x in [500 - 100*sqrt(3), 500 + 100*sqrt(3)] -> length 200*sqrt(3)px
     // = 2*sqrt(3) cells, by the Pythagorean chord-length formula.
     const map = straightPathMap();
-    const coverage = coverageForSpot(map, { col: 5, row: 1 }, 2);
+    const coverage = coverageForSpot(map, { col: 5, row: 1 }, 2, MAIN_PATH);
     expect(coverage.coveredLengthCells).toBeCloseTo(2 * Math.sqrt(3), 6);
     expect(coverage.coveragePercent).toBeCloseTo(
       (2 * Math.sqrt(3) * 10) / 1,
@@ -79,7 +152,7 @@ describe("coverageForSpot", () => {
 
   it("covers nothing for a spot outside the tower's range", () => {
     const map = straightPathMap();
-    const coverage = coverageForSpot(map, { col: 5, row: 5 }, 2);
+    const coverage = coverageForSpot(map, { col: 5, row: 5 }, 2, MAIN_PATH);
     expect(coverage.coveredLengthCells).toBe(0);
     expect(coverage.coveragePercent).toBe(0);
   });
@@ -88,17 +161,122 @@ describe("coverageForSpot", () => {
     // Spot at (0,1) is right by the path's start — a huge range would
     // overshoot past col 0, but there's no path there to cover.
     const map = straightPathMap();
-    const coverage = coverageForSpot(map, { col: 0, row: 1 }, 100);
+    const coverage = coverageForSpot(
+      map,
+      { col: 0, row: 1 },
+      100,
+      MAIN_PATH,
+    );
     expect(coverage.coveredLengthCells).toBeCloseTo(10, 6);
     expect(coverage.coveragePercent).toBeCloseTo(100, 6);
+  });
+
+  it("is unaffected by the camera's on-screen squash", () => {
+    // The game camera is tilted, so grid cells render shorter vertically
+    // than horizontally and a range circle projects to an ellipse. None
+    // of that is real distance — coverage must come out identical to the
+    // same map drawn without any squash.
+    const square = straightPathMap();
+    const squashed = straightPathMap({
+      grid: {
+        origin: { x: 400, y: 90 },
+        colVector: { x: 120, y: 0 },
+        rowVector: { x: 0, y: 44 }, // ~2.7x vertical compression
+      },
+    });
+
+    const from = (map: MapConfig) =>
+      coverageForSpot(map, { col: 5, row: 1 }, 2, map.paths[0])
+        .coveredLengthCells;
+
+    expect(from(squashed)).toBeCloseTo(from(square), 6);
   });
 
   it("respects rangeUnitsPerCell as a single tunable ratio", () => {
     // Same spot/range as the first case, but 2 range units = 1 cell, so a
     // "2-range" tower only reaches 1 cell, not 2.
     const map = straightPathMap({ rangeUnitsPerCell: 2 });
-    const coverage = coverageForSpot(map, { col: 5, row: 1 }, 2);
+    const coverage = coverageForSpot(map, { col: 5, row: 1 }, 2, MAIN_PATH);
     expect(coverage.coveredLengthCells).toBe(0);
+  });
+});
+
+describe("coverageForMode", () => {
+  it("matches single-path coverage when the mode runs one path", () => {
+    const map = twoLaneMap();
+    const mode = coverageForMode(map, { col: 5, row: 1 }, 2, "standard");
+    const single = coverageForSpot(
+      map,
+      { col: 5, row: 1 },
+      2,
+      map.paths[0],
+    );
+    expect(mode.coveredLengthCells).toBeCloseTo(
+      single.coveredLengthCells,
+      6,
+    );
+    expect(mode.coveragePercent).toBeCloseTo(single.coveragePercent, 6);
+    expect(mode.perPath).toHaveLength(1);
+  });
+
+  it("pools covered length over the combined route in advance mode", () => {
+    // Same spot, same tower: it still only reaches the first lane, but
+    // advance mode's total route is now 20 cells, so the *percentage*
+    // halves even though the covered length is unchanged.
+    const map = twoLaneMap();
+    const standard = coverageForMode(
+      map,
+      { col: 5, row: 1 },
+      2,
+      "standard",
+    );
+    const advance = coverageForMode(map, { col: 5, row: 1 }, 2, "advance");
+
+    expect(advance.coveredLengthCells).toBeCloseTo(
+      standard.coveredLengthCells,
+      6,
+    );
+    expect(advance.coveragePercent).toBeCloseTo(
+      standard.coveragePercent / 2,
+      6,
+    );
+    expect(advance.perPath).toHaveLength(2);
+    expect(advance.perPath[1].coverage.coveredLengthCells).toBe(0);
+  });
+
+  it("credits a spot that reaches both lanes", () => {
+    // (5,2) sits midway between the two lanes, 2 cells from each. A
+    // 3-cell range reaches both, so each lane contributes an equal chord.
+    const map = twoLaneMap();
+    const coverage = coverageForMode(map, { col: 5, row: 2 }, 3, "advance");
+    const chord = 2 * Math.sqrt(3 * 3 - 2 * 2); // half-chord via Pythagoras
+    expect(coverage.coveredLengthCells).toBeCloseTo(chord * 2, 6);
+    expect(coverage.perPath[0].coverage.coveredLengthCells).toBeCloseTo(
+      chord,
+      6,
+    );
+    expect(coverage.perPath[1].coverage.coveredLengthCells).toBeCloseTo(
+      chord,
+      6,
+    );
+  });
+
+  it("is empty for a mode with no paths", () => {
+    const map = straightPathMap({
+      paths: [
+        {
+          id: "main",
+          points: [
+            { col: 0, row: 0 },
+            { col: 10, row: 0 },
+          ],
+          modes: ["standard"],
+        },
+      ],
+    });
+    const coverage = coverageForMode(map, { col: 5, row: 1 }, 2, "advance");
+    expect(coverage.coveragePercent).toBe(0);
+    expect(coverage.perPath).toEqual([]);
   });
 });
 
@@ -128,7 +306,7 @@ describe("worldToGrid", () => {
 describe("bestSpotsForTower", () => {
   it("ranks buildable cells best-first by coverage", () => {
     const map = straightPathMap();
-    const ranked = bestSpotsForTower(map, 2, 3);
+    const ranked = bestSpotsForTower(map, 2, "standard", 3);
     expect(ranked).toHaveLength(3);
     // (5,1) sits mid-path, so its whole range circle falls on the route;
     // (0,1) sits right at the path's start, so half its circle is
@@ -141,5 +319,17 @@ describe("bestSpotsForTower", () => {
       ranked[1].coverage.coveragePercent,
     );
     expect(ranked[2].coverage.coveragePercent).toBe(0);
+  });
+
+  it("re-ranks for advance mode when a spot only serves one lane", () => {
+    // (5,5) is useless in standard mode but sits 1 cell from the south
+    // lane, so advance mode should rank it above the far-from-both spots.
+    const map = twoLaneMap();
+    const ranked = bestSpotsForTower(map, 2, "advance", 3);
+    expect(ranked[0].cell).toEqual({ col: 5, row: 1 });
+    expect(
+      ranked.find((entry) => entry.cell.row === 5)?.coverage
+        .coveragePercent,
+    ).toBeGreaterThan(0);
   });
 });
