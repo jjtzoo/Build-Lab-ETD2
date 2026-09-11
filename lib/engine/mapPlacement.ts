@@ -303,3 +303,64 @@ export function bestSpotsForTower(
     )
     .slice(0, topN);
 }
+
+/**
+ * Buildable cells grouped into connected clusters — the game's "islands"
+ * (Tropical: "a pair of islands"). Two cells belong to the same island
+ * when they're grid-adjacent, including diagonally; a wider gap reads as
+ * open water separating them, even with no terrain data of our own,
+ * because only cells that could physically connect ever end up that
+ * close together on the traced grid in the first place.
+ *
+ * A camp can't span two islands, and a cheap precursor tower is only a
+ * free upgrade path if its island has room for what it's meant to grow
+ * into — both need this before they can be built for real.
+ */
+export function islands(map: MapConfig): GridPoint[][] {
+  const key = (cell: GridPoint) => `${cell.col},${cell.row}`;
+  const byKey = new Map(
+    map.buildableCells.map((cell) => [key(cell), cell] as const),
+  );
+  const visited = new Set<string>();
+  const groups: GridPoint[][] = [];
+
+  for (const start of map.buildableCells) {
+    const startKey = key(start);
+    if (visited.has(startKey)) continue;
+
+    const group: GridPoint[] = [];
+    const stack = [start];
+    visited.add(startKey);
+
+    while (stack.length > 0) {
+      const cell = stack.pop()!;
+      group.push(cell);
+
+      for (let dCol = -1; dCol <= 1; dCol++) {
+        for (let dRow = -1; dRow <= 1; dRow++) {
+          if (dCol === 0 && dRow === 0) continue;
+          const neighborKey = `${cell.col + dCol},${cell.row + dRow}`;
+          const neighbor = byKey.get(neighborKey);
+          if (neighbor && !visited.has(neighborKey)) {
+            visited.add(neighborKey);
+            stack.push(neighbor);
+          }
+        }
+      }
+    }
+
+    groups.push(group);
+  }
+
+  return groups;
+}
+
+/** Which island (by index into {@link islands}) a buildable cell sits on. */
+export function islandIndexOf(
+  groups: readonly (readonly GridPoint[])[],
+  cell: GridPoint,
+): number {
+  return groups.findIndex((group) =>
+    group.some((c) => c.col === cell.col && c.row === cell.row),
+  );
+}

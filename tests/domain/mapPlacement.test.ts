@@ -7,6 +7,8 @@ import {
   coverageForSpot,
   creepSpeedCellsPerSecond,
   gridToWorld,
+  islandIndexOf,
+  islands,
   pathLengthCells,
   pathsForMode,
   worldToGrid,
@@ -408,6 +410,73 @@ describe("longestRunSeconds (ramp-up vs double-pass)", () => {
     expect(corner.longestRunSeconds).toBeGreaterThan(
       between.longestRunSeconds,
     );
+  });
+});
+
+describe("islands", () => {
+  it("keeps a solid block as one island", () => {
+    const map = straightPathMap({
+      buildableCells: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+      ],
+    });
+    expect(islands(map)).toHaveLength(1);
+    expect(islands(map)[0]).toHaveLength(4);
+  });
+
+  it("treats diagonal touch as connected", () => {
+    // Two cells sharing only a corner still read as one landmass — the
+    // gap that actually separates islands is wider than that.
+    const map = straightPathMap({
+      buildableCells: [
+        { col: 0, row: 0 },
+        { col: 1, row: 1 },
+      ],
+    });
+    expect(islands(map)).toHaveLength(1);
+  });
+
+  it("splits Tropical's 'pair of islands' shape into two groups", () => {
+    const map = straightPathMap({
+      buildableCells: [
+        // Island A: a 2x2 block.
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        // A gap of open water — col 2-3 has no buildable cells.
+        // Island B: a 2x2 block, far enough that it can't touch A.
+        { col: 4, row: 0 },
+        { col: 5, row: 0 },
+        { col: 4, row: 1 },
+        { col: 5, row: 1 },
+      ],
+    });
+    const groups = islands(map);
+    expect(groups).toHaveLength(2);
+    expect(groups.map((g) => g.length).sort()).toEqual([4, 4]);
+  });
+
+  it("locates which island a given cell belongs to", () => {
+    const map = straightPathMap({
+      buildableCells: [
+        { col: 0, row: 0 },
+        { col: 5, row: 0 },
+      ],
+    });
+    const groups = islands(map);
+    expect(groups).toHaveLength(2);
+    expect(islandIndexOf(groups, { col: 0, row: 0 })).toBe(0);
+    expect(islandIndexOf(groups, { col: 5, row: 0 })).toBe(1);
+    expect(islandIndexOf(groups, { col: 99, row: 99 })).toBe(-1);
+  });
+
+  it("is empty when there are no buildable cells", () => {
+    const map = straightPathMap({ buildableCells: [] });
+    expect(islands(map)).toEqual([]);
   });
 });
 
