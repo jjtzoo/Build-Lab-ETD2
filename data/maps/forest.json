@@ -4,9 +4,9 @@
   "image": "/maps/map-1-forest-grid.png",
   "imageSize": { "w": 1920, "h": 1080 },
   "grid": {
-    "origin": { "x": 0, "y": 0 },
-    "colVector": { "x": 100, "y": 0 },
-    "rowVector": { "x": 0, "y": 100 }
+    "origin": { "x": 798, "y": 355 },
+    "colVector": { "x": 65.5, "y": 0 },
+    "rowVector": { "x": 0, "y": 65.5 }
   },
   "buildableCells": [],
   "paths": [{ "id": "main", "points": [], "modes": ["standard"] }],
