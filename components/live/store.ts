@@ -17,6 +17,7 @@ import {
   MAX_KEYSTONES,
   type BuiltTower,
 } from "@/lib/engine/liveGame";
+import { canEvolveInto } from "@/lib/domain/towerEvolution";
 
 export type LiveSnapshot = {
   allocation: ElementAllocation;
@@ -55,6 +56,11 @@ type LiveState = LiveSnapshot & {
     quantity: number,
   ) => void;
   removeBuilt: (towerId: string, level: number) => void;
+  evolveBuilt: (
+    fromTowerId: string,
+    level: number,
+    toTowerId: string,
+  ) => void;
 
   setPlan: (plan: PortableBuild | null) => void;
   newGame: () => void;
@@ -213,6 +219,46 @@ export const useLiveGame = create<LiveState>((set) => ({
         (entry) => !isSameBuiltRow(entry, towerId, level),
       ),
     })),
+
+  /**
+   * Upgrade one fielded tower into a bigger one that contains it.
+   *
+   * Gold needs no special handling: it is derived from what stands on the
+   * field, and evolving deducts what was already sunk, so the total to
+   * reach a tower is the same by any route. Swapping the row is the whole
+   * operation.
+   */
+  evolveBuilt: (fromTowerId, level, toTowerId) =>
+    set((state) => {
+      const source = state.built.find((entry) =>
+        isSameBuiltRow(entry, fromTowerId, level),
+      );
+      if (!source) return state;
+      if (!canEvolveInto(fromTowerId, toTowerId, level)) return state;
+      if (!isTowerLoggable(toTowerId, state.allocation)) return state;
+
+      const drained = state.built
+        .map((entry) =>
+          isSameBuiltRow(entry, fromTowerId, level)
+            ? { ...entry, quantity: entry.quantity - 1 }
+            : entry,
+        )
+        .filter((entry) => entry.quantity > 0);
+
+      const existing = drained.find((entry) =>
+        isSameBuiltRow(entry, toTowerId, level),
+      );
+
+      return {
+        built: existing
+          ? drained.map((entry) =>
+              isSameBuiltRow(entry, toTowerId, level)
+                ? { ...entry, quantity: entry.quantity + 1 }
+                : entry,
+            )
+          : [...drained, { towerId: toTowerId, level, quantity: 1 }],
+      };
+    }),
 
   setPlan: (plan) => set({ plan }),
 

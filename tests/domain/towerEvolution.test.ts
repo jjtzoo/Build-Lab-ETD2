@@ -134,6 +134,50 @@ describe("structure holds across the whole catalog", () => {
   });
 });
 
+describe("Arrow and Cannon — the root of the tree", () => {
+  it("grows a starter into any of the six monos", () => {
+    for (const starter of ["arrow", "cannon"]) {
+      const targets = evolutionTargets(starter, 1);
+      expect(targets).toHaveLength(6);
+      expect(targets.map((t) => t.towerId).sort()).toEqual([
+        "mono-darkness",
+        "mono-earth",
+        "mono-fire",
+        "mono-light",
+        "mono-nature",
+        "mono-water",
+      ]);
+    }
+  });
+
+  it("never lets a starter skip straight to an elemental combination", () => {
+    // With no elements of its own a starter would read as a subset of
+    // every recipe, so it has to be handled apart from that rule.
+    const ids = evolutionTargets("arrow", 1).map((t) => t.towerId);
+    expect(ids).not.toContain("vapor");
+    expect(ids).not.toContain("haste");
+  });
+
+  it("lists the starters as what a Level 1 mono came from", () => {
+    const sources = evolutionSources("mono-water", 1).map(
+      (s) => s.towerId,
+    );
+    expect(sources).toEqual(["arrow", "cannon"]);
+    // A mono past Level 1 outgrew the 75g seed.
+    expect(evolutionSources("mono-water", 2)).toEqual([]);
+  });
+
+  it("costs 100 to turn a 75g starter into a Level 1 mono", () => {
+    expect(fieldedCost("arrow", 1)).toBe(75);
+    expect(
+      evolutionCost(
+        { towerId: "arrow", level: 1 },
+        { towerId: "mono-water", level: 1 },
+      ),
+    ).toBe(100);
+  });
+});
+
 describe("evolution cost — the route doesn't change the total", () => {
   it("charges only the difference", () => {
     // Dual II is 1,300 sunk; Trio II costs 5,000 all-in.

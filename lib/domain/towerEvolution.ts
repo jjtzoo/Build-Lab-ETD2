@@ -2,9 +2,12 @@ import type { ElementName } from "./elements";
 import type { TowerId } from "./tower";
 import { TOWERS, getTower } from "./towerCatalog";
 import {
+  BASIC_TOWERS,
   MONO_MAX_LEVEL,
   MONO_TOWERS,
+  getBasicTower,
   getMonoTower,
+  isBasicTowerId,
   isMonoTowerId,
   monoTowerCost,
 } from "./auxiliaryTowers";
@@ -33,6 +36,20 @@ export type EvolutionStep = {
   /** Level the evolved tower arrives at — the same one it came in with. */
   level: number;
 };
+
+/**
+ * Arrow and Cannon are the root of the tree, and the one case the recipe
+ * rule can't express: having no elements at all, they'd read as a subset
+ * of every tower. In the game they seed a Level 1 element tower and then
+ * follow that tower's path, so they're handled explicitly.
+ */
+function basicTowerTargets(level: number): EvolutionStep[] {
+  if (level !== 1) return [];
+  return MONO_TOWERS.map((mono) => ({
+    towerId: mono.id as TowerId,
+    level: 1,
+  }));
+}
 
 /** The elements a tower is made of: its recipe, or a mono's single element. */
 export function towerElements(
@@ -67,6 +84,8 @@ export function evolutionTargets(
   towerId: TowerId,
   level: number,
 ): EvolutionStep[] {
+  if (isBasicTowerId(towerId)) return basicTowerTargets(level);
+
   const from = towerElements(towerId);
 
   return TOWERS.filter(
@@ -87,8 +106,20 @@ export function evolutionSources(
   towerId: TowerId,
   level: number,
 ): EvolutionStep[] {
-  const target = towerElements(towerId);
+  if (isBasicTowerId(towerId)) return [];
   if (level > maxLevelOf(towerId)) return [];
+
+  // A mono at Level 1 is what a starter tower grows into.
+  if (isMonoTowerId(towerId)) {
+    return level === 1
+      ? BASIC_TOWERS.map((basic) => ({
+          towerId: basic.id as TowerId,
+          level: 1,
+        }))
+      : [];
+  }
+
+  const target = towerElements(towerId);
 
   const monos = MONO_TOWERS.filter(
     (mono) =>
@@ -123,9 +154,9 @@ export function fieldedCost(
   towerId: TowerId,
   level: number,
 ): number {
-  return isMonoTowerId(towerId)
-    ? monoTowerCost(level)
-    : resolveNormalTowerCost(towerId, level).minimumFieldCost;
+  if (isBasicTowerId(towerId)) return getBasicTower(towerId).cost;
+  if (isMonoTowerId(towerId)) return monoTowerCost(level);
+  return resolveNormalTowerCost(towerId, level).minimumFieldCost;
 }
 
 /**

@@ -7,12 +7,17 @@ import { gold, roman } from "@/components/build-lab/primitives";
 import {
   builtRowKey,
   deriveGoldSpent,
+  isTowerLoggable,
   liveTowerName,
   liveTowerReachableLevel,
   loggableTowers,
   resolveLiveTowerCost,
   staleFieldRows,
 } from "@/lib/engine/liveGame";
+import {
+  evolutionCost,
+  evolutionTargets,
+} from "@/lib/domain/towerEvolution";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { useLiveGame } from "@/components/live/store";
 
@@ -33,9 +38,11 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
   const setBuiltLevel = useLiveGame((s) => s.setBuiltLevel);
   const setBuiltQuantity = useLiveGame((s) => s.setBuiltQuantity);
   const removeBuilt = useLiveGame((s) => s.removeBuilt);
+  const evolveBuilt = useLiveGame((s) => s.evolveBuilt);
   const reduce = useReducedMotion();
 
   const [query, setQuery] = useState("");
+  const [evolving, setEvolving] = useState<string | null>(null);
 
   const goldSpent = useMemo(() => deriveGoldSpent(built), [built]);
   const towerCount = built.reduce(
@@ -135,6 +142,23 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
               liveTowerReachableLevel(entry.towerId, allocation),
             );
             const name = liveTowerName(entry.towerId);
+            // What this tower can grow into, and the gap to get there —
+            // evolving deducts what it already cost, so the total is the
+            // same as fielding the target outright.
+            const evolveOptions = evolutionTargets(
+              entry.towerId,
+              entry.level,
+            )
+              .filter((step) =>
+                isTowerLoggable(step.towerId, allocation),
+              )
+              .map((step) => ({
+                towerId: step.towerId,
+                extraCost: evolutionCost(
+                  { towerId: entry.towerId, level: entry.level },
+                  step,
+                ),
+              }));
             return (
               <li
                 key={key}
@@ -234,6 +258,54 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
                 >
                   ✕
                 </button>
+
+                {evolveOptions.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className="live-field-evolve"
+                      data-on={evolving === key || undefined}
+                      onClick={() =>
+                        setEvolving(evolving === key ? null : key)
+                      }
+                      aria-expanded={evolving === key}
+                      aria-label={`Evolve ${name}`}
+                    >
+                      ⟶
+                    </button>
+                    {evolving === key && (
+                      <ul className="live-evolve-menu">
+                        {evolveOptions.map((option) => (
+                          <li key={option.towerId}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                evolveBuilt(
+                                  entry.towerId,
+                                  entry.level,
+                                  option.towerId,
+                                );
+                                setEvolving(null);
+                              }}
+                            >
+                              <LiveTowerIcon
+                                towerId={option.towerId}
+                                assets={assets}
+                                size={20}
+                              />
+                              <span>
+                                {liveTowerName(option.towerId)}
+                              </span>
+                              <span className="live-log-max mono">
+                                +{gold(option.extraCost)}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
               </li>
             );
           })}

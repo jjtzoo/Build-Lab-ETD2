@@ -4676,6 +4676,55 @@ button.mechanic-chip {
   color: var(--muted);
   font-size: 11px;
 }
+.live-field-evolve {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font-size: 13px;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.live-field-evolve:hover,
+.live-field-evolve[data-on] {
+  background: var(--surface-internal);
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.live-evolve-menu {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+.live-evolve-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  text-align: left;
+}
+.live-evolve-menu button:hover {
+  background: var(--surface-internal);
+  color: var(--text);
+}
+.live-evolve-menu .live-log-max {
+  margin-left: auto;
+}
 .live-field-remove:hover {
   color: var(--text);
 }
