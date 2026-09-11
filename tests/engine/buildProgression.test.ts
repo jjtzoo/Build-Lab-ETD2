@@ -241,6 +241,45 @@ describe("Phase 8B build progression", () => {
     }
   });
 
+  it("4b. brings every role online before pushing any to max", () => {
+    // Ordering on role alone let a support tower run to max ahead of the
+    // anchor's own upgrade — on a Trio that spends 3,500 gold, the
+    // game's priciest single step, on a multiplier while the thing being
+    // multiplied sits at a quarter of its damage (every Trio's L1->L2 is
+    // a flat 4x). Within a step, operational-level work now always
+    // precedes max-level work.
+    //
+    // This pins the sort only. Which tower reaches max *first overall*
+    // is decided a layer up by the keystone route, which can hand a
+    // support its elements before the anchor's — see the 3-3 vs 2-2-2
+    // question. Not covered here.
+    for (const progression of [
+      dualProgression,
+      trioProgression,
+    ]) {
+      for (const step of progression.steps) {
+        const actions = [
+          ...(step.primaryAction ? [step.primaryAction] : []),
+          ...step.secondaryActions,
+        ];
+
+        let seenMaxPush = false;
+        for (const action of actions) {
+          const tower = getTower(action.towerId);
+          const operational =
+            tower.combination === "Dual" ? 2 : 1;
+          const isMaxPush = action.toLevel > operational;
+
+          if (isMaxPush) {
+            seenMaxPush = true;
+          } else {
+            expect(seenMaxPush).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
   it("5. produces deterministic EARLY/MID/LATE primary actions", () => {
     const rerun = buildProgression(trioPlan);
     expect(

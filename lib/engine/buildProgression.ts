@@ -117,10 +117,17 @@ function cloneAllocation(
   return { ...allocation };
 }
 
-function anchorOperationalLevel(
-  anchorTowerId: TowerId,
+/**
+ * The level at which a tower is doing its job, short of its last
+ * upgrade. Reaching max costs disproportionately more than it does to
+ * get here — a Trio's 1->2 is +3,500 gold and needs a third element at
+ * depth 2, a Dual's 2->3 needs both elements at depth 3 — so bringing
+ * every role online comes before pushing any one of them to max.
+ */
+function operationalLevel(
+  towerId: TowerId,
 ): number {
-  return getTower(anchorTowerId)
+  return getTower(towerId)
     .combination === "Dual"
     ? 2
     : 1;
@@ -163,22 +170,12 @@ function roleNamesForTower(
     .map((role) => role.role);
 }
 
-function actionPriority(
+/** Role order within a band: main DPS, then slow, amp, buff, then the rest. */
+function roleRank(
   plan: CombinedBuildPlan,
   towerId: TowerId,
-  toLevel: number,
 ): number {
-  const operational =
-    anchorOperationalLevel(
-      plan.anchorTowerId,
-    );
-
-  if (
-    towerId === plan.anchorTowerId &&
-    toLevel <= operational
-  ) {
-    return 100;
-  }
+  if (towerId === plan.anchorTowerId) return 5;
 
   const roles =
     roleNamesForTower(
@@ -186,19 +183,33 @@ function actionPriority(
       towerId,
     );
 
-  if (roles.includes("slow")) {
-    return 90;
-  }
-  if (roles.includes("damage-amp")) {
-    return 80;
-  }
-  if (roles.includes("buff")) {
-    return 70;
-  }
-  if (towerId === plan.anchorTowerId) {
-    return 60;
-  }
-  return 40;
+  if (roles.includes("slow")) return 4;
+  if (roles.includes("damage-amp")) return 3;
+  if (roles.includes("buff")) return 2;
+  return 1;
+}
+
+/**
+ * Orders one keystone step's builds and upgrades.
+ *
+ * Two bands, each keeping the same role order. Everything reaches its
+ * operational level first; only then does anything push to max. Ordering
+ * on role alone let a support tower run all the way to max before the
+ * anchor's own upgrade — on a Trio anchor that meant spending 3,500 gold
+ * and a third element's depth on a multiplier while the thing being
+ * multiplied sat at a quarter of its damage.
+ */
+function actionPriority(
+  plan: CombinedBuildPlan,
+  towerId: TowerId,
+  toLevel: number,
+): number {
+  const band =
+    toLevel <= operationalLevel(towerId)
+      ? 100
+      : 0;
+
+  return band + roleRank(plan, towerId);
 }
 
 function makeActions(
@@ -314,7 +325,7 @@ function milestoneStatus(
   return {
     anchorOperational:
       anchorLevel >=
-      anchorOperationalLevel(
+      operationalLevel(
         plan.anchorTowerId,
       ),
     anchorDeveloped:
@@ -365,7 +376,7 @@ function stepPriority(
   const anchor =
     getTower(plan.anchorTowerId);
   const operational =
-    anchorOperationalLevel(
+    operationalLevel(
       plan.anchorTowerId,
     );
   const anchorPrerequisiteProgress =
