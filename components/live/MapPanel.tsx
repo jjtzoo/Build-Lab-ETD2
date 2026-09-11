@@ -38,6 +38,13 @@ const SCHEMATIC_PAD = 1.5;
  */
 const RANGE_REFERENCES = [625, 875, 1000, 1125, 1500, 1750] as const;
 
+/** The game's own word for a spot the route runs past more than once. */
+function passLabel(passes: number): string | null {
+  if (passes >= 3) return `${passes}× pass`;
+  if (passes === 2) return "double-pass";
+  return null;
+}
+
 function toSvgPoint(
   svg: SVGSVGElement,
   clientX: number,
@@ -620,6 +627,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         <p className="live-map-readout mono">
           {spotCoverage.coveragePercent.toFixed(1)}% of the route ·{" "}
           {spotCoverage.coveredSeconds.toFixed(1)}s
+          {passLabel(spotCoverage.passes) && (
+            <> · {passLabel(spotCoverage.passes)}</>
+          )}
           {spotCoverage.perPath.length > 1 && (
             <>
               {" "}
@@ -657,6 +667,11 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 <span className="mono">
                   {entry.coverage.coveragePercent.toFixed(1)}%
                 </span>
+                {passLabel(entry.coverage.passes) && (
+                  <span className="live-map-pass">
+                    {passLabel(entry.coverage.passes)}
+                  </span>
+                )}
                 <span className="live-map-rank-seconds mono">
                   {entry.coverage.coveredSeconds.toFixed(1)}s
                 </span>

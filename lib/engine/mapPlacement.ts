@@ -96,20 +96,22 @@ export function creepSpeedCellsPerSecond(map: MapConfig): number {
 }
 
 /**
- * Length of segment a->b that lies within `radius` of `center`, via the
- * standard line/circle intersection (quadratic in the segment's
- * parameter t, clipped to t in [0,1]).
+ * The covered stretch of segment a->b as a fraction of the segment,
+ * or null when the circle misses it entirely. Returning the interval
+ * rather than just its length is what lets callers tell a single long
+ * stretch from a "double-pass" — two separate stretches of the same
+ * route within one tower's reach.
  */
-function circleSegmentOverlapLength(
+function circleSegmentOverlap(
   a: GridPoint,
   b: GridPoint,
   center: GridPoint,
   radius: number,
-): number {
+): { from: number; to: number; length: number } | null {
   const dx = b.col - a.col;
   const dy = b.row - a.row;
   const segLen = Math.hypot(dx, dy);
-  if (segLen === 0) return 0;
+  if (segLen === 0) return null;
 
   const fx = a.col - center.col;
   const fy = a.row - center.row;
@@ -119,14 +121,14 @@ function circleSegmentOverlapLength(
   const C = fx * fx + fy * fy - radius * radius;
 
   const discriminant = B * B - 4 * A * C;
-  if (discriminant < 0) return 0;
+  if (discriminant < 0) return null;
 
   const sqrtDisc = Math.sqrt(discriminant);
-  const t1 = Math.max(0, (-B - sqrtDisc) / (2 * A));
-  const t2 = Math.min(1, (-B + sqrtDisc) / (2 * A));
-  if (t2 <= t1) return 0;
+  const from = Math.max(0, (-B - sqrtDisc) / (2 * A));
+  const to = Math.min(1, (-B + sqrtDisc) / (2 * A));
+  if (to <= from) return null;
 
-  return (t2 - t1) * segLen;
+  return { from, to, length: (to - from) * segLen };
 }
 
 export type SpotCoverage = {
@@ -134,12 +136,20 @@ export type SpotCoverage = {
   coveredSeconds: number;
   /** 0-100 */
   coveragePercent: number;
+  /**
+   * How many separate stretches of the route this spot reaches. The game
+   * calls a spot that sees the path more than once a "double-pass", and
+   * flags it as what makes short-ranged towers viable — the route comes
+   * back to them instead of them having to reach further.
+   */
+  passes: number;
 };
 
 const EMPTY_COVERAGE: SpotCoverage = {
   coveredLengthCells: 0,
   coveredSeconds: 0,
   coveragePercent: 0,
+  passes: 0,
 };
 
 /**
@@ -159,13 +169,25 @@ export function coverageForSpot(
   const rangeCells = towerRangeUnits / map.rangeUnitsPerCell;
 
   let coveredLengthCells = 0;
+  let passes = 0;
+  // A pass continues across a segment boundary only when coverage runs
+  // right up to the end of one segment and resumes at the start of the
+  // next; any gap means the route left the tower's reach and came back.
+  let continuing = false;
   for (let i = 1; i < path.points.length; i++) {
-    coveredLengthCells += circleSegmentOverlapLength(
+    const overlap = circleSegmentOverlap(
       path.points[i - 1],
       path.points[i],
       cell,
       rangeCells,
     );
+    if (!overlap) {
+      continuing = false;
+      continue;
+    }
+    coveredLengthCells += overlap.length;
+    if (!(continuing && overlap.from === 0)) passes++;
+    continuing = overlap.to === 1;
   }
 
   const speed = creepSpeedCellsPerSecond(map);
@@ -174,6 +196,7 @@ export function coverageForSpot(
     coveredLengthCells,
     coveredSeconds: speed > 0 ? coveredLengthCells / speed : 0,
     coveragePercent: (coveredLengthCells / totalLengthCells) * 100,
+    passes,
   };
 }
 
@@ -224,6 +247,10 @@ export function coverageForMode(
       0,
     ),
     coveragePercent: (coveredLengthCells / totalLengthCells) * 100,
+    passes: perPath.reduce(
+      (sum, entry) => sum + entry.coverage.passes,
+      0,
+    ),
     perPath,
   };
 }

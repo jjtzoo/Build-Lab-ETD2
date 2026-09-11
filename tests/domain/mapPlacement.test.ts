@@ -280,6 +280,67 @@ describe("coverageForMode", () => {
   });
 });
 
+describe("passes (the game's 'double-pass')", () => {
+  it("counts one pass for a single stretch within reach", () => {
+    const map = straightPathMap();
+    expect(
+      coverageForSpot(map, { col: 5, row: 1 }, 2, MAIN_PATH).passes,
+    ).toBe(1);
+  });
+
+  it("counts none when the route never enters reach", () => {
+    const map = straightPathMap();
+    expect(
+      coverageForSpot(map, { col: 5, row: 5 }, 2, MAIN_PATH).passes,
+    ).toBe(0);
+  });
+
+  it("counts two when the route doubles back past the same spot", () => {
+    // A hairpin: out along row 0, back along row 2. A spot between the
+    // two legs reaches both, but loses the route around the far turn —
+    // the shape Lava's description calls a double-pass.
+    const map = straightPathMap({
+      paths: [
+        {
+          id: "hairpin",
+          points: [
+            { col: 0, row: 0 },
+            { col: 10, row: 0 },
+            { col: 10, row: 2 },
+            { col: 0, row: 2 },
+          ],
+          modes: ["standard"],
+        },
+      ],
+    });
+    const coverage = coverageForSpot(map, { col: 2, row: 1 }, 1.5, map.paths[0]);
+    expect(coverage.passes).toBe(2);
+    expect(coverage.coveredLengthCells).toBeGreaterThan(0);
+  });
+
+  it("keeps a pass whole across the vertices inside it", () => {
+    // A tower parked on the hairpin's turn sees one continuous stretch,
+    // even though that stretch spans three traced segments.
+    const map = straightPathMap({
+      paths: [
+        {
+          id: "hairpin",
+          points: [
+            { col: 0, row: 0 },
+            { col: 10, row: 0 },
+            { col: 10, row: 2 },
+            { col: 0, row: 2 },
+          ],
+          modes: ["standard"],
+        },
+      ],
+    });
+    expect(
+      coverageForSpot(map, { col: 10, row: 1 }, 4, map.paths[0]).passes,
+    ).toBe(1);
+  });
+});
+
 describe("worldToGrid", () => {
   it("inverts gridToWorld for an axis-aligned grid", () => {
     const map = straightPathMap();
