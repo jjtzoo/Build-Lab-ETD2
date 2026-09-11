@@ -364,3 +364,36 @@ export function islandIndexOf(
     group.some((c) => c.col === cell.col && c.row === cell.row),
   );
 }
+
+/**
+ * Every cell inside each island's own bounding rectangle that isn't
+ * itself buildable — the "dead" cells for a full grid-table view.
+ * Deliberately scoped per island rather than the whole map: Forest has
+ * three disconnected plazas, and one rectangle spanning all of them
+ * would paint a fake uniform grid across the real forest and water
+ * gaps between them. Not persisted anywhere — a cell is dead by
+ * absence from `buildableCells`, this just enumerates that for display.
+ */
+export function deadCells(map: MapConfig): GridPoint[] {
+  const buildableKeys = new Set(
+    map.buildableCells.map((c) => `${c.col},${c.row}`),
+  );
+  const dead: GridPoint[] = [];
+
+  for (const group of islands(map)) {
+    const cols = group.map((c) => c.col);
+    const rows = group.map((c) => c.row);
+    const minCol = Math.min(...cols);
+    const maxCol = Math.max(...cols);
+    const minRow = Math.min(...rows);
+    const maxRow = Math.max(...rows);
+
+    for (let col = minCol; col <= maxCol; col++) {
+      for (let row = minRow; row <= maxRow; row++) {
+        if (!buildableKeys.has(`${col},${row}`)) dead.push({ col, row });
+      }
+    }
+  }
+
+  return dead;
+}

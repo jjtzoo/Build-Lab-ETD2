@@ -55,3 +55,53 @@ export type MapConfig = {
    */
   rangeUnitsPerCell: number;
 };
+
+/**
+ * Chess/spreadsheet-style cell labels (A1, D7, AA3, ...) — a display
+ * convention only, not a storage format. Buildable cells are always
+ * integers, so they label cleanly; path points are deliberately
+ * fractional (creeps walk the line, not cell centers), so they're never
+ * labeled — the path renders as a line, not a sequence of cells.
+ *
+ * `origin` re-bases the label so a map's authored coordinates (tied to
+ * wherever the calibration clicks happened to land, which can be
+ * negative or off-grid) still start at A1 for anyone reading them.
+ */
+export function cellLabel(
+  cell: GridPoint,
+  origin: GridPoint = { col: 0, row: 0 },
+): string {
+  const col = Math.round(cell.col - origin.col);
+  const row = Math.round(cell.row - origin.row);
+  return `${columnLetters(col)}${row + 1}`;
+}
+
+function columnLetters(col: number): string {
+  let n = Math.max(0, col);
+  let label = "";
+  do {
+    label = String.fromCharCode(65 + (n % 26)) + label;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return label;
+}
+
+/** Inverse of {@link cellLabel} — "D7" back to grid coordinates, or `null` if unparseable. */
+export function parseCellLabel(
+  label: string,
+  origin: GridPoint = { col: 0, row: 0 },
+): GridPoint | null {
+  const match = /^([A-Za-z]+)(\d+)$/.exec(label.trim());
+  if (!match) return null;
+
+  const [, letters, digits] = match;
+  let col = 0;
+  for (const char of letters.toUpperCase()) {
+    col = col * 26 + (char.charCodeAt(0) - 64);
+  }
+
+  return {
+    col: col - 1 + origin.col,
+    row: Number(digits) - 1 + origin.row,
+  };
+}

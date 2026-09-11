@@ -4866,6 +4866,27 @@ button.mechanic-chip {
   fill: #e6c15f;
   stroke: #e6c15f;
 }
+.live-map-dead {
+  fill: var(--surface-sunken);
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.live-map-cell-label {
+  font-family: var(--font-mono, monospace);
+  fill: var(--muted);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  user-select: none;
+}
+.live-map-cell-label[data-dead] {
+  fill: var(--line-strong);
+}
+.live-map-cell-name {
+  color: var(--muted);
+}
 .live-map-trace {
   display: flex;
   flex-direction: column;

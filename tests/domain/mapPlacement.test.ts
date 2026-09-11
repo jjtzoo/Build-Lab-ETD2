@@ -6,6 +6,7 @@ import {
   coverageForMode,
   coverageForSpot,
   creepSpeedCellsPerSecond,
+  deadCells,
   gridToWorld,
   islandIndexOf,
   islands,
@@ -477,6 +478,52 @@ describe("islands", () => {
   it("is empty when there are no buildable cells", () => {
     const map = straightPathMap({ buildableCells: [] });
     expect(islands(map)).toEqual([]);
+  });
+});
+
+describe("deadCells", () => {
+  it("fills the notch of an L-shape without needing the shape modeled specially", () => {
+    // An L: a 3x2 block with the top-right cell missing. The coordinate
+    // system doesn't need to know about L-shapes — the bounding
+    // rectangle is regular, and the one uncovered cell inside it is
+    // just "dead" by not appearing in buildableCells.
+    const map = straightPathMap({
+      buildableCells: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        // (2,0) missing — the notch.
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+      ],
+    });
+    const dead = deadCells(map);
+    expect(dead).toEqual([{ col: 2, row: 0 }]);
+  });
+
+  it("never paints across the gap between two separate islands", () => {
+    // Two 1x1 cells far apart. A single bounding rectangle across both
+    // would fill in a huge false grid over the empty space between
+    // them; scoped per-island, there should be no dead cells at all.
+    const map = straightPathMap({
+      buildableCells: [
+        { col: 0, row: 0 },
+        { col: 10, row: 10 },
+      ],
+    });
+    expect(deadCells(map)).toEqual([]);
+  });
+
+  it("is empty for a solid rectangle", () => {
+    const map = straightPathMap({
+      buildableCells: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+      ],
+    });
+    expect(deadCells(map)).toEqual([]);
   });
 });
 

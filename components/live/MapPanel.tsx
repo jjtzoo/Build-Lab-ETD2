@@ -6,17 +6,19 @@ import { motion, useReducedMotion } from "motion/react";
 
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { TOWERS } from "@/lib/domain/towerCatalog";
-import type {
-  GridPoint,
-  MapConfig,
-  MapPath,
-  PixelPoint,
-  WaveMode,
+import {
+  cellLabel,
+  type GridPoint,
+  type MapConfig,
+  type MapPath,
+  type PixelPoint,
+  type WaveMode,
 } from "@/lib/domain/mapConfig";
 import { MAPS } from "@/lib/domain/mapCatalog";
 import {
   bestSpotsForTower,
   coverageForMode,
+  deadCells,
   gridToWorld,
   pathsForMode,
   worldToGrid,
@@ -215,6 +217,20 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const viewBox = schematicViewBox(map);
   const showScreenshot = editEnabled;
 
+  // One shared coordinate space for the whole map, even though the dead
+  // cells behind it are filled in separately per plaza — so two
+  // different plazas never land on the same label (no two "D7"s).
+  const labelOrigin = useMemo(() => {
+    const cells = [...map.buildableCells, ...map.paths.flatMap((p) => p.points)];
+    if (cells.length === 0) return { col: 0, row: 0 };
+    return {
+      col: Math.floor(Math.min(...cells.map((c) => c.col))),
+      row: Math.floor(Math.min(...cells.map((c) => c.row))),
+    };
+  }, [map.buildableCells, map.paths]);
+
+  const dead = useMemo(() => deadCells(map), [map]);
+
   // Editor draws over the screenshot in pixel space; the schematic draws
   // in grid space, where cells are square and range is a true circle.
   const project: Projector = showScreenshot
@@ -223,6 +239,18 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const rangeRadius = selectedTower
     ? selectedTower.stats.range / map.rangeUnitsPerCell
     : 0;
+
+  // Cell size in whatever unit the current view draws in: 1 in the
+  // schematic (grid space, where a cell is literally 1 unit), the actual
+  // pixel span of a cell in the editor. Text has no non-scaling-stroke
+  // equivalent in SVG, so font-size has to be computed relative to this
+  // rather than set as a fixed CSS value, or it renders illegibly tiny
+  // or cell-sized-and-huge depending on which view is active.
+  const cellUnitSize = showScreenshot
+    ? (Math.hypot(map.grid.colVector.x, map.grid.colVector.y) +
+        Math.hypot(map.grid.rowVector.x, map.grid.rowVector.y)) /
+      2
+    : 1;
 
   function handleSvgClick(event: React.MouseEvent<SVGSVGElement>) {
     if (!editMode || !svgRef.current) return;
@@ -583,25 +611,56 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
               />
             )}
 
+            {dead.map((cell) => {
+              const center = project(cell);
+              return (
+                <g key={`dead-${cell.col},${cell.row}`}>
+                  <polygon
+                    points={cellPolygon(project, cell)}
+                    className="live-map-dead"
+                  />
+                  <text
+                    x={center.x}
+                    y={center.y}
+                    className="live-map-cell-label"
+                    style={{ fontSize: cellUnitSize * 0.22 }}
+                    data-dead
+                  >
+                    {cellLabel(cell, labelOrigin)}
+                  </text>
+                </g>
+              );
+            })}
+
             {map.buildableCells.map((cell) => {
               const key = `${cell.col},${cell.row}`;
               const rank = rankByKey.get(key);
               const isSelected =
                 selectedCell?.col === cell.col &&
                 selectedCell?.row === cell.row;
+              const center = project(cell);
               return (
-                <polygon
-                  key={key}
-                  points={cellPolygon(project, cell)}
-                  className="live-map-block"
-                  data-rank={rank !== undefined ? rank : undefined}
-                  data-selected={isSelected || undefined}
-                  onClick={(e) => {
-                    if (editMode) return;
-                    e.stopPropagation();
-                    setSelectedCell(cell);
-                  }}
-                />
+                <g key={key}>
+                  <polygon
+                    points={cellPolygon(project, cell)}
+                    className="live-map-block"
+                    data-rank={rank !== undefined ? rank : undefined}
+                    data-selected={isSelected || undefined}
+                    onClick={(e) => {
+                      if (editMode) return;
+                      e.stopPropagation();
+                      setSelectedCell(cell);
+                    }}
+                  />
+                  <text
+                    x={center.x}
+                    y={center.y}
+                    className="live-map-cell-label"
+                    style={{ fontSize: cellUnitSize * 0.32 }}
+                  >
+                    {cellLabel(cell, labelOrigin)}
+                  </text>
+                </g>
               );
             })}
 
@@ -669,8 +728,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         </div>
       )}
 
-      {selectedTower && spotCoverage && (
+      {selectedTower && spotCoverage && selectedCell && (
         <p className="live-map-readout mono">
+          <b>{cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
           {spotCoverage.coveragePercent.toFixed(1)}% of the route ·{" "}
           {spotCoverage.coveredSeconds.toFixed(1)}s
           {passLabel(spotCoverage.passes) && (
@@ -710,6 +770,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 onClick={() => setSelectedCell(entry.cell)}
               >
                 <span className="live-map-rank mono">#{i + 1}</span>
+                <span className="live-map-cell-name mono">
+                  {cellLabel(entry.cell, labelOrigin)}
+                </span>
                 <span className="mono">
                   {entry.coverage.coveragePercent.toFixed(1)}%
                 </span>
