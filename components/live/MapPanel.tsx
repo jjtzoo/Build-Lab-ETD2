@@ -140,6 +140,8 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     [],
   );
   const [measureClicks, setMeasureClicks] = useState<PixelPoint[]>([]);
+  /** First corner of a rectangle fill, while the second is being chosen. */
+  const [fillAnchor, setFillAnchor] = useState<GridPoint | null>(null);
   const [measureRange, setMeasureRange] = useState("1000");
   /** Editor backdrop override — a tower-range reference shot, or the map's own image. */
   const [backdrop, setBackdrop] = useState<string | null>(null);
@@ -265,17 +267,53 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     if (editMode === "buildable") {
       const raw = worldToGrid(map, p);
       const cell = { col: Math.round(raw.col), row: Math.round(raw.row) };
+
+      // Plazas are rectangular blocks, so marking one is two clicks —
+      // opposite corners — rather than one per cell. A second click on
+      // the same cell just toggles it, which keeps single cells easy.
+      if (!fillAnchor) {
+        setFillAnchor(cell);
+        return;
+      }
+
+      const anchor = fillAnchor;
+      setFillAnchor(null);
+
+      if (anchor.col === cell.col && anchor.row === cell.row) {
+        updateMap((current) => {
+          const exists = current.buildableCells.some(
+            (c) => c.col === cell.col && c.row === cell.row,
+          );
+          return {
+            ...current,
+            buildableCells: exists
+              ? current.buildableCells.filter(
+                  (c) => !(c.col === cell.col && c.row === cell.row),
+                )
+              : [...current.buildableCells, cell],
+          };
+        });
+        return;
+      }
+
+      const minCol = Math.min(anchor.col, cell.col);
+      const maxCol = Math.max(anchor.col, cell.col);
+      const minRow = Math.min(anchor.row, cell.row);
+      const maxRow = Math.max(anchor.row, cell.row);
+
       updateMap((current) => {
-        const exists = current.buildableCells.some(
-          (c) => c.col === cell.col && c.row === cell.row,
+        const present = new Set(
+          current.buildableCells.map((c) => `${c.col},${c.row}`),
         );
+        const added: GridPoint[] = [];
+        for (let col = minCol; col <= maxCol; col++) {
+          for (let row = minRow; row <= maxRow; row++) {
+            if (!present.has(`${col},${row}`)) added.push({ col, row });
+          }
+        }
         return {
           ...current,
-          buildableCells: exists
-            ? current.buildableCells.filter(
-                (c) => !(c.col === cell.col && c.row === cell.row),
-              )
-            : [...current.buildableCells, cell],
+          buildableCells: [...current.buildableCells, ...added],
         };
       });
     }
@@ -587,6 +625,14 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 />
               ))}
 
+            {fillAnchor && (
+              <polygon
+                points={cellPolygon(project, fillAnchor)}
+                className="live-map-block"
+                data-selected
+              />
+            )}
+
             {editMode === "measure" && (
               <>
                 {measureClicks.map((p, i) => (
@@ -702,6 +748,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                   setEditMode((m) => (m === id ? null : id));
                   if (id !== "calibrate") setCalibrationClicks([]);
                   if (id !== "measure") setMeasureClicks([]);
+                  setFillAnchor(null);
                 }}
               >
                 {label}
@@ -785,8 +832,38 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
           {editMode === "buildable" && (
             <p className="live-panel-note">
-              Click a grid cell to toggle it buildable (
-              {map.buildableCells.length} marked).
+              {fillAnchor ? (
+                <>
+                  Corner set at{" "}
+                  <b className="mono">
+                    {fillAnchor.col},{fillAnchor.row}
+                  </b>{" "}
+                  — click the opposite corner to fill the block, or the
+                  same cell again to toggle just it.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setFillAnchor(null)}
+                  >
+                    cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  Click two opposite corners to fill a plaza (
+                  {map.buildableCells.length} marked).{" "}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateMap((current) => ({
+                        ...current,
+                        buildableCells: [],
+                      }))
+                    }
+                  >
+                    clear all
+                  </button>
+                </>
+              )}
             </p>
           )}
 
