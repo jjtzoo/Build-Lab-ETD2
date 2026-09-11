@@ -1,0 +1,146 @@
+import { describe, expect, it } from "vitest";
+
+import { TOWERS, getTower } from "@/lib/domain/towerCatalog";
+import {
+  canEvolveInto,
+  evolutionSources,
+  evolutionTargets,
+  towerElements,
+} from "@/lib/domain/towerEvolution";
+
+/**
+ * Evolution lock.
+ *
+ * The expectations below were read off the in-game Tower Table by the
+ * user (2026-09-12): selecting Vapor highlights exactly four Trios and
+ * six Quads, and selecting Haste exactly three Quads. These are game
+ * facts, not engine tuning — if one fails, the derivation or the recipe
+ * data regressed, not the test.
+ */
+const names = (steps: { towerId: string }[]) =>
+  steps.map((step) => getTower(step.towerId).name).sort();
+
+describe("evolutionTargets — against the in-game Tower Table", () => {
+  it("offers Vapor exactly the four Trios holding Water+Fire", () => {
+    const trios = evolutionTargets("vapor", 2).filter(
+      (step) => getTower(step.towerId).combination === "Trio",
+    );
+    expect(names(trios)).toEqual([
+      "Corrosion",
+      "Haste",
+      "Impulse",
+      "Windstorm",
+    ]);
+  });
+
+  it("offers Vapor exactly the six Quads holding Water+Fire", () => {
+    const quads = evolutionTargets("vapor", 1).filter(
+      (step) => getTower(step.towerId).combination === "Quad",
+    );
+    expect(names(quads)).toEqual([
+      "Archdruid",
+      "Crystal Spire",
+      "Obelisk",
+      "Railgun",
+      "Singularity",
+      "Tsunami",
+    ]);
+  });
+
+  it("offers Haste exactly the three Quads holding all of its elements", () => {
+    const quads = evolutionTargets("haste", 1);
+    expect(names(quads)).toEqual([
+      "Crystal Spire",
+      "Railgun",
+      "Tsunami",
+    ]);
+  });
+});
+
+describe("the level ceiling", () => {
+  it("lets a Dual II become a Trio II but stops a Dual III", () => {
+    expect(canEvolveInto("vapor", "haste", 2)).toBe(true);
+    // Trio maxes at II, so a Dual that already outgrew it has nowhere
+    // to go — the case the user called out explicitly.
+    expect(canEvolveInto("vapor", "haste", 3)).toBe(false);
+  });
+
+  it("lets a Trio I become a Quad but stops a Trio II", () => {
+    expect(canEvolveInto("haste", "railgun", 1)).toBe(true);
+    expect(canEvolveInto("haste", "railgun", 2)).toBe(false);
+  });
+
+  it("lets a mono at any normal level become a Dual", () => {
+    for (const level of [1, 2, 3]) {
+      expect(canEvolveInto("mono-water", "vapor", level)).toBe(true);
+    }
+    // Level 4 is Pure Essence, past every Dual's ceiling.
+    expect(canEvolveInto("mono-water", "vapor", 4)).toBe(false);
+  });
+
+  it("carries the level across rather than resetting it", () => {
+    for (const step of evolutionTargets("vapor", 2)) {
+      expect(step.level).toBe(2);
+    }
+  });
+});
+
+describe("structure holds across the whole catalog", () => {
+  it("gives every Dual exactly 4 Trios and 6 Quads downstream", () => {
+    for (const tower of TOWERS.filter((t) => t.combination === "Dual")) {
+      const trios = evolutionTargets(tower.id, 1).filter(
+        (step) => getTower(step.towerId).combination === "Trio",
+      );
+      const quads = evolutionTargets(tower.id, 1).filter(
+        (step) => getTower(step.towerId).combination === "Quad",
+      );
+      expect({ id: tower.id, trios: trios.length, quads: quads.length })
+        .toEqual({ id: tower.id, trios: 4, quads: 6 });
+    }
+  });
+
+  it("gives every Trio exactly 3 Quads downstream", () => {
+    for (const tower of TOWERS.filter((t) => t.combination === "Trio")) {
+      const quads = evolutionTargets(tower.id, 1);
+      expect({ id: tower.id, quads: quads.length }).toEqual({
+        id: tower.id,
+        quads: 3,
+      });
+    }
+  });
+
+  it("never offers a target that drops or repeats an element", () => {
+    for (const tower of TOWERS) {
+      const from = towerElements(tower.id);
+      for (const step of evolutionTargets(tower.id, 1)) {
+        const to = towerElements(step.towerId);
+        expect(to.length).toBeGreaterThan(from.length);
+        for (const element of from) expect(to).toContain(element);
+      }
+    }
+  });
+
+  it("is symmetric: every target lists its source in reverse", () => {
+    for (const tower of TOWERS.filter((t) => t.combination === "Dual")) {
+      for (const step of evolutionTargets(tower.id, 1)) {
+        const sources = evolutionSources(step.towerId, 1).map(
+          (s) => s.towerId,
+        );
+        expect(sources).toContain(tower.id);
+      }
+    }
+  });
+});
+
+describe("evolutionSources — the cheap route in", () => {
+  it("lists the monos and Duals that can grow into a Trio", () => {
+    const sources = evolutionSources("haste", 1);
+    const ids = sources.map((s) => s.towerId);
+    // Water+Fire+Earth: its three monos, and the three Duals pairing them.
+    expect(ids).toContain("mono-water");
+    expect(ids).toContain("mono-fire");
+    expect(ids).toContain("mono-earth");
+    expect(ids).toContain("vapor");
+    expect(ids).not.toContain("mono-light");
+  });
+});
