@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { TOWERS, getTower } from "@/lib/domain/towerCatalog";
 import {
   canEvolveInto,
+  evolutionCost,
   evolutionSources,
   evolutionTargets,
+  fieldedCost,
   towerElements,
 } from "@/lib/domain/towerEvolution";
 
@@ -129,6 +131,40 @@ describe("structure holds across the whole catalog", () => {
         expect(sources).toContain(tower.id);
       }
     }
+  });
+});
+
+describe("evolution cost — the route doesn't change the total", () => {
+  it("charges only the difference", () => {
+    // Dual II is 1,300 sunk; Trio II costs 5,000 all-in.
+    expect(
+      evolutionCost(
+        { towerId: "vapor", level: 2 },
+        { towerId: "haste", level: 2 },
+      ),
+    ).toBe(3700);
+  });
+
+  it("reaches a Trio II for 5,000 whichever way round", () => {
+    const direct = fieldedCost("haste", 2);
+
+    // mono I -> Dual I -> Dual II -> Trio II, paying the gap each time.
+    const stepped =
+      fieldedCost("mono-water", 1) +
+      evolutionCost(
+        { towerId: "mono-water", level: 1 },
+        { towerId: "vapor", level: 1 },
+      ) +
+      (fieldedCost("vapor", 2) - fieldedCost("vapor", 1)) +
+      evolutionCost(
+        { towerId: "vapor", level: 2 },
+        { towerId: "haste", level: 2 },
+      );
+
+    expect(stepped).toBe(direct);
+    expect(direct).toBe(5000);
+    // ...and the first tower goes up for a fraction of the anchor.
+    expect(fieldedCost("mono-water", 1)).toBe(175);
   });
 });
 

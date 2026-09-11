@@ -6,7 +6,9 @@ import {
   MONO_TOWERS,
   getMonoTower,
   isMonoTowerId,
+  monoTowerCost,
 } from "./auxiliaryTowers";
+import { resolveNormalTowerCost } from "./towerEconomics";
 
 /**
  * Tower evolution — upgrading a tower you already own into a bigger one
@@ -113,5 +115,36 @@ export function canEvolveInto(
 ): boolean {
   return evolutionTargets(fromTowerId, level).some(
     (step) => step.towerId === toTowerId,
+  );
+}
+
+/** Gold already sunk into a tower standing at `level`. */
+export function fieldedCost(
+  towerId: TowerId,
+  level: number,
+): number {
+  return isMonoTowerId(towerId)
+    ? monoTowerCost(level)
+    : resolveNormalTowerCost(towerId, level).minimumFieldCost;
+}
+
+/**
+ * Gold to turn a tower you already own into another one.
+ *
+ * Evolving deducts what was already spent, so the running total to reach
+ * any tower is the same whichever route got there. That makes growing
+ * into an expensive anchor never more costly than saving for it outright
+ * — and better in practice, since the cheap precursor is defending and
+ * earning the whole time instead of leaving the field empty. A Trio II
+ * costs 5,000 either way, but the mono route puts a tower up for 175.
+ */
+export function evolutionCost(
+  from: EvolutionStep,
+  to: EvolutionStep,
+): number {
+  return Math.max(
+    0,
+    fieldedCost(to.towerId, to.level) -
+      fieldedCost(from.towerId, from.level),
   );
 }
