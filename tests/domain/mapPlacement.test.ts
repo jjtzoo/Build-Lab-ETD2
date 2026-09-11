@@ -341,6 +341,76 @@ describe("passes (the game's 'double-pass')", () => {
   });
 });
 
+describe("longestRunSeconds (ramp-up vs double-pass)", () => {
+  const hairpin = () =>
+    straightPathMap({
+      paths: [
+        {
+          id: "hairpin",
+          points: [
+            { col: 0, row: 0 },
+            { col: 10, row: 0 },
+            { col: 10, row: 2 },
+            { col: 0, row: 2 },
+          ],
+          modes: ["standard"],
+        },
+      ],
+    });
+
+  it("equals total exposure when there is only one run", () => {
+    const map = straightPathMap();
+    const coverage = coverageForSpot(map, { col: 5, row: 1 }, 2, MAIN_PATH);
+    expect(coverage.passes).toBe(1);
+    expect(coverage.longestRunSeconds).toBeCloseTo(
+      coverage.coveredSeconds,
+      6,
+    );
+  });
+
+  it("falls short of total exposure on a double-pass", () => {
+    // The whole point of the metric: a spot between the hairpin's legs
+    // racks up exposure across two stretches, but a ramping tower only
+    // ever gets the longer of the two before the route leaves it.
+    const map = hairpin();
+    const coverage = coverageForSpot(
+      map,
+      { col: 2, row: 1 },
+      1.5,
+      map.paths[0],
+    );
+    expect(coverage.passes).toBe(2);
+    expect(coverage.longestRunSeconds).toBeLessThan(
+      coverage.coveredSeconds,
+    );
+    expect(coverage.longestRunSeconds).toBeGreaterThan(0);
+  });
+
+  it("prefers one long stretch over a split one for the same total", () => {
+    // Corner spot: one unbroken run wrapping the turn. Mid-leg spot:
+    // two separate runs. The corner can win on continuity even when it
+    // loses on total.
+    const map = hairpin();
+    const corner = coverageForSpot(
+      map,
+      { col: 10, row: 1 },
+      2.5,
+      map.paths[0],
+    );
+    const between = coverageForSpot(
+      map,
+      { col: 3, row: 1 },
+      1.5,
+      map.paths[0],
+    );
+    expect(corner.passes).toBe(1);
+    expect(between.passes).toBe(2);
+    expect(corner.longestRunSeconds).toBeGreaterThan(
+      between.longestRunSeconds,
+    );
+  });
+});
+
 describe("worldToGrid", () => {
   it("inverts gridToWorld for an axis-aligned grid", () => {
     const map = straightPathMap();

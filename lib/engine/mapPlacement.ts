@@ -143,6 +143,16 @@ export type SpotCoverage = {
    * back to them instead of them having to reach further.
    */
   passes: number;
+  /**
+   * The longest single unbroken stretch, in seconds of creep travel.
+   *
+   * Deliberately separate from `coveredSeconds`: a double-pass spot can
+   * total more exposure while never holding a creep for long, whereas a
+   * tower that ramps up wants one uninterrupted stretch and gets nothing
+   * from the total being split in two. Maximise this for ramping towers,
+   * `coveredSeconds` for everything else.
+   */
+  longestRunSeconds: number;
 };
 
 const EMPTY_COVERAGE: SpotCoverage = {
@@ -150,6 +160,7 @@ const EMPTY_COVERAGE: SpotCoverage = {
   coveredSeconds: 0,
   coveragePercent: 0,
   passes: 0,
+  longestRunSeconds: 0,
 };
 
 /**
@@ -170,9 +181,11 @@ export function coverageForSpot(
 
   let coveredLengthCells = 0;
   let passes = 0;
-  // A pass continues across a segment boundary only when coverage runs
-  // right up to the end of one segment and resumes at the start of the
-  // next; any gap means the route left the tower's reach and came back.
+  let longestRunCells = 0;
+  let currentRunCells = 0;
+  // A run continues across a segment boundary only when coverage reaches
+  // the end of one segment and resumes at the start of the next; any gap
+  // means the route left the tower's reach and came back.
   let continuing = false;
   for (let i = 1; i < path.points.length; i++) {
     const overlap = circleSegmentOverlap(
@@ -183,10 +196,17 @@ export function coverageForSpot(
     );
     if (!overlap) {
       continuing = false;
+      currentRunCells = 0;
       continue;
     }
     coveredLengthCells += overlap.length;
-    if (!(continuing && overlap.from === 0)) passes++;
+    if (continuing && overlap.from === 0) {
+      currentRunCells += overlap.length;
+    } else {
+      passes++;
+      currentRunCells = overlap.length;
+    }
+    longestRunCells = Math.max(longestRunCells, currentRunCells);
     continuing = overlap.to === 1;
   }
 
@@ -197,6 +217,7 @@ export function coverageForSpot(
     coveredSeconds: speed > 0 ? coveredLengthCells / speed : 0,
     coveragePercent: (coveredLengthCells / totalLengthCells) * 100,
     passes,
+    longestRunSeconds: speed > 0 ? longestRunCells / speed : 0,
   };
 }
 
@@ -250,6 +271,11 @@ export function coverageForMode(
     passes: perPath.reduce(
       (sum, entry) => sum + entry.coverage.passes,
       0,
+    ),
+    // Lanes run at once, so the best single stretch is the best any one
+    // lane offers — not the sum, which no creep would ever sit through.
+    longestRunSeconds: Math.max(
+      ...perPath.map((entry) => entry.coverage.longestRunSeconds),
     ),
     perPath,
   };
