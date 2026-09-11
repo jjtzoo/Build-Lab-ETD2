@@ -10,6 +10,6 @@
   },
   "buildableCells": [],
   "paths": [{ "id": "main", "points": [], "modes": ["standard"] }],
-  "pathDurationSeconds": null,
+  "pathDurationSeconds": 54,
   "rangeUnitsPerCell": 1
 }
