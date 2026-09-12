@@ -53,7 +53,4 @@ jobs:
       # files — the class of bug that once shipped seven rotated Quad
       # recipes and is invisible to types and tests alike.
       - name: Validate game data
-        run: |
-          npm run validate:towers
-          npm run validate:mechanic-facts
-          npm run validate:tower-economics
+        run: npm run validate:data

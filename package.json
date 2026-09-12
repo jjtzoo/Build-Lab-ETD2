@@ -12,6 +12,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate:data",
+    "validate:data": "npm run validate:towers && npm run validate:mechanic-facts && npm run validate:tower-economics",
     "validate:towers": "node scripts/validateTowersV2.mjs",
     "validate:mechanic-facts": "node scripts/validateTowerMechanicFactsV1.mjs",
     "validate:tower-economics": "node scripts/validateTowerEconomicsV1.mjs",
