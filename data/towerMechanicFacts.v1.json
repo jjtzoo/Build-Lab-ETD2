@@ -91,14 +91,6 @@
       "refreshBehavior": "same-target-cooldown"
     },
     {
-      "towerId": "phantom-zone",
-      "signal": "target-isolation",
-      "durationSeconds": { "byLevel": [2] },
-      "cooldownSeconds": 12,
-      "activationRequirement": "on-hit",
-      "refreshBehavior": "same-target-cooldown"
-    },
-    {
       "towerId": "rage",
       "signal": "damage-taken-amp",
       "magnitude": { "unit": "percent", "byLevel": [28] },
