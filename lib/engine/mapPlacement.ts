@@ -286,7 +286,17 @@ export type RankedSpot = {
   coverage: ModeCoverage;
 };
 
-/** Every buildable cell, ranked best-first by how much of the mode's route it covers. */
+/**
+ * Every buildable cell, ranked best-first by how much of the mode's route
+ * it covers.
+ *
+ * Coverage percent alone saturates to ~100% for anything but a short-range
+ * tower — once a spot sees the whole path, a second and third spot doing
+ * the same tie exactly, and plain insertion order isn't a ranking. Broken
+ * by the longest unbroken pass next (the stat that actually distinguishes
+ * two "fully covered" spots for a ramp-up tower — see the island/double-
+ * pass doctrine), then total covered time.
+ */
 export function bestSpotsForTower(
   map: MapConfig,
   towerRangeUnits: number,
@@ -298,9 +308,15 @@ export function bestSpotsForTower(
       cell,
       coverage: coverageForMode(map, cell, towerRangeUnits, mode),
     }))
-    .sort(
-      (a, b) => b.coverage.coveragePercent - a.coverage.coveragePercent,
-    )
+    .sort((a, b) => {
+      if (b.coverage.coveragePercent !== a.coverage.coveragePercent) {
+        return b.coverage.coveragePercent - a.coverage.coveragePercent;
+      }
+      if (b.coverage.longestRunSeconds !== a.coverage.longestRunSeconds) {
+        return b.coverage.longestRunSeconds - a.coverage.longestRunSeconds;
+      }
+      return b.coverage.coveredSeconds - a.coverage.coveredSeconds;
+    })
     .slice(0, topN);
 }
 

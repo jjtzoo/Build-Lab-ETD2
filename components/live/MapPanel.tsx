@@ -24,6 +24,8 @@ import {
   worldToGrid,
   type ModeCoverage,
 } from "@/lib/engine/mapPlacement";
+import { isTowerLoggable, liveTowerReachableLevel } from "@/lib/engine/liveGame";
+import { useLiveGame } from "@/components/live/store";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 
 type EditMode = "calibrate" | "trace" | "buildable" | "measure" | null;
@@ -206,18 +208,45 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     setDraft(change(map));
   }
 
+  const allocation = useLiveGame((s) => s.allocation);
+
+  // Only towers this game's own picks can actually reach — the same gate
+  // Field/Summon use. Ranking placement for a tower you can't summon yet
+  // is noise, not help.
+  const availableTowers = useMemo(
+    () => TOWERS.filter((t) => isTowerLoggable(t.id, allocation)),
+    [allocation],
+  );
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return TOWERS.filter((t) => t.name.toLowerCase().includes(q)).slice(
-      0,
-      6,
-    );
-  }, [query]);
+    return availableTowers
+      .filter((t) => t.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [query, availableTowers]);
 
   const selectedTower = selectedTowerId
-    ? TOWERS.find((t) => t.id === selectedTowerId) ?? null
+    ? availableTowers.find((t) => t.id === selectedTowerId) ?? null
     : null;
+
+  // The level this game's own picks can actually reach right now — the
+  // same number Field would log it at, so the damage estimate below
+  // matches what you'd really get, not the tower's max-level stat sheet.
+  const towerLevel = selectedTower
+    ? Math.max(1, liveTowerReachableLevel(selectedTower.id, allocation))
+    : 1;
+
+  // Damage per attack x attacks/sec, deliberately narrow — the same
+  // "baseDps" discipline used elsewhere in this codebase. Doesn't model
+  // AoE hitting more than one creep, ramp-up, elemental resist, or
+  // ability damage; a spot's # of passes and longest run (shown
+  // alongside) are the signal for whether ramp-up towers benefit.
+  const towerDps = selectedTower
+    ? (selectedTower.stats.damage[
+        Math.min(towerLevel, selectedTower.stats.damage.length) - 1
+      ] ?? 0) * selectedTower.stats.attackSpeed
+    : 0;
 
   const activePaths = useMemo(
     () => pathsForMode(map, mode),
@@ -567,11 +596,21 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         <input
           type="text"
           className="live-log-input"
-          placeholder="＋ pick a tower to place — type a name"
+          placeholder={
+            availableTowers.length > 0
+              ? "＋ pick a tower to place — type a name"
+              : "no towers available yet — spend a pick first"
+          }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          disabled={availableTowers.length === 0}
           aria-label="Search for a tower to evaluate placement for"
         />
+        {query.trim() && matches.length === 0 && (
+          <p className="live-panel-note">
+            No tower you can currently build matches &quot;{query}&quot;.
+          </p>
+        )}
         {matches.length > 0 && (
           <ul className="live-log-results">
             {matches.map((tower) => (
@@ -608,8 +647,13 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             size={22}
           />
           <span>
-            <b>{selectedTower.name}</b> · range{" "}
-            <span className="mono">{selectedTower.stats.range}</span>
+            <b>{selectedTower.name}</b> · level{" "}
+            <span className="mono">
+              {["", "I", "II", "III"][towerLevel] ?? towerLevel}
+            </span>{" "}
+            · range <span className="mono">{selectedTower.stats.range}</span>{" "}
+            · <span className="mono">{Math.round(towerDps).toLocaleString()}</span>{" "}
+            DPS
           </span>
           <button
             type="button"
@@ -626,6 +670,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
       <p className="live-map-assumption">
         Assumes 1 range unit = 1 grid cell — unverified against the game.
+        Damage estimates are single-target uptime (time in range × damage ×
+        attacks/sec) — they don&apos;t model AoE hitting more than one
+        creep, ramp-up, or resist.
       </p>
 
       {!traced && !editEnabled ? (
@@ -827,8 +874,11 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
       {selectedTower && spotCoverage && selectedCell && (
         <p className="live-map-readout mono">
-          <b>{cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
-          {spotCoverage.coveragePercent.toFixed(1)}% of the route ·{" "}
+          <b>{cellLabel(selectedCell, labelOrigin)}</b> · ≈
+          {Math.round(
+            spotCoverage.coveredSeconds * towerDps,
+          ).toLocaleString()}{" "}
+          dmg · {spotCoverage.coveragePercent.toFixed(1)}% of the route ·{" "}
           {spotCoverage.coveredSeconds.toFixed(1)}s
           {passLabel(spotCoverage.passes) && (
             <> · {passLabel(spotCoverage.passes)}</>
@@ -869,6 +919,13 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 <span className="live-map-rank mono">#{i + 1}</span>
                 <span className="live-map-cell-name mono">
                   {cellLabel(entry.cell, labelOrigin)}
+                </span>
+                <span className="mono">
+                  ≈
+                  {Math.round(
+                    entry.coverage.coveredSeconds * towerDps,
+                  ).toLocaleString()}{" "}
+                  dmg
                 </span>
                 <span className="mono">
                   {entry.coverage.coveragePercent.toFixed(1)}%
