@@ -599,6 +599,34 @@ export function nextPickOptions(
     );
 }
 
+/**
+ * The single keystone to take next: the highest-ranked legal option,
+ * unless the loaded plan still needs one of them, in which case the plan
+ * wins. Shared so the summon card and the status bar's pips can never
+ * disagree about which element is being recommended.
+ */
+export function recommendedPick(
+  allocation: ElementAllocation,
+  plan: PortableBuild | null,
+): NextPickOption | null {
+  const options = nextPickOptions(allocation);
+  if (options.length === 0) return null;
+
+  if (plan) {
+    const stillNeeded = new Set(
+      planKeystoneProgress(plan, allocation).stillNeeded,
+    );
+    if (stillNeeded.size > 0) {
+      const onPlan = options.find((option) =>
+        stillNeeded.has(option.element),
+      );
+      if (onPlan) return onPlan;
+    }
+  }
+
+  return options[0];
+}
+
 // --------------------------------------------------------- core roles
 
 export type CoreRoleLiveStatus = {

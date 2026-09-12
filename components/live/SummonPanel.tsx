@@ -5,13 +5,13 @@ import { motion, useReducedMotion } from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { ElementIcon, roman } from "@/components/build-lab/primitives";
 import { ELEMENTS } from "@/lib/domain/elements";
-import { MAX_ELEMENT_LEVEL, totalKeystones } from "@/lib/engine/allocation";
+import { totalKeystones } from "@/lib/engine/allocation";
 import {
   coverageGaps,
   MAX_KEYSTONES,
-  nextPickOptions,
   pickReveal,
   planKeystoneProgress,
+  recommendedPick,
 } from "@/lib/engine/liveGame";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { useLiveGame } from "@/components/live/store";
@@ -37,10 +37,6 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
   const picks = useMemo(() => totalKeystones(allocation), [allocation]);
   const full = picks >= MAX_KEYSTONES;
 
-  const options = useMemo(
-    () => nextPickOptions(allocation),
-    [allocation],
-  );
   const planNeeds = useMemo(
     () =>
       plan
@@ -48,14 +44,12 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
         : null,
     [plan, allocation],
   );
-  const recommended = useMemo(() => {
-    if (options.length === 0) return null;
-    if (planNeeds && planNeeds.size > 0) {
-      const onPlan = options.find((option) => planNeeds.has(option.element));
-      if (onPlan) return onPlan;
-    }
-    return options[0];
-  }, [options, planNeeds]);
+  // Shared with the status bar's pips so the two can't disagree about
+  // which element is being recommended.
+  const recommended = useMemo(
+    () => recommendedPick(allocation, plan),
+    [allocation, plan],
+  );
 
   const gaps = useMemo(() => coverageGaps(built), [built]);
 
@@ -167,34 +161,12 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
         </p>
       )}
 
-      <div className="live-elements" role="group" aria-label="Spend a keystone">
-        {ELEMENTS.map((element, index) => {
-          const level = allocation[element] ?? 0;
-          const maxed = level >= MAX_ELEMENT_LEVEL;
-          return (
-            <button
-              key={element}
-              type="button"
-              className="live-element"
-              data-element={element}
-              data-recommended={
-                recommended?.element === element || undefined
-              }
-              data-empty={level === 0 || undefined}
-              disabled={maxed || full}
-              onClick={() => spendPick(element)}
-              aria-label={`Take ${element}. Currently ${
-                level > 0 ? `level ${level}` : "unpicked"
-              }.`}
-              title={`${element} — key ${index + 1}`}
-            >
-              <ElementIcon element={element} assets={assets} size={28} />
-              <span className="live-element-name">{element}</span>
-              <b className="mono">{level > 0 ? roman(level) : "·"}</b>
-            </button>
-          );
-        })}
-      </div>
+      {recommended && (
+        <p className="live-summon-where">
+          Spend it on the bar above — or press{" "}
+          <kbd className="mono">1</kbd>–<kbd className="mono">6</kbd>.
+        </p>
+      )}
 
       <div className="live-summon-actions">
         <button
