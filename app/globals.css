@@ -4169,6 +4169,57 @@ button.mechanic-chip {
   gap: 6px;
   color: var(--muted);
 }
+.live-strip-do {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 12px;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.live-strip-do:hover {
+  background: var(--surface-internal);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.live-strip-do:active {
+  transform: translateY(1px);
+}
+/* Collapsed by default — the roadmap is reference, not a live control. */
+.live-roadmap > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.live-roadmap > summary::-webkit-details-marker {
+  display: none;
+}
+.live-roadmap > summary::after {
+  content: "▸";
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  transition: transform 140ms var(--ease);
+}
+.live-roadmap[open] > summary::after {
+  transform: rotate(90deg);
+}
+.live-roadmap > summary h4 {
+  margin-bottom: 0;
+}
+.live-roadmap-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+.live-roadmap[open] > ul {
+  margin-top: 9px;
+}
 .live-strip-next b {
   color: var(--text-2);
   font-weight: 600;

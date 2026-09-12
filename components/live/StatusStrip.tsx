@@ -36,6 +36,7 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
   const setPlan = useLiveGame((s) => s.setPlan);
   const newGame = useLiveGame((s) => s.newGame);
   const spendPick = useLiveGame((s) => s.spendPick);
+  const addBuilt = useLiveGame((s) => s.addBuilt);
 
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -127,10 +128,26 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
         </span>
 
         {progress && (
-          <span className="live-strip-next" title="Next step on the plan">
+          <span className="live-strip-next">
             <span className="live-strip-stage">{progress.stage}</span>
             {progress.nextAction ? (
-              <>
+              // Actionable, so it's the button — the plan card used to own
+              // this and sat at the bottom of the page, which is nowhere
+              // near where you are when you finish building the thing.
+              <button
+                type="button"
+                className="live-strip-do"
+                title={`Log ${progress.nextAction.towerName} ${roman(
+                  progress.nextAction.toLevel,
+                )} as built`}
+                onClick={() =>
+                  addBuilt(
+                    progress.nextAction!.towerId,
+                    progress.nextAction!.toLevel,
+                  )
+                }
+              >
+                <span aria-hidden="true">☐</span>
                 {progress.nextAction.kind === "upgrade"
                   ? "upgrade"
                   : "build"}{" "}
@@ -138,7 +155,7 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
                   {progress.nextAction.towerName}{" "}
                   {roman(progress.nextAction.toLevel)}
                 </b>
-              </>
+              </button>
             ) : progress.blockedAction ? (
               <>
                 <b>

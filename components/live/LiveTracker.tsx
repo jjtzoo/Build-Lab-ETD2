@@ -113,6 +113,16 @@ export function LiveTracker({
             <SummonPanel assets={assets} />
           )}
         </div>
+        {/*
+          Plan sits second, not last. It answers "what am I aiming at",
+          which belongs next to the summon decision it informs — and at
+          the bottom of a page this long it was effectively unreachable.
+          Field and Map follow because they're execution: what you have,
+          then where it goes.
+        */}
+        <div className="live-section">
+          <PlanPanel assets={assets} />
+        </div>
         <div className="live-section">
           <FieldPanel assets={assets} />
         </div>
@@ -122,9 +132,6 @@ export function LiveTracker({
               <MapPanel assets={assets} />
             </Suspense>
           )}
-        </div>
-        <div className="live-section">
-          <PlanPanel assets={assets} />
         </div>
       </div>
 
