@@ -19,6 +19,11 @@ import {
   evolutionTargets,
 } from "@/lib/domain/towerEvolution";
 import { getTower } from "@/lib/domain/towerCatalog";
+import {
+  CORE_ROLE_LABEL,
+  CORE_ROLE_PRIORITY,
+  SUPPORT_ROLE_LABEL,
+} from "@/lib/domain/roles";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { useLiveGame } from "@/components/live/store";
 
@@ -64,7 +69,6 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
   const evolveBuilt = useLiveGame((s) => s.evolveBuilt);
   const reduce = useReducedMotion();
 
-  const [query, setQuery] = useState("");
   const [evolving, setEvolving] = useState<string | null>(null);
 
   const goldSpent = useMemo(() => deriveGoldSpent(built), [built]);
@@ -86,13 +90,48 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
     () => loggableTowers(allocation),
     [allocation],
   );
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return catalog
-      .filter((tower) => tower.name.toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [catalog, query]);
+  /**
+   * The log list as a grouped dropdown rather than a text search.
+   *
+   * Typing a name is the wrong interaction here: the tracker already
+   * knows exactly which towers this allocation can field, so asking the
+   * player to recall and spell one mid-match is work the app can do
+   * itself. Grouped by the role each tower fills, in the same priority
+   * order the plan uses, so the list reads as "what can I put in this
+   * slot" rather than as an alphabet.
+   */
+  const groups = useMemo(() => {
+    const buckets: { key: string; label: string; towers: typeof catalog }[] =
+      [];
+    const push = (key: string, label: string, towers: typeof catalog) => {
+      if (towers.length > 0) buckets.push({ key, label, towers });
+    };
+
+    push(
+      "basic",
+      "Arrow & Cannon",
+      catalog.filter((t) => t.group === "basic"),
+    );
+    for (const role of [...CORE_ROLE_PRIORITY, "support"] as const) {
+      push(
+        role,
+        role === "support" ? SUPPORT_ROLE_LABEL : CORE_ROLE_LABEL[role],
+        catalog.filter((t) => t.group === "element" && t.role === role),
+      );
+    }
+    // Anything the role pass didn't claim, so nothing silently vanishes.
+    push(
+      "other",
+      "Other",
+      catalog.filter((t) => t.group === "element" && t.role === null),
+    );
+    push(
+      "end-game",
+      "End Game",
+      catalog.filter((t) => t.group === "end-game"),
+    );
+    return buckets;
+  }, [catalog]);
 
   return (
     <motion.section
@@ -111,41 +150,31 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
       </header>
 
       <div className="live-log">
-        <input
-          type="text"
-          className="live-log-input"
-          placeholder="＋ log a tower — type a name"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label="Search for a tower to log"
-        />
-        {matches.length > 0 && (
-          <ul className="live-log-results">
-            {matches.map((tower) => (
-              <li key={tower.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    addBuilt(tower.id, 1);
-                    setQuery("");
-                  }}
-                >
-                  <LiveTowerIcon
-                    towerId={tower.id}
-                    assets={assets}
-                    size={20}
-                  />
-                  <span>{tower.name}</span>
-                  {tower.maxLevel > 1 && (
-                    <span className="live-log-max mono">
-                      to {roman(tower.maxLevel)}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <select
+          className="live-log-select"
+          value=""
+          aria-label="Log a tower onto your field"
+          disabled={catalog.length === 0}
+          onChange={(event) => {
+            if (event.target.value) addBuilt(event.target.value, 1);
+          }}
+        >
+          <option value="">
+            {catalog.length === 0
+              ? "no towers available yet — spend a pick first"
+              : "＋ log a tower"}
+          </option>
+          {groups.map((group) => (
+            <optgroup key={group.key} label={group.label}>
+              {group.towers.map((tower) => (
+                <option key={tower.id} value={tower.id}>
+                  {tower.name}
+                  {tower.maxLevel > 1 ? ` · to ${roman(tower.maxLevel)}` : ""}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
       </div>
 
       {built.length === 0 ? (

@@ -4374,13 +4374,59 @@ button.mechanic-chip {
   flex-direction: column;
   gap: clamp(20px, 4vw, 32px);
 }
+.live-col {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 4vw, 32px);
+  min-width: 0;
+}
 .live-section {
   max-width: 580px;
   width: 100%;
   margin: 0 auto;
 }
-.live-section-wide {
-  max-width: 820px;
+
+/*
+ * Wide layout. A single centred column left most of a 1900px screen
+ * empty, while the map — the one thing on the page that genuinely wants
+ * area — was squeezed into 820px. Two columns fix both: the decision
+ * stack keeps its comfortable reading width, the map takes everything
+ * left over, and it can pin itself under the status strip so the plan
+ * stays readable while you work the grid.
+ *
+ * --live-strip-h approximates the sticky status strip's height; the map
+ * column offsets itself by that much and scrolls internally rather than
+ * running off the bottom of a tall viewport.
+ */
+@media (min-width: 1100px) {
+  .live-shell {
+    --container: 1600px;
+    --live-strip-h: 72px;
+  }
+  .live-focal {
+    display: grid;
+    grid-template-columns: minmax(340px, 520px) minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(20px, 2.6vw, 36px);
+    max-width: none;
+  }
+  .live-section {
+    max-width: none;
+    margin: 0;
+  }
+  .live-col-map {
+    position: sticky;
+    top: calc(var(--live-strip-h) + 16px);
+    max-height: calc(100dvh - var(--live-strip-h) - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+@media (min-width: 1500px) {
+  .live-focal {
+    grid-template-columns: minmax(380px, 560px) minmax(0, 1fr);
+  }
 }
 .live-summon,
 .live-field,
@@ -4647,6 +4693,37 @@ button.mechanic-chip {
 .live-log-input::placeholder {
   color: var(--muted);
 }
+/*
+ * Logging a tower is a pick from a known list, not a spelling test — the
+ * tracker already knows what this allocation can field. Styled to match
+ * the text input it replaced so the panel's rhythm is unchanged.
+ */
+.live-log-select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.live-log-select:focus {
+  outline: none;
+  border-color: var(--focus);
+}
+.live-log-select:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.live-log-select optgroup {
+  color: var(--muted);
+  font-size: 11px;
+}
+.live-log-select option {
+  color: var(--text);
+  font-size: 13px;
+}
 .live-log-input:focus {
   outline: none;
   border-color: var(--focus);
@@ -4898,6 +4975,9 @@ button.mechanic-chip {
      (spawn vs. exit, direction of travel), not a synergy indicator. */
   --map-route: 88 209 255;
   --map-out: 255 122 92;
+  /* Cell labels need more contrast than --muted gives inside a cell,
+     but shouldn't brighten every other muted caption on the page. */
+  --map-label: #93a3ab;
 }
 .live-map-panel {
   padding: clamp(18px, 3.5vw, 26px);
@@ -4972,8 +5052,14 @@ button.mechanic-chip {
   border-style: dashed;
 }
 .live-map-chip-level {
-  color: var(--muted);
+  color: var(--text-2);
   font-size: 11px;
+}
+/* Range sits behind the level — it's reference, not the choice. */
+.live-map-chip-range {
+  color: var(--muted);
+  font-size: 10.5px;
+  opacity: 0.85;
 }
 .live-map-planning {
   color: var(--muted);
@@ -5040,25 +5126,57 @@ button.mechanic-chip {
 .live-map-block {
   fill: var(--surface-internal);
   stroke: var(--line-strong);
-  stroke-width: 1;
+  stroke-width: 1.25;
   vector-effect: non-scaling-stroke;
   cursor: pointer;
   transition: fill 140ms var(--ease);
 }
 .live-map-block:hover {
   fill: var(--surface-raised);
+  stroke: var(--text-2);
 }
+/*
+ * Ranked cells carry the answer, so they get real contrast rather than a
+ * tint. #1 is unmistakable, 2-6 form a clearly-lighter band, and both
+ * read as a group against the plain stone of every other cell.
+ */
 .live-map-block[data-rank] {
-  fill: rgb(154 203 163 / 0.3);
-  stroke: rgb(154 203 163 / 0.55);
+  fill: rgb(154 203 163 / 0.42);
+  stroke: rgb(154 203 163 / 0.8);
+  stroke-width: 1.5;
 }
 .live-map-block[data-rank="0"] {
-  fill: rgb(154 203 163 / 0.62);
-  stroke: rgb(154 203 163 / 0.95);
+  fill: rgb(154 203 163 / 0.78);
+  stroke: rgb(196 232 202);
+  stroke-width: 2;
 }
 .live-map-block[data-selected] {
   fill: #e6c15f;
   stroke: #e6c15f;
+}
+/*
+ * A cell that already holds a tower reads as spoken for: it keeps a rank
+ * badge off it (the ranker skips it) and sits a shade brighter than the
+ * empty stone so the field's shape is legible at a glance.
+ */
+.live-map-block[data-occupied] {
+  fill: rgb(230 193 95 / 0.22);
+  stroke: rgb(230 193 95 / 0.7);
+}
+.live-map-block[data-occupied]:hover {
+  fill: rgb(230 193 95 / 0.34);
+}
+.live-map-standing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.live-map-standing img,
+.live-map-standing span {
+  display: block;
 }
 .live-map-dead {
   fill: var(--surface-sunken);
@@ -5067,16 +5185,32 @@ button.mechanic-chip {
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+/*
+ * These were ~8px of --muted grey inside a dark cell — present but not
+ * actually readable. --map-label is a dedicated token so the labels can
+ * carry real contrast against the cell fill without dragging every other
+ * muted caption on the page brighter with them.
+ */
 .live-map-cell-label {
   font-family: var(--font-mono, monospace);
-  fill: var(--muted);
+  fill: var(--map-label);
+  font-weight: 500;
   text-anchor: middle;
   dominant-baseline: central;
   pointer-events: none;
   user-select: none;
 }
-.live-map-cell-label[data-dead] {
-  fill: var(--line-strong);
+/*
+ * Rank numerals sit on the green fills, which differ in brightness: the
+ * 2-6 band is a translucent tint over dark stone so the numeral stays
+ * light, while #1's near-opaque fill needs a dark numeral to read.
+ */
+.live-map-cell-label[data-rank-label] {
+  fill: #e8f5ea;
+  font-weight: 700;
+}
+.live-map-cell-label[data-rank-label="0"] {
+  fill: #0d1710;
 }
 .live-map-cell-name {
   color: var(--muted);
@@ -5245,6 +5379,32 @@ button.mechanic-chip {
   color: rgb(154 203 163);
   font-size: 10.5px;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+/*
+ * The number that actually decided a cell's rank, as opposed to the
+ * game-flavour "double-pass" tag. Uses the route accent rather than the
+ * green so the two never read as the same kind of badge.
+ */
+.live-map-pass[data-basis] {
+  border-color: rgb(var(--map-route) / 0.4);
+  background: rgb(var(--map-route) / 0.1);
+  color: rgb(var(--map-route) / 0.92);
+  font-family: var(--font-mono, monospace);
+}
+/* What the ranking is optimising for, and any caveat about it. */
+.live-map-basis {
+  margin: -2px 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.live-map-basis[data-caveat] {
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-internal);
+  color: var(--text-2);
 }
 .live-map-editor {
   margin-top: 20px;
