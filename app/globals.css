@@ -4735,16 +4735,25 @@ button.mechanic-chip {
   font-size: 11px;
 }
 .live-field-evolve {
-  display: grid;
-  place-items: center;
-  width: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 26px;
+  padding: 0 9px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--surface-raised);
-  color: var(--text-2);
-  font-size: 13px;
+  color: var(--muted);
+  font-size: 11.5px;
+  white-space: nowrap;
   transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.live-field-evolve-count {
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--surface-internal);
+  color: var(--text-2);
+  font-size: 10.5px;
 }
 .live-field-evolve:hover,
 .live-field-evolve[data-on] {

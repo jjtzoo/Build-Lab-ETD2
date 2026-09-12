@@ -269,9 +269,15 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
                         setEvolving(evolving === key ? null : key)
                       }
                       aria-expanded={evolving === key}
-                      aria-label={`Evolve ${name}`}
+                      aria-label={`Evolution line for ${name} — ${evolveOptions.length} option${
+                        evolveOptions.length === 1 ? "" : "s"
+                      }`}
                     >
-                      ⟶
+                      <span aria-hidden="true">⟶</span>
+                      evolution line
+                      <span className="mono live-field-evolve-count">
+                        {evolveOptions.length}
+                      </span>
                     </button>
                     {evolving === key && (
                       <ul className="live-evolve-menu">
