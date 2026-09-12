@@ -378,6 +378,7 @@ export function deadCells(map: MapConfig): GridPoint[] {
   const buildableKeys = new Set(
     map.buildableCells.map((c) => `${c.col},${c.row}`),
   );
+  const seen = new Set<string>();
   const dead: GridPoint[] = [];
 
   for (const group of islands(map)) {
@@ -390,7 +391,14 @@ export function deadCells(map: MapConfig): GridPoint[] {
 
     for (let col = minCol; col <= maxCol; col++) {
       for (let row = minRow; row <= maxRow; row++) {
-        if (!buildableKeys.has(`${col},${row}`)) dead.push({ col, row });
+        const key = `${col},${row}`;
+        // Two islands' bounding rectangles can overlap when the layout
+        // interlocks (e.g. one island's box sits partly inside another's
+        // empty corner) — dedupe so a shared cell isn't emitted twice.
+        if (!buildableKeys.has(key) && !seen.has(key)) {
+          seen.add(key);
+          dead.push({ col, row });
+        }
       }
     }
   }

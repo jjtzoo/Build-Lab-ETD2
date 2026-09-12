@@ -4751,6 +4751,13 @@ button.mechanic-chip {
 }
 
 /* ── Map placement ────────────────────────────────────────── */
+:root {
+  /* The schematic view's route/portal accents — deliberately brighter
+     than the muted --mech-* family colors: this is a wayfinding display
+     (spawn vs. exit, direction of travel), not a synergy indicator. */
+  --map-route: 88 209 255;
+  --map-out: 255 122 92;
+}
 .live-focal[data-wide] {
   max-width: 820px;
 }
@@ -4935,6 +4942,53 @@ button.mechanic-chip {
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+}
+.live-map-stage[data-schematic] .live-map-path {
+  stroke: rgb(var(--map-route) / 1);
+  stroke-width: 7;
+}
+.live-map-path-glow {
+  stroke: rgb(var(--map-route) / 0.35);
+  stroke-width: 20;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.live-map-arrow {
+  fill: rgb(255 255 255 / 0.85);
+  stroke: none;
+}
+.live-map-arrows {
+  pointer-events: none;
+}
+.live-map-portal {
+  pointer-events: none;
+}
+.live-map-portal-glow {
+  fill: rgb(var(--map-route) / 0.28);
+}
+.live-map-portal[data-kind="out"] .live-map-portal-glow {
+  fill: rgb(var(--map-out) / 0.28);
+}
+.live-map-portal-core {
+  fill: rgb(var(--map-route) / 1);
+  stroke: var(--bg);
+  stroke-width: 0.05;
+}
+.live-map-portal[data-kind="out"] .live-map-portal-core {
+  fill: rgb(var(--map-out) / 1);
+}
+.live-map-portal-label {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  fill: rgb(var(--map-route) / 0.9);
+  text-anchor: middle;
+  user-select: none;
+}
+.live-map-portal[data-kind="out"] .live-map-portal-label {
+  fill: rgb(var(--map-out) / 0.9);
 }
 .live-map-calib-point {
   fill: #e6c15f;

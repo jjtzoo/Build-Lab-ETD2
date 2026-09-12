@@ -80,6 +80,51 @@ function pathD(project: Projector, path: MapPath): string {
     .join(" ");
 }
 
+type ArrowMarker = { x: number; y: number; angle: number };
+
+/**
+ * Direction chevrons along a path, evenly spaced by arc length in grid
+ * units (not by point count — traced polylines have wildly uneven segment
+ * lengths, so walking points directly would bunch arrows on short hops
+ * and leave long straights bare).
+ */
+function arrowMarkers(
+  points: readonly GridPoint[],
+  spacing: number,
+): ArrowMarker[] {
+  if (points.length < 2 || spacing <= 0) return [];
+  const segments = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const dx = b.col - a.col;
+    const dy = b.row - a.row;
+    const len = Math.hypot(dx, dy);
+    if (len > 1e-6) {
+      segments.push({ a, dx, dy, len, angle: (Math.atan2(dy, dx) * 180) / Math.PI });
+    }
+  }
+  const total = segments.reduce((sum, seg) => sum + seg.len, 0);
+  if (total === 0) return [];
+
+  const markers: ArrowMarker[] = [];
+  let target = Math.min(spacing * 0.6, total / 2);
+  let travelled = 0;
+  for (const seg of segments) {
+    while (target <= travelled + seg.len) {
+      const t = (target - travelled) / seg.len;
+      markers.push({
+        x: seg.a.col + seg.dx * t,
+        y: seg.a.row + seg.dy * t,
+        angle: seg.angle,
+      });
+      target += spacing;
+    }
+    travelled += seg.len;
+  }
+  return markers;
+}
+
 function cellPolygon(project: Projector, cell: GridPoint): string {
   return (
     [
@@ -664,14 +709,66 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
               );
             })}
 
-            {activePaths.map((path) => (
-              <path
-                key={path.id}
-                d={pathD(project, path)}
-                className="live-map-path"
-                fill="none"
-              />
-            ))}
+            {activePaths.map((path) => {
+              const d = pathD(project, path);
+              return (
+                <g key={path.id}>
+                  {!showScreenshot && (
+                    <path d={d} className="live-map-path-glow" fill="none" />
+                  )}
+                  <path d={d} className="live-map-path" fill="none" />
+                </g>
+              );
+            })}
+
+            {!showScreenshot &&
+              activePaths.map((path) => (
+                <g key={`arrows-${path.id}`} className="live-map-arrows">
+                  {arrowMarkers(path.points, 1.6).map((arrow, i) => (
+                    <path
+                      key={i}
+                      d="M -0.11,-0.15 L 0.15,0 L -0.11,0.15 Z"
+                      transform={`translate(${arrow.x} ${arrow.y}) rotate(${arrow.angle})`}
+                      className="live-map-arrow"
+                    />
+                  ))}
+                </g>
+              ))}
+
+            {!showScreenshot &&
+              activePaths.map((path) => {
+                if (path.points.length < 2) return null;
+                const start = path.points[0];
+                const end = path.points[path.points.length - 1];
+                return (
+                  <g key={`portals-${path.id}`}>
+                    <g className="live-map-portal" data-kind="in">
+                      <circle cx={start.col} cy={start.row} r={0.62} className="live-map-portal-glow" />
+                      <circle cx={start.col} cy={start.row} r={0.34} className="live-map-portal-core" />
+                      <text
+                        x={start.col}
+                        y={start.row + 0.95}
+                        className="live-map-portal-label"
+                        style={{ fontSize: cellUnitSize * 0.24 }}
+                      >
+                        IN
+                      </text>
+                    </g>
+                    <g className="live-map-portal" data-kind="out">
+                      <circle cx={end.col} cy={end.row} r={0.62} className="live-map-portal-glow" />
+                      <circle cx={end.col} cy={end.row} r={0.34} className="live-map-portal-core" />
+                      <text
+                        x={end.col}
+                        y={end.row + 0.95}
+                        className="live-map-portal-label"
+                        style={{ fontSize: cellUnitSize * 0.24 }}
+                      >
+                        OUT
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
 
             {editMode === "calibrate" &&
               calibrationClicks.map((p, i) => (

@@ -525,6 +525,37 @@ describe("deadCells", () => {
     });
     expect(deadCells(map)).toEqual([]);
   });
+
+  it("dedupes a cell claimed by two islands whose bounding boxes overlap", () => {
+    // An "L" island (row 0 plus a right-hand column) whose bounding box
+    // is cols 0-4 / rows 0-4, and a second, disconnected diagonal island
+    // sitting entirely inside that box. Both islands' rectangle-fills
+    // land on (2,2) and (1,3) — a real shape this session traced onto
+    // Forest hits this exact case, and without dedup those two cells
+    // were emitted twice, breaking React's key uniqueness.
+    const map = straightPathMap({
+      buildableCells: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+        { col: 4, row: 0 },
+        { col: 4, row: 1 },
+        { col: 4, row: 2 },
+        { col: 4, row: 3 },
+        { col: 4, row: 4 },
+        // Disconnected from the L above (no shared edge or corner) —
+        // its own island, but its bounding box sits inside the L's.
+        { col: 1, row: 2 },
+        { col: 2, row: 3 },
+      ],
+    });
+    const dead = deadCells(map);
+    const keys = dead.map((c) => `${c.col},${c.row}`);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys.filter((k) => k === "2,2")).toHaveLength(1);
+    expect(keys.filter((k) => k === "1,3")).toHaveLength(1);
+  });
 });
 
 describe("worldToGrid", () => {
