@@ -1,0 +1,59 @@
+name: CI
+
+# Pull requests are the point of this: main auto-deploys on Render, so a
+# merge is a production release. Also run on pushes to main directly, so
+# anything that lands another way (a direct commit, a squash that behaved
+# unexpectedly) still gets checked.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same PR makes the previous run irrelevant — cancel it
+# rather than paying for two runs of a branch nobody is looking at.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: lint, types, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Read from .nvmrc so local and CI can never drift apart.
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `ci`, not `install`: installs exactly what package-lock.json pins
+      # and fails if the lockfile is out of sync with package.json.
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      # Catches what the other three cannot: bundling and server-side
+      # rendering errors. Needs no environment variables — nothing in the
+      # app reads a secret at build time.
+      - name: Build
+        run: npm run build
+
+      # Guards the hand-authored game data. These validate recipes against
+      # C(6,k) bijections, element ordering, and the mechanic/economics
+      # files — the class of bug that once shipped seven rotated Quad
+      # recipes and is invisible to types and tests alike.
+      - name: Validate game data
+        run: |
+          npm run validate:towers
+          npm run validate:mechanic-facts
+          npm run validate:tower-economics
