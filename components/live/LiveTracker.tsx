@@ -31,6 +31,7 @@ export function LiveTracker({
   const pickLog = useLiveGame((s) => s.pickLog);
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
+  const placements = useLiveGame((s) => s.placements);
 
   const hydrated = useRef(false);
 
@@ -83,12 +84,12 @@ export function LiveTracker({
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ allocation, pickLog, built, holds }),
+        JSON.stringify({ allocation, pickLog, built, holds, placements }),
       );
     } catch {
       /* storage unavailable */
     }
-  }, [allocation, pickLog, built, holds]);
+  }, [allocation, pickLog, built, holds, placements]);
 
   return (
     <main className="lab-shell live-shell">
@@ -105,28 +106,39 @@ export function LiveTracker({
        * above is sticky so wave/gold/keystones stay in view while scrolling
        * past whichever section isn't the immediate reason you opened this.
        */}
+      {/*
+       * Two columns once there's room for them. The decision stack
+       * (what to summon, what I'm aiming at, what I hold) is a narrow
+       * reading column; the map is a wide diagram. Side by side, the map
+       * can stay pinned while the left column scrolls — which is the
+       * only way "keep the plan visible while I work the map" works on
+       * one page. Below the breakpoint this collapses back to the single
+       * column, in the same order.
+       */}
       <div className="live-focal">
-        <div className="live-section">
-          {endGame ? (
-            <EndGamePanel assets={assets} />
-          ) : (
-            <SummonPanel assets={assets} />
-          )}
+        <div className="live-col live-col-main">
+          <div className="live-section">
+            {endGame ? (
+              <EndGamePanel assets={assets} />
+            ) : (
+              <SummonPanel assets={assets} />
+            )}
+          </div>
+          {/*
+            Plan sits second, not last. It answers "what am I aiming at",
+            which belongs next to the summon decision it informs — and at
+            the bottom of a page this long it was effectively unreachable.
+            Field follows because it's execution: what you actually have.
+          */}
+          <div className="live-section">
+            <PlanPanel assets={assets} />
+          </div>
+          <div className="live-section">
+            <FieldPanel assets={assets} />
+          </div>
         </div>
-        {/*
-          Plan sits second, not last. It answers "what am I aiming at",
-          which belongs next to the summon decision it informs — and at
-          the bottom of a page this long it was effectively unreachable.
-          Field and Map follow because they're execution: what you have,
-          then where it goes.
-        */}
-        <div className="live-section">
-          <PlanPanel assets={assets} />
-        </div>
-        <div className="live-section">
-          <FieldPanel assets={assets} />
-        </div>
-        <div className="live-section live-section-wide">
+
+        <div className="live-col live-col-map">
           {mapReady && (
             <Suspense fallback={null}>
               <MapPanel assets={assets} />

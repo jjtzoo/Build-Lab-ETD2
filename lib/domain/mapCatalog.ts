@@ -21,3 +21,25 @@ export function getMap(id: string): MapConfig {
   if (!map) throw new Error(`Unknown map: ${id}`);
   return map;
 }
+
+/**
+ * Whether a map carries enough real data to give an answer.
+ *
+ * Every map ships as a skeleton with only its confirmed facts (name,
+ * image, official path length) and empty geometry, so the catalog can
+ * grow a map at a time without guessing. Player-facing surfaces should
+ * offer {@link tracedMaps} rather than {@link MAPS}: a picker listing
+ * maps with no path and no buildable cells is three dead ends and one
+ * working option, which reads as broken rather than as partial.
+ */
+export function isMapTraced(map: MapConfig): boolean {
+  return (
+    map.buildableCells.length > 0 &&
+    map.paths.some((path) => path.points.length >= 2)
+  );
+}
+
+/** The maps that can actually be reasoned about, in catalog order. */
+export function tracedMaps(): readonly MapConfig[] {
+  return MAPS.filter(isMapTraced);
+}

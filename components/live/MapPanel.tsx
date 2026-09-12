@@ -14,17 +14,30 @@ import {
   type PixelPoint,
   type WaveMode,
 } from "@/lib/domain/mapConfig";
-import { MAPS } from "@/lib/domain/mapCatalog";
+import { MAPS, tracedMaps } from "@/lib/domain/mapCatalog";
 import {
-  bestSpotsForTower,
-  coverageForMode,
   deadCells,
   gridToWorld,
   pathsForMode,
   worldToGrid,
   type ModeCoverage,
 } from "@/lib/engine/mapPlacement";
-import { isTowerLoggable, liveTowerReachableLevel } from "@/lib/engine/liveGame";
+import {
+  placementValue,
+  rankPlacements,
+  type PlacedTowerRef,
+  type PlacementKind,
+} from "@/lib/engine/placementValue";
+import { getTowerPlacementFact } from "@/lib/domain/towerPlacementFacts";
+import { resolveTowerContribution } from "@/lib/engine/resolvedTowerContribution";
+import {
+  isTowerLoggable,
+  liveTowerName,
+  liveTowerReachableLevel,
+  placedCount,
+  placementAt,
+  placementsOnMap,
+} from "@/lib/engine/liveGame";
 import { evolutionTargets } from "@/lib/domain/towerEvolution";
 import { roman } from "@/components/build-lab/primitives";
 import { useLiveGame } from "@/components/live/store";
@@ -35,6 +48,13 @@ type EditMode = "calibrate" | "trace" | "buildable" | "measure" | null;
 const TOP_N = 6;
 /** Padding around the traced extent, in cells, for the schematic view. */
 const SCHEMATIC_PAD = 1.5;
+/**
+ * CSS-pixel side of the box a placed tower's icon is laid out in before
+ * the SVG scales it onto its cell. Fixed so the HTML inside gets a sane
+ * layout box in both views, and big enough that next/image picks a sharp
+ * source rather than a 16px thumbnail.
+ */
+const ICON_BOX = 40;
 
 /**
  * Reference shots of one tower's in-game range circle, one per distinct
@@ -49,6 +69,36 @@ function passLabel(passes: number): string | null {
   if (passes >= 3) return `${passes}× pass`;
   if (passes === 2) return "double-pass";
   return null;
+}
+
+/**
+ * What the ranking is optimising for this tower, said plainly.
+ *
+ * Worth stating outright: the same map ranks the same cells differently
+ * for a Howitzer and a Blacksmith, and without this the list looks
+ * arbitrary rather than mechanic-aware.
+ */
+const KIND_LABEL: Record<PlacementKind, string> = {
+  uptime: "ranked on time in range × damage",
+  late: "ranked on catching creeps late, when they're already hurt",
+  "creep-debuff": "ranked on how much of its debuff window lands",
+  "debuff-overlap": "ranked on overlapping your placed damage",
+  "tower-buff": "ranked on the damage standing inside its radius",
+};
+
+/**
+ * Damage per second at a level, from the shared resolver rather than a
+ * second inline `damage * attackSpeed`. Falls back to 0 for anything
+ * outside the normal-tower catalog (mono, Arrow/Cannon), which carries no
+ * damage data to rank with in the first place.
+ */
+function baseDpsFor(towerId: string, level: number): number {
+  try {
+    return resolveTowerContribution(towerId as never, level)
+      .factualStatsAtLevel.baseDps;
+  } catch {
+    return 0;
+  }
 }
 
 function toSvgPoint(
@@ -176,10 +226,20 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const searchParams = useSearchParams();
   const editEnabled = searchParams.get("edit") === "1";
 
-  const [mapId, setMapId] = useState(MAPS[0].id);
+  /**
+   * Maps a player can pick, and the default among them. Falls back to the
+   * whole catalog if nothing is traced yet, so the panel degrades to its
+   * own "hasn't been traced" message rather than to an empty dropdown.
+   */
+  const selectableMaps = useMemo(() => {
+    const traced = tracedMaps();
+    return traced.length > 0 ? traced : MAPS;
+  }, []);
+
+  const [mapId, setMapId] = useState(selectableMaps[0].id);
   const baseMap = useMemo(
-    () => MAPS.find((entry) => entry.id === mapId) ?? MAPS[0],
-    [mapId],
+    () => MAPS.find((entry) => entry.id === mapId) ?? selectableMaps[0],
+    [mapId, selectableMaps],
   );
   const [draft, setDraft] = useState<MapConfig | null>(null);
   const map = draft?.id === baseMap.id ? draft : baseMap;
@@ -203,8 +263,21 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     null,
   );
   const [selectedCell, setSelectedCell] = useState<GridPoint | null>(null);
+  /**
+   * Level the cell is being judged for, when the player overrides the
+   * default. Null means "whatever this game can reach" — see
+   * `defaultPlannedLevel`.
+   */
+  const [plannedLevel, setPlannedLevel] = useState<number | null>(null);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+
+  /** Switching towers drops any level override with it. */
+  function selectTower(towerId: string | null) {
+    setSelectedTowerId(towerId);
+    setPlannedLevel(null);
+    setSelectedCell(null);
+  }
 
   function updateMap(change: (current: MapConfig) => MapConfig) {
     setDraft(change(map));
@@ -212,6 +285,15 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
+  const placements = useLiveGame((s) => s.placements);
+  const placeTower = useLiveGame((s) => s.placeTower);
+  const unplaceTower = useLiveGame((s) => s.unplaceTower);
+
+  /** Only this map's placements — a cell is only taken on its own map. */
+  const placedHere = useMemo(
+    () => placementsOnMap(placements, map.id),
+    [placements, map.id],
+  );
 
   // Only towers this game's own picks can actually reach — the same gate
   // Field/Summon use. Ranking placement for a tower you can't summon yet
@@ -267,36 +349,82 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     ? isTowerLoggable(selectedTower.id, allocation)
     : false;
 
-  // A tower picked off the field is evaluated at the level it is actually
-  // standing at; one picked from search, at the level this game's picks
-  // could reach. Either way the damage below is what you'd really get,
-  // not the tower's max-level stat sheet.
-  const fieldLevel = selectedTower
+  /**
+   * Two different levels, and conflating them was a real bug.
+   *
+   * `standingLevel` is what you own right now — the only level a copy can
+   * actually be placed at. `towerLevel` is the level the *cell* is being
+   * judged for, which is a different question: a slot is permanent, so
+   * you buy it for the tower's finished form, exactly as the evolution
+   * chips already assume. Judging a Haste held at I on its level-I stats
+   * understated its damage fourfold (1,000 -> 4,000 per attack) and gave
+   * no way to say "I'm taking this one to max".
+   */
+  const standingLevel = selectedTower
     ? fieldPicks.find((entry) => entry.tower.id === selectedTower.id)?.level
     : undefined;
-  const towerLevel = selectedTower
+  const reachableLevel = selectedTower
+    ? liveTowerReachableLevel(selectedTower.id, allocation)
+    : 0;
+  /**
+   * Defaults to the best level this game's picks can reach — the end
+   * state you're pursuing — falling back to the tower's own max for a
+   * target that isn't reachable yet, since planning ahead is the only
+   * reason to be looking at one of those.
+   */
+  const defaultPlannedLevel = selectedTower
     ? Math.max(
         1,
-        fieldLevel ?? liveTowerReachableLevel(selectedTower.id, allocation),
+        Math.min(
+          selectedTower.maxLevel,
+          reachableLevel > 0 ? reachableLevel : selectedTower.maxLevel,
+        ),
       )
+    : 1;
+  const towerLevel = selectedTower
+    ? Math.max(1, Math.min(plannedLevel ?? defaultPlannedLevel, selectedTower.maxLevel))
     : 1;
 
   /**
-   * Where the selected tower can still grow.
+   * Everything this cell could *end up* holding, upgrades and evolutions
+   * together.
    *
-   * A cheap precursor is routinely fielded as a placeholder for something
-   * bigger — evolving deducts what was already sunk, so the slot is really
-   * being bought for the tower that ends up standing in it. Judge the cell
-   * on that one, not on the tower holding it today. Targets out of reach
-   * are kept and marked rather than hidden: planning the cell is the whole
-   * point of looking before the keystones land.
+   * A slot is permanent, so it is bought for the tower that finally
+   * stands in it, not the one holding it today. Levelling the tower you
+   * already have is the same kind of commitment as evolving it into
+   * something else — so "Haste II" belongs in this row next to Railgun
+   * and Tsunami, not behind a separate control. Leaving it out was the
+   * bug: a Haste held at I could only ever be judged on level-I stats,
+   * a quarter of its real damage, with no way to say otherwise.
+   *
+   * Out-of-reach entries stay, marked — planning the cell before the
+   * keystones land is the whole point of looking.
    */
-  const evolutionPicks = useMemo(() => {
+  const endStatePicks = useMemo(() => {
     if (!selectedTower) return [];
-    return evolutionTargets(selectedTower.id, towerLevel)
-      .map((step) => TOWERS.find((t) => t.id === step.towerId))
-      .filter((tower): tower is NonNullable<typeof tower> => tower != null);
-  }, [selectedTower, towerLevel]);
+    const picks: { tower: (typeof TOWERS)[number]; level: number }[] = [];
+
+    // Same tower, higher level — every step above what's standing.
+    const from = standingLevel ?? 1;
+    for (let level = from + 1; level <= selectedTower.maxLevel; level++) {
+      picks.push({ tower: selectedTower, level });
+    }
+
+    /*
+     * Evolutions come from the level you *hold*, not the level being
+     * planned. An evolved tower arrives at the level it came in with, and
+     * the Quads cap at level 1, so asking from a planned level II
+     * silently dropped every Quad — Railgun, Crystal Spire and Tsunami
+     * vanished from this row the moment the default started scoring for
+     * max level. Both branches answer the same question: what can the
+     * copy I have today finish as?
+     */
+    for (const step of evolutionTargets(selectedTower.id, from)) {
+      const tower = TOWERS.find((t) => t.id === step.towerId);
+      if (tower) picks.push({ tower, level: step.level });
+    }
+    return picks;
+  }, [selectedTower, standingLevel]);
 
   // Damage per attack x attacks/sec, deliberately narrow — the same
   // "baseDps" discipline used elsewhere in this codebase. Doesn't model
@@ -304,9 +432,10 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   // ability damage; a spot's # of passes and longest run (shown
   // alongside) are the signal for whether ramp-up towers benefit.
   const towerDps = selectedTower
-    ? (selectedTower.stats.damage[
-        Math.min(towerLevel, selectedTower.stats.damage.length) - 1
-      ] ?? 0) * selectedTower.stats.attackSpeed
+    ? baseDpsFor(
+        selectedTower.id,
+        Math.min(towerLevel, selectedTower.maxLevel),
+      )
     : 0;
 
   const activePaths = useMemo(
@@ -318,15 +447,77 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     [map],
   );
 
+  /**
+   * Everything standing on this map, with the range and damage the
+   * scorers need — a buff tower is ranked by the damage it can reach, and
+   * a short debuff by the damage it overlaps, so both need to know what
+   * is already down and how hard it hits.
+   */
+  const placedRefs = useMemo<PlacedTowerRef[]>(
+    () =>
+      placedHere.map((p) => {
+        const tower = TOWERS.find((t) => t.id === p.towerId);
+        return {
+          cell: { col: p.col, row: p.row },
+          towerId: p.towerId,
+          rangeUnits: tower?.stats.range ?? 0,
+          baseDps: baseDpsFor(p.towerId, p.level),
+        };
+      }),
+    [placedHere],
+  );
+
   const ranked = useMemo(() => {
     if (!selectedTower) return [];
-    return bestSpotsForTower(
+    return rankPlacements({
       map,
-      selectedTower.stats.range,
       mode,
-      TOP_N,
-    );
-  }, [map, selectedTower, mode]);
+      towerId: selectedTower.id,
+      rangeUnits: selectedTower.stats.range,
+      baseDps: towerDps,
+      placed: placedRefs,
+      occupied: placedRefs.map((p) => p.cell),
+      topN: TOP_N,
+    });
+  }, [map, mode, selectedTower, towerDps, placedRefs]);
+
+  /** The selected cell judged by the same model the ranking uses. */
+  const spotValue = useMemo(() => {
+    if (!selectedTower || !selectedCell) return null;
+    return placementValue({
+      map,
+      cell: selectedCell,
+      mode,
+      towerId: selectedTower.id,
+      rangeUnits: selectedTower.stats.range,
+      baseDps: towerDps,
+      placed: placedRefs,
+    });
+  }, [map, selectedCell, mode, selectedTower, towerDps, placedRefs]);
+
+  const placementFact = selectedTower
+    ? getTowerPlacementFact(selectedTower.id)
+    : null;
+
+  /**
+   * Copies on the field at the level they are actually standing at.
+   *
+   * Deliberately `standingLevel`, not `towerLevel`: those diverge the
+   * moment you plan a cell for an upgrade you haven't bought. Counting
+   * against the planned level found no rows and reported a tower you own
+   * as "not on your field yet".
+   */
+  const ownedCopies = selectedTower
+    ? (built.find(
+        (row) =>
+          row.towerId === selectedTower.id && row.level === standingLevel,
+      )?.quantity ?? 0)
+    : 0;
+  /** Copies still in hand, not yet standing anywhere. */
+  const unplacedCopies =
+    selectedTower && standingLevel !== undefined
+      ? ownedCopies - placedCount(placements, selectedTower.id, standingLevel)
+      : 0;
 
   const rankByKey = useMemo(() => {
     const byKey = new Map<string, number>();
@@ -336,15 +527,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     return byKey;
   }, [ranked]);
 
-  const spotCoverage: ModeCoverage | null =
-    selectedTower && selectedCell
-      ? coverageForMode(
-          map,
-          selectedCell,
-          selectedTower.stats.range,
-          mode,
-        )
-      : null;
+  const spotCoverage: ModeCoverage | null = spotValue?.coverage ?? null;
 
   const traced =
     map.buildableCells.length > 0 ||
@@ -617,7 +800,14 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
               setCalibrationClicks([]);
             }}
           >
-            {MAPS.map((entry) => (
+            {/*
+              Players get the maps that can actually answer a question;
+              the editor gets all of them, because reaching an untraced
+              map is how it stops being untraced. Maps are digitised one
+              at a time, so an untraced one is normal — but offering it
+              here would just be a dead end.
+            */}
+            {(editEnabled ? MAPS : selectableMaps).map((entry) => (
               <option key={entry.id} value={entry.id}>
                 {entry.name}
               </option>
@@ -653,6 +843,18 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         </div>
       </div>
 
+      {/*
+        Set the expectation rather than letting the short list imply the
+        feature is finished. Each map is digitised by hand from game
+        screenshots, so they arrive one at a time.
+      */}
+      {!editEnabled && selectableMaps.length < MAPS.length && (
+        <p className="live-map-basis">
+          {selectableMaps.length} of {MAPS.length} maps traced so far — more
+          are added one at a time.
+        </p>
+      )}
+
       {fieldPicks.length > 0 && (
         <div className="live-map-picks">
           <span className="live-map-picks-label">On your field</span>
@@ -663,12 +865,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 type="button"
                 className="live-map-chip"
                 data-on={tower.id === selectedTowerId || undefined}
-                onClick={() => {
-                  setSelectedTowerId(
-                    tower.id === selectedTowerId ? null : tower.id,
-                  );
-                  setSelectedCell(null);
-                }}
+                onClick={() =>
+                  selectTower(tower.id === selectedTowerId ? null : tower.id)
+                }
               >
                 <LiveTowerIcon
                   towerId={tower.id}
@@ -687,29 +886,39 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         </div>
       )}
 
-      {evolutionPicks.length > 0 && (
+      {endStatePicks.length > 0 && (
         <div className="live-map-picks">
           <span className="live-map-picks-label">
-            {selectedTower?.name} evolves into — judge the cell on where it
-            ends up
+            Judge the cell on where it ends up — {selectedTower?.name} can
+            level up or evolve
           </span>
           <div className="live-map-chiprow">
-            {evolutionPicks.map((tower) => {
-              const reachable = isTowerLoggable(tower.id, allocation);
+            {endStatePicks.map(({ tower, level }) => {
+              const isUpgrade = tower.id === selectedTower?.id;
+              // An upgrade is in reach if this game's picks can take the
+              // tower that far; an evolution, if its recipe is satisfied.
+              const reachable = isUpgrade
+                ? reachableLevel >= level
+                : isTowerLoggable(tower.id, allocation);
+              const active =
+                tower.id === selectedTowerId && towerLevel === level;
               return (
                 <button
-                  key={tower.id}
+                  key={`${tower.id}-${level}`}
                   type="button"
                   className="live-map-chip"
-                  data-on={tower.id === selectedTowerId || undefined}
+                  data-on={active || undefined}
                   data-locked={!reachable || undefined}
                   title={
                     reachable
-                      ? undefined
+                      ? isUpgrade
+                        ? `Judge this cell for ${tower.name} ${roman(level)}`
+                        : undefined
                       : "Not reachable yet — shown so you can plan the cell for it"
                   }
                   onClick={() => {
                     setSelectedTowerId(tower.id);
+                    setPlannedLevel(level);
                     setSelectedCell(null);
                   }}
                 >
@@ -719,7 +928,12 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                     size={18}
                   />
                   <span>{tower.name}</span>
-                  <span className="mono live-map-chip-level">
+                  {tower.maxLevel > 1 && (
+                    <span className="mono live-map-chip-level">
+                      {roman(level)}
+                    </span>
+                  )}
+                  <span className="mono live-map-chip-range">
                     {tower.stats.range}
                   </span>
                 </button>
@@ -757,8 +971,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedTowerId(tower.id);
-                    setSelectedCell(null);
+                    selectTower(tower.id);
                     setQuery("");
                   }}
                 >
@@ -796,14 +1009,37 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             {!selectionReachable && (
               <span className="live-map-planning"> · planning ahead</span>
             )}
+            {/*
+              Two levels in play whenever you plan above what you hold:
+              the cell is scored for the finished tower, but the copy you
+              can put down today is the one standing. Saying so beats
+              letting the level in the line silently mean two things.
+            */}
+            {standingLevel !== undefined && standingLevel < towerLevel && (
+              <span className="live-map-planning">
+                {" "}
+                · holding{" "}
+                <span className="mono">{roman(standingLevel)}</span>, scored
+                for <span className="mono">{roman(towerLevel)}</span>
+              </span>
+            )}
+            {selectionReachable && (
+              <span className="live-map-planning">
+                {" "}
+                ·{" "}
+                {/* "all copies placed" is only true if you own some. */}
+                {unplacedCopies > 0
+                  ? `${unplacedCopies} to place — tap a cell`
+                  : ownedCopies > 0
+                    ? "all copies placed"
+                    : "not on your field yet — scouting the spot"}
+              </span>
+            )}
           </span>
           <button
             type="button"
             className="live-map-clear"
-            onClick={() => {
-              setSelectedTowerId(null);
-              setSelectedCell(null);
-            }}
+            onClick={() => selectTower(null)}
           >
             clear
           </button>
@@ -811,8 +1047,10 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
       )}
 
       <p className="live-map-assumption">
-        Assumes 1 range unit = 1 grid cell — unverified against the game.
-        Damage estimates are single-target uptime (time in range × damage ×
+        Range is scaled at{" "}
+        <span className="mono">{map.rangeUnitsPerCell}</span> units per
+        cell, measured off the game&apos;s own range circles. Damage
+        estimates are single-target uptime (time in range × damage ×
         attacks/sec) — they don&apos;t model AoE hitting more than one
         creep, ramp-up, or resist.
       </p>
@@ -845,26 +1083,18 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
               />
             )}
 
-            {dead.map((cell) => {
-              const center = project(cell);
-              return (
-                <g key={`dead-${cell.col},${cell.row}`}>
-                  <polygon
-                    points={cellPolygon(project, cell)}
-                    className="live-map-dead"
-                  />
-                  <text
-                    x={center.x}
-                    y={center.y}
-                    className="live-map-cell-label"
-                    style={{ fontSize: cellUnitSize * 0.22 }}
-                    data-dead
-                  >
-                    {cellLabel(cell, labelOrigin)}
-                  </text>
-                </g>
-              );
-            })}
+            {/*
+              Dead cells are texture, not information — they can't be
+              clicked or built on, and labelling them only competed with
+              the buildable cells' own labels for legibility.
+            */}
+            {dead.map((cell) => (
+              <polygon
+                key={`dead-${cell.col},${cell.row}`}
+                points={cellPolygon(project, cell)}
+                className="live-map-dead"
+              />
+            ))}
 
             {map.buildableCells.map((cell) => {
               const key = `${cell.col},${cell.row}`;
@@ -873,6 +1103,12 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 selectedCell?.col === cell.col &&
                 selectedCell?.row === cell.row;
               const center = project(cell);
+              const standing = placementAt(
+                placedHere,
+                map.id,
+                cell.col,
+                cell.row,
+              );
               return (
                 <g key={key}>
                   <polygon
@@ -880,20 +1116,109 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                     className="live-map-block"
                     data-rank={rank !== undefined ? rank : undefined}
                     data-selected={isSelected || undefined}
+                    data-occupied={standing ? true : undefined}
                     onClick={(e) => {
                       if (editMode) return;
                       e.stopPropagation();
+                      // Tapping a cell commits the selection to it, and
+                      // tapping an occupied cell lifts what's there —
+                      // each change re-ranks everything still to place.
+                      if (standing) {
+                        unplaceTower(map.id, cell.col, cell.row);
+                        setSelectedCell(cell);
+                        return;
+                      }
+                      // What goes down is the copy you hold, at the level
+                      // it stands at — not the level the cell is scored
+                      // for, which may be an upgrade you haven't bought.
+                      if (
+                        selectedTower &&
+                        standingLevel !== undefined &&
+                        unplacedCopies > 0
+                      ) {
+                        placeTower(
+                          map.id,
+                          selectedTower.id,
+                          standingLevel,
+                          cell.col,
+                          cell.row,
+                        );
+                      }
                       setSelectedCell(cell);
                     }}
-                  />
-                  <text
-                    x={center.x}
-                    y={center.y}
-                    className="live-map-cell-label"
-                    style={{ fontSize: cellUnitSize * 0.32 }}
                   >
-                    {cellLabel(cell, labelOrigin)}
-                  </text>
+                    <title>
+                      {standing
+                        ? `${liveTowerName(standing.towerId)} ${roman(
+                            standing.level,
+                          )} — tap to lift`
+                        : selectedTower && unplacedCopies > 0
+                          ? `Place ${selectedTower.name} here`
+                          : cellLabel(cell, labelOrigin)}
+                    </title>
+                  </polygon>
+                  {standing ? (
+                    /*
+                     * LiveTowerIcon renders HTML (next/image, TowerIcon),
+                     * so it needs a foreignObject to live inside the SVG.
+                     * The box is a fixed CSS-pixel square scaled into place
+                     * by the parent transform — sizing the foreignObject
+                     * itself in user units would lay the HTML out inside a
+                     * sub-pixel box in the schematic view, where one cell
+                     * is one unit. pointerEvents stays off it: the polygon
+                     * underneath owns the click, lifting included.
+                     */
+                    <g
+                      transform={`translate(${center.x} ${center.y}) scale(${
+                        (cellUnitSize * 0.72) / ICON_BOX
+                      })`}
+                      pointerEvents="none"
+                    >
+                      <foreignObject
+                        x={-ICON_BOX / 2}
+                        y={-ICON_BOX / 2}
+                        width={ICON_BOX}
+                        height={ICON_BOX}
+                      >
+                        <div
+                          className="live-map-standing"
+                          style={{ width: ICON_BOX, height: ICON_BOX }}
+                        >
+                          <LiveTowerIcon
+                            towerId={standing.towerId}
+                            assets={assets}
+                            size={ICON_BOX}
+                          />
+                        </div>
+                      </foreignObject>
+                    </g>
+                  ) : rank !== undefined ? (
+                    /*
+                     * A ranked cell shows its rank, not its name. The
+                     * question the map answers is "where do I build",
+                     * and making the top spots readable on the grid
+                     * itself means not having to cross-reference the
+                     * list below for every candidate.
+                     */
+                    <text
+                      x={center.x}
+                      y={center.y}
+                      className="live-map-cell-label"
+                      data-rank-label={rank}
+                      style={{ fontSize: cellUnitSize * 0.5 }}
+                    >
+                      {rank + 1}
+                    </text>
+                  ) : (
+                    <text
+                      x={center.x}
+                      y={center.y}
+                      className="live-map-cell-label"
+                      style={{ fontSize: cellUnitSize * 0.42 }}
+                    >
+                      {cellLabel(cell, labelOrigin)}
+                    </text>
+                  )}
                 </g>
               );
             })}
@@ -1014,14 +1339,44 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         </div>
       )}
 
-      {selectedTower && spotCoverage && selectedCell && (
+      {selectedTower && spotValue && spotCoverage && selectedCell && (
         <p className="live-map-readout mono">
           <b>{cellLabel(selectedCell, labelOrigin)}</b> · ≈
-          {Math.round(
-            spotCoverage.coveredSeconds * towerDps,
-          ).toLocaleString()}{" "}
-          dmg · {spotCoverage.coveragePercent.toFixed(1)}% of the route ·{" "}
+          {Math.round(spotValue.damage).toLocaleString()} dmg ·{" "}
+          {spotCoverage.coveragePercent.toFixed(1)}% of the route ·{" "}
           {spotCoverage.coveredSeconds.toFixed(1)}s
+          {spotCoverage.firstContactSeconds !== null && (
+            <>
+              {" "}
+              · in reach from{" "}
+              {spotCoverage.firstContactSeconds.toFixed(1)}s
+            </>
+          )}
+          {spotValue.effectiveWindowSeconds !== null && (
+            <>
+              {" "}
+              · <b>{spotValue.effectiveWindowSeconds.toFixed(1)}s</b> of its
+              debuff lands
+            </>
+          )}
+          {spotValue.kind === "tower-buff" && (
+            <>
+              {" "}
+              · buffs{" "}
+              <b>{Math.round(spotValue.score).toLocaleString()}</b> dps
+            </>
+          )}
+          {spotValue.kind === "debuff-overlap" &&
+            spotValue.overlapSeconds > 0 && (
+              <>
+                {" "}
+                · <b>{spotValue.overlapSeconds.toFixed(1)}s</b> overlapping
+                your damage
+              </>
+            )}
+          {spotValue.kind === "late" && (
+            <> · {spotValue.lateSharePercent.toFixed(0)}% late-route</>
+          )}
           {passLabel(spotCoverage.passes) && (
             <> · {passLabel(spotCoverage.passes)}</>
           )}
@@ -1046,6 +1401,31 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             Best spots for {selectedTower.name}
             {mode === "advance" ? " — advance" : ""}
           </h4>
+          {/*
+            Say what the ranking is optimising for. The same map orders the
+            same cells differently for a Howitzer and a Blacksmith, and
+            without this the list reads as arbitrary instead of as the
+            tower's own mechanic being applied.
+          */}
+          <p className="live-map-basis">
+            {KIND_LABEL[ranked[0].value.kind]}
+            {placementFact && placementFact.radialPreference !== "any" && (
+              <>
+                {" "}
+                · wants the route{" "}
+                {placementFact.radialPreference === "spread"
+                  ? "passing both near and far"
+                  : placementFact.radialPreference === "far"
+                    ? "out toward its rim"
+                    : "close in"}
+              </>
+            )}
+          </p>
+          {ranked[0].value.note && (
+            <p className="live-map-basis" data-caveat>
+              {ranked[0].value.note}
+            </p>
+          )}
           <ul>
             {ranked.map((entry, i) => (
               <li
@@ -1063,22 +1443,42 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                   {cellLabel(entry.cell, labelOrigin)}
                 </span>
                 <span className="mono">
-                  ≈
-                  {Math.round(
-                    entry.coverage.coveredSeconds * towerDps,
-                  ).toLocaleString()}{" "}
-                  dmg
+                  ≈{Math.round(entry.value.damage).toLocaleString()} dmg
                 </span>
                 <span className="mono">
-                  {entry.coverage.coveragePercent.toFixed(1)}%
+                  {entry.value.coverage.coveragePercent.toFixed(1)}%
                 </span>
-                {passLabel(entry.coverage.passes) && (
-                  <span className="live-map-pass">
-                    {passLabel(entry.coverage.passes)}
+                {/* Whichever number decided this cell's place in the list. */}
+                {entry.value.kind === "creep-debuff" && (
+                  <span className="live-map-pass" data-basis>
+                    {entry.value.effectiveWindowSeconds?.toFixed(0)}s lands
                   </span>
                 )}
+                {entry.value.kind === "late" && (
+                  <span className="live-map-pass" data-basis>
+                    {entry.value.lateSharePercent.toFixed(0)}% late
+                  </span>
+                )}
+                {entry.value.kind === "tower-buff" &&
+                  entry.value.score > 0 && (
+                    <span className="live-map-pass" data-basis>
+                      +{Math.round(entry.value.score).toLocaleString()} dps
+                    </span>
+                  )}
+                {entry.value.kind === "debuff-overlap" &&
+                  entry.value.overlapSeconds > 0 && (
+                    <span className="live-map-pass" data-basis>
+                      {entry.value.overlapSeconds.toFixed(0)}s overlap
+                    </span>
+                  )}
+                {entry.value.kind === "uptime" &&
+                  passLabel(entry.value.coverage.passes) && (
+                    <span className="live-map-pass">
+                      {passLabel(entry.value.coverage.passes)}
+                    </span>
+                  )}
                 <span className="live-map-rank-seconds mono">
-                  {entry.coverage.coveredSeconds.toFixed(1)}s
+                  {entry.value.coverage.coveredSeconds.toFixed(1)}s
                 </span>
               </li>
             ))}
