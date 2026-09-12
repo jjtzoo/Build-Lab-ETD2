@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { LabHeader, LabFooter } from "@/components/build-lab/LabChrome";
 import {
@@ -18,8 +18,6 @@ import { useLiveGame, type LiveSnapshot } from "@/components/live/store";
 
 const STORAGE_KEY = "etd2:live:v1";
 
-type View = "summon" | "field" | "map" | "plan";
-
 export function LiveTracker({
   assets,
   initialPlan,
@@ -34,7 +32,6 @@ export function LiveTracker({
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
 
-  const [view, setView] = useState<View>("summon");
   const hydrated = useRef(false);
 
   const endGame = useMemo(() => isEndGame(allocation), [allocation]);
@@ -80,13 +77,6 @@ export function LiveTracker({
     }
   }, [allocation, pickLog, built, holds]);
 
-  const tabs: readonly { id: View; label: string }[] = [
-    { id: "summon", label: endGame ? "End Game" : "Summon" },
-    { id: "field", label: "Field" },
-    { id: "map", label: "Map" },
-    { id: "plan", label: "Plan" },
-  ];
-
   return (
     <main className="lab-shell live-shell">
       <span className="lab-grain" aria-hidden="true" />
@@ -94,37 +84,33 @@ export function LiveTracker({
 
       <StatusStrip assets={assets} />
 
-      <nav className="live-views" aria-label="Tracker view">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className="live-view-tab"
-            data-on={view === tab.id || undefined}
-            data-alert={
-              (tab.id === "summon" && endGame) || undefined
-            }
-            onClick={() => setView(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="live-focal" data-wide={view === "map" || undefined}>
-        {view === "summon" &&
-          (endGame ? (
+      {/*
+       * One continuous page, deliberately — this tool is read and acted on
+       * mid-match, and clicking between tabs to find "what do I do next"
+       * while a wave is inbound is exactly the hassle a live tracker
+       * shouldn't add. Every section is always mounted; the status strip
+       * above is sticky so wave/gold/keystones stay in view while scrolling
+       * past whichever section isn't the immediate reason you opened this.
+       */}
+      <div className="live-focal">
+        <div className="live-section">
+          {endGame ? (
             <EndGamePanel assets={assets} />
           ) : (
             <SummonPanel assets={assets} />
-          ))}
-        {view === "field" && <FieldPanel assets={assets} />}
-        {view === "map" && (
+          )}
+        </div>
+        <div className="live-section">
+          <FieldPanel assets={assets} />
+        </div>
+        <div className="live-section live-section-wide">
           <Suspense fallback={null}>
             <MapPanel assets={assets} />
           </Suspense>
-        )}
-        {view === "plan" && <PlanPanel assets={assets} />}
+        </div>
+        <div className="live-section">
+          <PlanPanel assets={assets} />
+        </div>
       </div>
 
       <LabFooter />

@@ -4229,15 +4229,6 @@ button.mechanic-chip {
 }
 
 /* ── View tabs ────────────────────────────────────────────── */
-.live-views {
-  display: flex;
-  gap: 4px;
-  margin-top: 14px;
-  padding: 4px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
 .live-view-tab {
   flex: 1;
   padding: 9px 12px;
@@ -4257,21 +4248,21 @@ button.mechanic-chip {
   background: var(--surface-internal);
   color: var(--text);
 }
-.live-view-tab[data-alert]::after {
-  content: "";
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-left: 6px;
-  border-radius: 999px;
-  background: #e6c15f;
-  vertical-align: middle;
-}
-
 /* ── Focal stage ──────────────────────────────────────────── */
 .live-focal {
   margin: 16px auto 0;
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 4vw, 32px);
+}
+.live-section {
   max-width: 580px;
+  width: 100%;
+  margin: 0 auto;
+}
+.live-section-wide {
+  max-width: 820px;
 }
 .live-summon,
 .live-field,
@@ -4757,9 +4748,6 @@ button.mechanic-chip {
      (spawn vs. exit, direction of travel), not a synergy indicator. */
   --map-route: 88 209 255;
   --map-out: 255 122 92;
-}
-.live-focal[data-wide] {
-  max-width: 820px;
 }
 .live-map-panel {
   padding: clamp(18px, 3.5vw, 26px);
