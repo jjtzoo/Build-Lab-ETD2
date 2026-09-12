@@ -25,6 +25,8 @@ import {
   type ModeCoverage,
 } from "@/lib/engine/mapPlacement";
 import { isTowerLoggable, liveTowerReachableLevel } from "@/lib/engine/liveGame";
+import { evolutionTargets } from "@/lib/domain/towerEvolution";
+import { roman } from "@/components/build-lab/primitives";
 import { useLiveGame } from "@/components/live/store";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 
@@ -209,6 +211,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   }
 
   const allocation = useLiveGame((s) => s.allocation);
+  const built = useLiveGame((s) => s.built);
 
   // Only towers this game's own picks can actually reach — the same gate
   // Field/Summon use. Ranking placement for a tower you can't summon yet
@@ -218,6 +221,34 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     [allocation],
   );
 
+  /**
+   * What's standing on the field right now, ready to tap.
+   *
+   * This panel is reading the same game state the field log already
+   * holds, so asking the player to retype a tower's name mid-match is
+   * busywork. Rows are per (tower, level); a tower held at two levels
+   * collapses to its highest, since that's the copy worth placing well.
+   *
+   * Mono and basic towers are deliberately absent: `monoTowers.v1.json`
+   * carries no range, damage, or attack speed, so there is nothing
+   * honest to rank them with.
+   */
+  const fieldPicks = useMemo(() => {
+    const highestLevel = new Map<string, number>();
+    for (const row of built) {
+      highestLevel.set(
+        row.towerId,
+        Math.max(highestLevel.get(row.towerId) ?? 0, row.level),
+      );
+    }
+    return [...highestLevel.entries()]
+      .map(([towerId, level]) => {
+        const tower = TOWERS.find((t) => t.id === towerId);
+        return tower ? { tower, level } : null;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  }, [built]);
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -226,16 +257,46 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
       .slice(0, 6);
   }, [query, availableTowers]);
 
+  // Looked up across the whole catalog, not just what's reachable: an
+  // evolution target you're saving toward is a legitimate thing to plan a
+  // cell around before its keystones are in hand.
   const selectedTower = selectedTowerId
-    ? availableTowers.find((t) => t.id === selectedTowerId) ?? null
+    ? TOWERS.find((t) => t.id === selectedTowerId) ?? null
     : null;
+  const selectionReachable = selectedTower
+    ? isTowerLoggable(selectedTower.id, allocation)
+    : false;
 
-  // The level this game's own picks can actually reach right now — the
-  // same number Field would log it at, so the damage estimate below
-  // matches what you'd really get, not the tower's max-level stat sheet.
+  // A tower picked off the field is evaluated at the level it is actually
+  // standing at; one picked from search, at the level this game's picks
+  // could reach. Either way the damage below is what you'd really get,
+  // not the tower's max-level stat sheet.
+  const fieldLevel = selectedTower
+    ? fieldPicks.find((entry) => entry.tower.id === selectedTower.id)?.level
+    : undefined;
   const towerLevel = selectedTower
-    ? Math.max(1, liveTowerReachableLevel(selectedTower.id, allocation))
+    ? Math.max(
+        1,
+        fieldLevel ?? liveTowerReachableLevel(selectedTower.id, allocation),
+      )
     : 1;
+
+  /**
+   * Where the selected tower can still grow.
+   *
+   * A cheap precursor is routinely fielded as a placeholder for something
+   * bigger — evolving deducts what was already sunk, so the slot is really
+   * being bought for the tower that ends up standing in it. Judge the cell
+   * on that one, not on the tower holding it today. Targets out of reach
+   * are kept and marked rather than hidden: planning the cell is the whole
+   * point of looking before the keystones land.
+   */
+  const evolutionPicks = useMemo(() => {
+    if (!selectedTower) return [];
+    return evolutionTargets(selectedTower.id, towerLevel)
+      .map((step) => TOWERS.find((t) => t.id === step.towerId))
+      .filter((tower): tower is NonNullable<typeof tower> => tower != null);
+  }, [selectedTower, towerLevel]);
 
   // Damage per attack x attacks/sec, deliberately narrow — the same
   // "baseDps" discipline used elsewhere in this codebase. Doesn't model
@@ -592,13 +653,91 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         </div>
       </div>
 
+      {fieldPicks.length > 0 && (
+        <div className="live-map-picks">
+          <span className="live-map-picks-label">On your field</span>
+          <div className="live-map-chiprow">
+            {fieldPicks.map(({ tower, level }) => (
+              <button
+                key={tower.id}
+                type="button"
+                className="live-map-chip"
+                data-on={tower.id === selectedTowerId || undefined}
+                onClick={() => {
+                  setSelectedTowerId(
+                    tower.id === selectedTowerId ? null : tower.id,
+                  );
+                  setSelectedCell(null);
+                }}
+              >
+                <LiveTowerIcon
+                  towerId={tower.id}
+                  assets={assets}
+                  size={18}
+                />
+                <span>{tower.name}</span>
+                {tower.maxLevel > 1 && (
+                  <span className="mono live-map-chip-level">
+                    {roman(level)}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {evolutionPicks.length > 0 && (
+        <div className="live-map-picks">
+          <span className="live-map-picks-label">
+            {selectedTower?.name} evolves into — judge the cell on where it
+            ends up
+          </span>
+          <div className="live-map-chiprow">
+            {evolutionPicks.map((tower) => {
+              const reachable = isTowerLoggable(tower.id, allocation);
+              return (
+                <button
+                  key={tower.id}
+                  type="button"
+                  className="live-map-chip"
+                  data-on={tower.id === selectedTowerId || undefined}
+                  data-locked={!reachable || undefined}
+                  title={
+                    reachable
+                      ? undefined
+                      : "Not reachable yet — shown so you can plan the cell for it"
+                  }
+                  onClick={() => {
+                    setSelectedTowerId(tower.id);
+                    setSelectedCell(null);
+                  }}
+                >
+                  <LiveTowerIcon
+                    towerId={tower.id}
+                    assets={assets}
+                    size={18}
+                  />
+                  <span>{tower.name}</span>
+                  <span className="mono live-map-chip-level">
+                    {tower.stats.range}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="live-log">
         <input
           type="text"
           className="live-log-input"
           placeholder={
             availableTowers.length > 0
-              ? "＋ pick a tower to place — type a name"
+              ? fieldPicks.length > 0
+                ? "＋ or search another tower you could build"
+                : "＋ pick a tower to place — type a name"
               : "no towers available yet — spend a pick first"
           }
           value={query}
@@ -648,12 +787,15 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
           />
           <span>
             <b>{selectedTower.name}</b> · level{" "}
+            <span className="mono">{roman(towerLevel)}</span> · range{" "}
+            <span className="mono">{selectedTower.stats.range}</span> ·{" "}
             <span className="mono">
-              {["", "I", "II", "III"][towerLevel] ?? towerLevel}
+              {Math.round(towerDps).toLocaleString()}
             </span>{" "}
-            · range <span className="mono">{selectedTower.stats.range}</span>{" "}
-            · <span className="mono">{Math.round(towerDps).toLocaleString()}</span>{" "}
             DPS
+            {!selectionReachable && (
+              <span className="live-map-planning"> · planning ahead</span>
+            )}
           </span>
           <button
             type="button"

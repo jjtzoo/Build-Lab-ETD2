@@ -4779,6 +4779,55 @@ button.mechanic-chip {
   color: var(--text-2);
   background: var(--surface-internal);
 }
+.live-map-picks {
+  margin-top: 12px;
+}
+.live-map-picks-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.live-map-chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.live-map-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font-size: 12.5px;
+  transition:
+    border-color 140ms var(--ease),
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+.live-map-chip:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.live-map-chip[data-on] {
+  border-color: rgb(var(--map-route) / 0.7);
+  background: rgb(var(--map-route) / 0.12);
+  color: var(--text);
+}
+.live-map-chip[data-locked] {
+  opacity: 0.62;
+  border-style: dashed;
+}
+.live-map-chip-level {
+  color: var(--muted);
+  font-size: 11px;
+}
+.live-map-planning {
+  color: var(--muted);
+}
 .live-map-assumption {
   margin-top: 8px;
   font-size: 11px;

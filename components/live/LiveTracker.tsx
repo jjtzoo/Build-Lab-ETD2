@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { LabHeader, LabFooter } from "@/components/build-lab/LabChrome";
 import {
@@ -33,6 +33,19 @@ export function LiveTracker({
   const holds = useLiveGame((s) => s.holds);
 
   const hydrated = useRef(false);
+
+  /**
+   * The map is client-only on purpose.
+   *
+   * It used to live behind a tab, so it never server-rendered at all.
+   * Always mounting it put a large, purely interactive surface into SSR,
+   * where it hydrated with mismatched attributes — and a mismatch React
+   * "won't patch up" is a real rendering bug, not just console noise.
+   * Nothing about the schematic is useful before the client is live, so
+   * it waits for mount rather than being reconciled.
+   */
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => setMapReady(true), []);
 
   const endGame = useMemo(() => isEndGame(allocation), [allocation]);
 
@@ -104,9 +117,11 @@ export function LiveTracker({
           <FieldPanel assets={assets} />
         </div>
         <div className="live-section live-section-wide">
-          <Suspense fallback={null}>
-            <MapPanel assets={assets} />
-          </Suspense>
+          {mapReady && (
+            <Suspense fallback={null}>
+              <MapPanel assets={assets} />
+            </Suspense>
+          )}
         </div>
         <div className="live-section">
           <PlanPanel assets={assets} />
