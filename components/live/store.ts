@@ -15,7 +15,10 @@ import {
   liveTowerMaxLevel,
   liveTowerReachableLevel,
   MAX_KEYSTONES,
+  placedCount,
+  placementAt,
   type BuiltTower,
+  type TowerPlacement,
 } from "@/lib/engine/liveGame";
 import { canEvolveInto } from "@/lib/domain/towerEvolution";
 
@@ -31,6 +34,8 @@ export type LiveSnapshot = {
    * yet answer. See `derivedPhase` in `lib/engine/liveGame.ts`.
    */
   holds: number;
+  /** Which cell each placed copy stands on, per map. */
+  placements: TowerPlacement[];
 };
 
 type LiveState = LiveSnapshot & {
@@ -62,6 +67,15 @@ type LiveState = LiveSnapshot & {
     toTowerId: string,
   ) => void;
 
+  placeTower: (
+    mapId: string,
+    towerId: string,
+    level: number,
+    col: number,
+    row: number,
+  ) => void;
+  unplaceTower: (mapId: string, col: number, row: number) => void;
+
   setPlan: (plan: PortableBuild | null) => void;
   newGame: () => void;
   hydrate: (snapshot: Partial<LiveSnapshot>) => void;
@@ -73,6 +87,7 @@ function emptySnapshot(): LiveSnapshot {
     pickLog: [],
     built: [],
     holds: 0,
+    placements: [],
   };
 }
 
@@ -172,9 +187,23 @@ export const useLiveGame = create<LiveState>((set) => ({
       const mergeInto = state.built.find((entry) =>
         isSameBuiltRow(entry, towerId, lvl),
       );
+      /*
+       * Levelling a tower keeps it in its cell — it is the same building,
+       * upgraded in place, exactly as evolving it is. Without this the
+       * placement stayed pinned to the old level: the map went on drawing
+       * a Haste I on the grid while the field held only a Haste II, and
+       * the panel offered the copy for placement a second time.
+       */
+      const placements = state.placements.map((placement) =>
+        placement.towerId === towerId && placement.level === fromLevel
+          ? { ...placement, level: lvl }
+          : placement,
+      );
+
       if (!mergeInto) {
         // No row at the target level — just relabel this one in place.
         return {
+          placements,
           built: state.built.map((entry) =>
             isSameBuiltRow(entry, towerId, fromLevel)
               ? { ...entry, level: lvl }
@@ -184,6 +213,7 @@ export const useLiveGame = create<LiveState>((set) => ({
       }
       // Fold the moving row's count into the existing target row.
       return {
+        placements,
         built: state.built
           .filter(
             (entry) => !isSameBuiltRow(entry, towerId, fromLevel),
@@ -200,23 +230,39 @@ export const useLiveGame = create<LiveState>((set) => ({
     }),
 
   setBuiltQuantity: (towerId, level, quantity) =>
-    set((state) => ({
-      built:
-        quantity <= 0
-          ? state.built.filter(
-              (entry) => !isSameBuiltRow(entry, towerId, level),
-            )
-          : state.built.map((entry) =>
-              isSameBuiltRow(entry, towerId, level)
-                ? { ...entry, quantity }
-                : entry,
-            ),
-    })),
+    set((state) => {
+      // Dropping copies has to drop their cells too, or the map keeps
+      // showing towers the field log says you no longer own.
+      const keep = Math.max(0, quantity);
+      let seen = 0;
+      const placements = state.placements.filter((entry) => {
+        if (entry.towerId !== towerId || entry.level !== level) return true;
+        seen += 1;
+        return seen <= keep;
+      });
+
+      return {
+        placements,
+        built:
+          keep <= 0
+            ? state.built.filter(
+                (entry) => !isSameBuiltRow(entry, towerId, level),
+              )
+            : state.built.map((entry) =>
+                isSameBuiltRow(entry, towerId, level)
+                  ? { ...entry, quantity: keep }
+                  : entry,
+              ),
+      };
+    }),
 
   removeBuilt: (towerId, level) =>
     set((state) => ({
       built: state.built.filter(
         (entry) => !isSameBuiltRow(entry, towerId, level),
+      ),
+      placements: state.placements.filter(
+        (entry) => !(entry.towerId === towerId && entry.level === level),
       ),
     })),
 
@@ -249,7 +295,25 @@ export const useLiveGame = create<LiveState>((set) => ({
         isSameBuiltRow(entry, toTowerId, level),
       );
 
+      // The evolved tower stands where the precursor stood — that
+      // permanence is the whole reason to field a cheap tower early and
+      // grow it in place rather than pay for the big one outright. Only
+      // one copy evolves, so only the first matching placement moves.
+      let moved = false;
+      const placements = state.placements.map((entry) => {
+        if (
+          moved ||
+          entry.towerId !== fromTowerId ||
+          entry.level !== level
+        ) {
+          return entry;
+        }
+        moved = true;
+        return { ...entry, towerId: toTowerId };
+      });
+
       return {
+        placements,
         built: existing
           ? drained.map((entry) =>
               isSameBuiltRow(entry, toTowerId, level)
@@ -260,19 +324,112 @@ export const useLiveGame = create<LiveState>((set) => ({
       };
     }),
 
+  /**
+   * Stand one copy of a fielded tower on a cell.
+   *
+   * Refused if the cell is taken, or if every copy the field log says you
+   * own is already standing somewhere — the map must not be able to
+   * invent towers the tracker doesn't think you bought.
+   */
+  placeTower: (mapId, towerId, level, col, row) =>
+    set((state) => {
+      if (placementAt(state.placements, mapId, col, row)) return state;
+
+      const owned =
+        state.built.find((entry) => isSameBuiltRow(entry, towerId, level))
+          ?.quantity ?? 0;
+      if (owned <= placedCount(state.placements, towerId, level)) {
+        return state;
+      }
+
+      return {
+        placements: [
+          ...state.placements,
+          { mapId, towerId, level, col, row },
+        ],
+      };
+    }),
+
+  unplaceTower: (mapId, col, row) =>
+    set((state) => ({
+      placements: state.placements.filter(
+        (entry) =>
+          !(entry.mapId === mapId && entry.col === col && entry.row === row),
+      ),
+    })),
+
   setPlan: (plan) => set({ plan }),
 
   newGame: () => set({ ...emptySnapshot(), lastPick: null }),
 
   hydrate: (snapshot) =>
-    set((state) => ({
-      allocation: snapshot.allocation ?? state.allocation,
-      pickLog: snapshot.pickLog ?? state.pickLog,
-      built: mergeLegacyBuilt(snapshot.built) ?? state.built,
-      holds: snapshot.holds ?? state.holds,
-      lastPick: null,
-    })),
+    set((state) => {
+      const built = mergeLegacyBuilt(snapshot.built) ?? state.built;
+      return {
+        allocation: snapshot.allocation ?? state.allocation,
+        pickLog: snapshot.pickLog ?? state.pickLog,
+        built,
+        holds: snapshot.holds ?? state.holds,
+        // Saves written before placements existed simply have none.
+        placements: sanePlacements(snapshot.placements, built),
+        lastPick: null,
+      };
+    }),
 }));
+
+/**
+ * Placements read back off disk, filtered to the ones that still make
+ * sense: well-formed, one tower per cell, and never more copies standing
+ * than the field log says were bought. A save edited by hand, or written
+ * before `built` was trimmed, must not be able to put phantom towers on
+ * the map.
+ */
+function sanePlacements(
+  placements: TowerPlacement[] | undefined,
+  built: BuiltTower[],
+): TowerPlacement[] {
+  if (!Array.isArray(placements)) return [];
+
+  const ownedByRow = new Map<string, number>();
+  for (const row of built) {
+    ownedByRow.set(`${row.towerId}@${row.level}`, row.quantity);
+  }
+
+  const takenCells = new Set<string>();
+  const usedByRow = new Map<string, number>();
+  const out: TowerPlacement[] = [];
+
+  for (const entry of placements) {
+    if (
+      !entry ||
+      typeof entry.mapId !== "string" ||
+      typeof entry.towerId !== "string" ||
+      !Number.isFinite(entry.col) ||
+      !Number.isFinite(entry.row)
+    ) {
+      continue;
+    }
+    const level = clampLevel(entry.towerId, entry.level ?? 1);
+    const rowKey = `${entry.towerId}@${level}`;
+    const cellKey = `${entry.mapId}:${entry.col},${entry.row}`;
+
+    if (takenCells.has(cellKey)) continue;
+    const used = usedByRow.get(rowKey) ?? 0;
+    if (used >= (ownedByRow.get(rowKey) ?? 0)) continue;
+
+    takenCells.add(cellKey);
+    usedByRow.set(rowKey, used + 1);
+    out.push({
+      mapId: entry.mapId,
+      towerId: entry.towerId,
+      level,
+      col: Math.round(entry.col),
+      row: Math.round(entry.row),
+    });
+  }
+
+  return out;
+}
 
 /**
  * A persisted `built` array from before rows were keyed by `(towerId,
