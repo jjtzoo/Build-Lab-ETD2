@@ -4772,6 +4772,29 @@ button.mechanic-chip {
   border: 1px solid var(--line);
   background: var(--surface-sunken);
 }
+.live-evolve-group + .live-evolve-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.live-evolve-group-head {
+  display: block;
+  padding: 3px 8px 5px;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.live-evolve-group-head b {
+  color: var(--text-2);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.live-evolve-group > ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .live-evolve-menu button {
   display: flex;
   align-items: center;

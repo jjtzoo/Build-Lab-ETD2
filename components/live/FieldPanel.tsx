@@ -18,11 +18,34 @@ import {
   evolutionCost,
   evolutionTargets,
 } from "@/lib/domain/towerEvolution";
+import { getTower } from "@/lib/domain/towerCatalog";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { useLiveGame } from "@/components/live/store";
 
 function rowCost(towerId: string, level: number, quantity: number): number {
   return resolveLiveTowerCost(towerId, level) * quantity;
+}
+
+/**
+ * Combination class, recipe size and level ceiling for a catalog tower.
+ * Mono and basic towers aren't in that catalog — an Arrow's evolution
+ * targets are monos — so this answers `null` rather than throwing.
+ */
+function towerFacts(towerId: string): {
+  combination: string;
+  recipeLength: number;
+  maxLevel: number;
+} | null {
+  try {
+    const tower = getTower(towerId);
+    return {
+      combination: tower.combination,
+      recipeLength: tower.recipe.length,
+      maxLevel: tower.maxLevel,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -152,13 +175,39 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
               .filter((step) =>
                 isTowerLoggable(step.towerId, allocation),
               )
-              .map((step) => ({
-                towerId: step.towerId,
-                extraCost: evolutionCost(
-                  { towerId: entry.towerId, level: entry.level },
-                  step,
+              .map((step) => {
+                const target = towerFacts(step.towerId);
+                return {
+                  towerId: step.towerId,
+                  level: step.level,
+                  combination: target?.combination ?? null,
+                  recipeLength: target?.recipeLength ?? 0,
+                  maxLevel: target?.maxLevel ?? step.level,
+                  extraCost: evolutionCost(
+                    { towerId: entry.towerId, level: entry.level },
+                    step,
+                  ),
+                };
+              });
+
+            /**
+             * Split by combination class, because the two tiers behave
+             * differently and the price alone doesn't say so: a Trio takes
+             * the level straight across and still has a level left in it,
+             * while a Quad is one element further out and caps at I.
+             */
+            const sourceRecipeLength =
+              towerFacts(entry.towerId)?.recipeLength ?? 0;
+            const evolveGroups = (
+              ["Dual", "Trio", "Quad", null] as const
+            )
+              .map((combination) => ({
+                combination,
+                options: evolveOptions.filter(
+                  (option) => option.combination === combination,
                 ),
-              }));
+              }))
+              .filter((group) => group.options.length > 0);
             return (
               <li
                 key={key}
@@ -281,33 +330,66 @@ export function FieldPanel({ assets }: { assets: BuildLabAssets }) {
                     </button>
                     {evolving === key && (
                       <ul className="live-evolve-menu">
-                        {evolveOptions.map((option) => (
-                          <li key={option.towerId}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                evolveBuilt(
-                                  entry.towerId,
-                                  entry.level,
-                                  option.towerId,
-                                );
-                                setEvolving(null);
-                              }}
+                        {evolveGroups.map((group) => {
+                          const sample = group.options[0];
+                          const step =
+                            sourceRecipeLength > 0 && sample.recipeLength > 0
+                              ? sample.recipeLength - sourceRecipeLength
+                              : 0;
+                          const headroom =
+                            sample.maxLevel > sample.level
+                              ? `keeps ${roman(sample.level)}, upgrades to ${roman(sample.maxLevel)}`
+                              : `final form at ${roman(sample.level)}`;
+                          return (
+                            <li
+                              key={group.combination ?? "other"}
+                              className="live-evolve-group"
                             >
-                              <LiveTowerIcon
-                                towerId={option.towerId}
-                                assets={assets}
-                                size={20}
-                              />
-                              <span>
-                                {liveTowerName(option.towerId)}
-                              </span>
-                              <span className="live-log-max mono">
-                                +{gold(option.extraCost)}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
+                              {group.combination && (
+                                <span className="live-evolve-group-head">
+                                  <b>{group.combination}</b>
+                                  {step > 0 && (
+                                    <>
+                                      {" "}
+                                      · +{step} element
+                                      {step === 1 ? "" : "s"}
+                                    </>
+                                  )}{" "}
+                                  · {headroom}
+                                </span>
+                              )}
+                              <ul>
+                                {group.options.map((option) => (
+                                  <li key={option.towerId}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        evolveBuilt(
+                                          entry.towerId,
+                                          entry.level,
+                                          option.towerId,
+                                        );
+                                        setEvolving(null);
+                                      }}
+                                    >
+                                      <LiveTowerIcon
+                                        towerId={option.towerId}
+                                        assets={assets}
+                                        size={20}
+                                      />
+                                      <span>
+                                        {liveTowerName(option.towerId)}
+                                      </span>
+                                      <span className="live-log-max mono">
+                                        +{gold(option.extraCost)}
+                                      </span>
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </>
