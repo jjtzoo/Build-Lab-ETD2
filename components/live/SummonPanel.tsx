@@ -148,6 +148,12 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
                     : "no new access — pick for coverage"}
             </span>
           </div>
+          <span className="live-rec-key">
+            press{" "}
+            <kbd className="mono">
+              {ELEMENTS.indexOf(recommended.element) + 1}
+            </kbd>
+          </span>
         </div>
       ) : (
         <p className="live-empty">Every keystone is spent.</p>
@@ -163,8 +169,7 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
 
       {recommended && (
         <p className="live-summon-where">
-          Spend it on the bar above — or press{" "}
-          <kbd className="mono">1</kbd>–<kbd className="mono">6</kbd>.
+          Spend it on the bar above, or press its key.
         </p>
       )}
 
