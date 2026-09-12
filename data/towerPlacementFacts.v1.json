@@ -1,0 +1,591 @@
+{
+  "schemaVersion": 1,
+  "facts": [
+    {
+      "towerId": "archdruid",
+      "evidence": {
+        "coreMechanic": "Launches target into front-most creep; impact deals attack damage and damage scales with skipped path distance. Current 2025 base damage 15,000.",
+        "buildPosition": "Position/geometry manipulator"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "astral",
+      "evidence": {
+        "coreMechanic": "For 3s every 9s, fires at up to 3 extra creeps regardless of distance.",
+        "buildPosition": "Long-range sniper with burst multi-target window"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "atom",
+      "evidence": {
+        "coreMechanic": "Each consecutive hit on same target gains 10% damage, up to 11 attacks; loses 70% of stacks on target change.",
+        "buildPosition": "Focused/ramping DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "blacksmith",
+      "evidence": {
+        "coreMechanic": "Every 15s grants a non-Buff tower +10%/+30%/+90% damage for 60s; up to 4 towers.",
+        "buildPosition": "Support / damage enabler"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": true
+    },
+    {
+      "towerId": "bloom",
+      "evidence": {
+        "coreMechanic": "After 1/0.7/0.4s not attacking, attack speed charges +1/s up to 4.5; while attacking it decays 0.5/s.",
+        "buildPosition": "Ramp DPS / uptime-sensitive"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "corrosion",
+      "evidence": {
+        "coreMechanic": "Deals 150/600 DPS and increases all damage taken by 20%/40% for 5s.",
+        "buildPosition": "Flat team damage amplification"
+      },
+      "debuff": {
+        "durationSeconds": 5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "crystal-spire",
+      "evidence": {
+        "coreMechanic": "Spawns spirits over time up to 9; each spirit seeks within 600 and explodes on impact. Current range is 625 after 2024 balance.",
+        "buildPosition": "Stored projectile burst"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "disease",
+      "evidence": {
+        "coreMechanic": "Deals 2.5%/3%/4% more damage per 1% target HP missing.",
+        "buildPosition": "Finisher / health-scaling DPS"
+      },
+      "debuff": null,
+      "routePreference": "late",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "doom",
+      "evidence": {
+        "coreMechanic": "Applies Doom stacks; after 10s stack triggers 9000 damage, increasing 5%/s up to 25,200 per stack; can instantly kill if damage would finish the creep.",
+        "buildPosition": "Back-loaded execute/threshold DPS"
+      },
+      "debuff": null,
+      "routePreference": "late",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "ethereal",
+      "evidence": {
+        "coreMechanic": "Each creep dying within 1500 range grants 75/300 damage for 6s.",
+        "buildPosition": "Kill-scaling long-range DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "flamethrower",
+      "evidence": {
+        "coreMechanic": "Applies stacking Napalm; on target death, stacks explode for 200/800 per stack within 450 AoE. Shredder split can trigger napalm early.",
+        "buildPosition": "Chain-reaction wave clear"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "flooding",
+      "evidence": {
+        "coreMechanic": "Each consecutive attack on same target gains 15 AoE; resets on target change.",
+        "buildPosition": "Expanding-AoE sustained damage"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "geyser",
+      "evidence": {
+        "coreMechanic": "Every 4th attack becomes a 300 AoE attack.",
+        "buildPosition": "Heavy hit + periodic AoE"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "golem",
+      "evidence": {
+        "coreMechanic": "Attacks in bursts for ~3s then stops for ~3s (current implementation); burst cadence drives front-loaded damage.",
+        "buildPosition": "Burst-cycle DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "gravity-cannon",
+      "evidence": {
+        "coreMechanic": "Very long-range tower that drastically speeds its target; if target passes other creeps, it slows them. Can clump or separate creeps depending on targeting. Exact current speed/slow numbers were not recovered.",
+        "buildPosition": "Movement manipulation / isolation"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "haste",
+      "evidence": {
+        "coreMechanic": "Each attack increases attack speed 6%, capped at 6/7; loses 0.5 attack speed per second when not attacking.",
+        "buildPosition": "Sustained ramping single-target DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "howitzer",
+      "evidence": {
+        "coreMechanic": "AoE increases with distance up to 400/500/650; damage increases as target gets closer.",
+        "buildPosition": "Range/AoE specialist"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "spread",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "ice",
+      "evidence": {
+        "coreMechanic": "Each attack stuns the primary target for 0.08/0.16/0.24s; same target cannot be stunned again for 1s.",
+        "buildPosition": "Sub-DPS + hard-control enabler"
+      },
+      "debuff": {
+        "durationSeconds": 0.24,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "impulse",
+      "evidence": {
+        "coreMechanic": "Damage multiplier scales with projectile distance traveled; recommended far targeting.",
+        "buildPosition": "Long-range distance-scaling DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "far",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "incantation",
+      "evidence": {
+        "coreMechanic": "Debuff increases damage taken 13%/26%; if no other creeps within 200 AoE, bonus is 26%/52%. Lasts 5s.",
+        "buildPosition": "Conditional high-value damage amp"
+      },
+      "debuff": {
+        "durationSeconds": 5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "infernal",
+      "evidence": {
+        "coreMechanic": "Once it starts firing at a target, it continues attacking that target until it dies or target is manually changed, even after target leaves range.",
+        "buildPosition": "Boss/focused DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "jinx",
+      "evidence": {
+        "coreMechanic": "Applies debuff that every 2.5s deals 8%/16% of damage the creep has taken since debuff began; lasts 7.5s.",
+        "buildPosition": "Damage amplification / package multiplier"
+      },
+      "debuff": {
+        "durationSeconds": 7.5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "laser",
+      "evidence": {
+        "coreMechanic": "Loses 750/2250 damage per creep within 200 AoE of target, down to 3000/12000 loss.",
+        "buildPosition": "Isolation-dependent boss/focused DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "life-altar",
+      "evidence": {
+        "coreMechanic": "Active buff gives nearby towers +30% damage and +30% attack speed for 15s; every 3 kills by affected tower grants a life; costs lives based on affected towers; 60s cooldown.",
+        "buildPosition": "High-density support burst window"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": true
+    },
+    {
+      "towerId": "lightning",
+      "evidence": {
+        "coreMechanic": "Attacks bounce to another creep within 1500 range; 3/4/6 bounces with 15%/12%/9% loss per bounce.",
+        "buildPosition": "Wave-clear / distributed DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "money",
+      "evidence": {
+        "coreMechanic": "Gains damage equal to 25%/50% of unspent gold, capped by version-specific maximum; older passive gold generation was removed in 2024.",
+        "buildPosition": "Economy scaling DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "muck",
+      "evidence": {
+        "coreMechanic": "Applies 16%/32% slow for 5s in AoE.",
+        "buildPosition": "AoE slow / grouping support"
+      },
+      "debuff": {
+        "durationSeconds": 5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "mushroom",
+      "evidence": {
+        "coreMechanic": "Deals more damage the slower the target: multiplier 300/current speed; current source explains this as 2% more damage per 1% slow.",
+        "buildPosition": "AoE damage that scales with Slow"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "nova",
+      "evidence": {
+        "coreMechanic": "Hits all creeps in range and slows them 16%/32%; slow lingers 3s.",
+        "buildPosition": "Area slow without grouping"
+      },
+      "debuff": {
+        "durationSeconds": 5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "nuclear",
+      "evidence": {
+        "coreMechanic": "Doubles target HP, slows by up to 30%, then permanently emits radiation dealing 0.35% current HP + 6000 DPS in 100 AoE.",
+        "buildPosition": "Permanent radiation / slow hybrid"
+      },
+      "debuff": {
+        "durationSeconds": null,
+        "permanentEffect": true
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "obelisk",
+      "evidence": {
+        "coreMechanic": "Channels a beam; when target switches/dies/leaves range/shield pops, explodes for base AoE damage plus build-up based on channel duration; current 2025 base/build-up reduced to 7500/3600.",
+        "buildPosition": "Channel-to-explosion DPS"
+      },
+      "debuff": null,
+      "routePreference": "late",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "phantom-zone",
+      "evidence": {
+        "coreMechanic": "Stasis target for 2s, stores incoming damage, then releases 25% of stored damage as a 300 AoE shockwave; same target cooldown 12s.",
+        "buildPosition": "Damage conversion / spacing control"
+      },
+      "debuff": {
+        "durationSeconds": 2,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "plague",
+      "evidence": {
+        "coreMechanic": "Applies Plague stacks dealing 675 DPS; on target death all stacks transfer to another creep within 1500 range and refresh; stacks last 20s, max 800. Current Aug 2026 official update raised attack damage to 800.",
+        "buildPosition": "Contagious kill-chain DoT"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "poison",
+      "evidence": {
+        "coreMechanic": "Applies 65/260/1040 DPS DoT to all creeps hit; each stack lasts 15s; DoT stacks independently.",
+        "buildPosition": "Persistent multi-target DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "polar",
+      "evidence": {
+        "coreMechanic": "Applies 11%/22% current-HP removal for 30s; removal is percentage-based and does not return after duration.",
+        "buildPosition": "Pre-damage HP shaving"
+      },
+      "debuff": {
+        "durationSeconds": 30,
+        "permanentEffect": true
+      },
+      "routePreference": "front",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "quake",
+      "evidence": {
+        "coreMechanic": "Every 5 attacks releases a shockwave hitting all creeps in range for 2600/10400.",
+        "buildPosition": "Short-range periodic AoE"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "near",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "rage",
+      "evidence": {
+        "coreMechanic": "Sets creep on fire for 4000 DPS, increases damage taken 20%, and speeds it up (current page says 50%) for 5s.",
+        "buildPosition": "Risk/reward isolation enabler"
+      },
+      "debuff": {
+        "durationSeconds": 5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "railgun",
+      "evidence": {
+        "coreMechanic": "Static discharge hits all creeps in range and builds charge (25/s + 1/creep hit); at 200 charge fires a 62,500-damage global shot.",
+        "buildPosition": "Hybrid local field + global finisher"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "root",
+      "evidence": {
+        "coreMechanic": "Line attack applies 100/400 DPS DoT and 16%/32% slow for 5s.",
+        "buildPosition": "Slow + DoT hybrid"
+      },
+      "debuff": {
+        "durationSeconds": 5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "runic",
+      "evidence": {
+        "coreMechanic": "For 3s every 6s, fires at all creeps within 300 AoE around target.",
+        "buildPosition": "Burst wave-clear"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "shredder",
+      "evidence": {
+        "coreMechanic": "Splits target into two creeps at 60% HP each and half bounty; split counts as a kill for on-death effects; cannot split same creep twice.",
+        "buildPosition": "Wave multiplication / trigger enabler"
+      },
+      "debuff": null,
+      "routePreference": "front",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "singularity",
+      "evidence": {
+        "coreMechanic": "Attacks pull surrounding creeps toward primary target for 0.25s.",
+        "buildPosition": "Clumping/geometry enabler with heavy AoE"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "solar",
+      "evidence": {
+        "coreMechanic": "Each hit applies a stacking 120/480/1920 DPS debuff in 200 AoE around target for 4s.",
+        "buildPosition": "Stacking AoE DoT"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "tesla-tree",
+      "evidence": {
+        "coreMechanic": "Tesla Trees in range of each other link, combining damage, attack speed, range, buffs and debuffs.",
+        "buildPosition": "Network scaling"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "trickery",
+      "evidence": {
+        "coreMechanic": "Every 15s clones a non-Buff tower; clone lasts 6/18/54s and deals 100% damage; clone cannot be recloned for 60s.",
+        "buildPosition": "Enabler / multi-tower package"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": true
+    },
+    {
+      "towerId": "tsunami",
+      "evidence": {
+        "coreMechanic": "Builds charge at 1/s +2 per creep hit; activate wave hits all creeps. Current 2024 ability values are 20k/50k/85k/130k by charge level.",
+        "buildPosition": "Stored-charge wave deletion"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "vapor",
+      "evidence": {
+        "coreMechanic": "Hits every target in range, splits damage equally, and gains 3%/5%/8% more damage per target hit.",
+        "buildPosition": "High-density wave DPS"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "well",
+      "evidence": {
+        "coreMechanic": "Every 15s buffs a non-Buff tower with +10%/+30%/+90% attack speed for 60s; up to 4 towers.",
+        "buildPosition": "Support / multiplicative enabler"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": true
+    },
+    {
+      "towerId": "windstorm",
+      "evidence": {
+        "coreMechanic": "Creates a moving tornado dealing 350/1400 DPS and 16%/32% slow; slow lingers 3s. Tornado follows target and can group creeps.",
+        "buildPosition": "Primary slow / grouping"
+      },
+      "debuff": {
+        "durationSeconds": 5,
+        "permanentEffect": false
+      },
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    },
+    {
+      "towerId": "wisp",
+      "evidence": {
+        "coreMechanic": "Each attack reduces AoE by 10 and increases damage by 5%, up to 430% damage; resets after 6s not attacking.",
+        "buildPosition": "Ramp DPS with shrinking coverage"
+      },
+      "debuff": null,
+      "routePreference": "anywhere",
+      "radialPreference": "any",
+      "targetsTowers": false
+    }
+  ]
+}
