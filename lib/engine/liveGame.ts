@@ -78,6 +78,55 @@ export type BuiltTower = {
   quantity: number;
 };
 
+/**
+ * One copy of a fielded tower standing on one cell of one map.
+ *
+ * Kept beside `built` rather than inside it: `built` answers "what do I
+ * own", which is what gold is derived from, and a row can carry several
+ * copies of which only some are placed. A placement is additive — losing
+ * or ignoring it never changes what the tracker thinks you bought.
+ */
+export type TowerPlacement = {
+  mapId: string;
+  towerId: string;
+  level: number;
+  col: number;
+  row: number;
+};
+
+/** Placements on one map, in no particular order. */
+export function placementsOnMap(
+  placements: readonly TowerPlacement[],
+  mapId: string,
+): readonly TowerPlacement[] {
+  return placements.filter((entry) => entry.mapId === mapId);
+}
+
+export function placementAt(
+  placements: readonly TowerPlacement[],
+  mapId: string,
+  col: number,
+  row: number,
+): TowerPlacement | null {
+  return (
+    placements.find(
+      (entry) =>
+        entry.mapId === mapId && entry.col === col && entry.row === row,
+    ) ?? null
+  );
+}
+
+/** How many copies of a (tower, level) row are already standing somewhere. */
+export function placedCount(
+  placements: readonly TowerPlacement[],
+  towerId: string,
+  level: number,
+): number {
+  return placements.filter(
+    (entry) => entry.towerId === towerId && entry.level === level,
+  ).length;
+}
+
 /** Stable identity for a field row — also the React key. */
 export function builtRowKey(
   towerId: string,
