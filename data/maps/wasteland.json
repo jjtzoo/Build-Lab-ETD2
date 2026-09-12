@@ -11,5 +11,5 @@
   "buildableCells": [],
   "paths": [{ "id": "main", "points": [], "modes": ["standard"] }],
   "pathDurationSeconds": 54,
-  "rangeUnitsPerCell": 1
+  "rangeUnitsPerCell": 128
 }

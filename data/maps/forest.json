@@ -195,5 +195,5 @@
     }
   ],
   "pathDurationSeconds": 48,
-  "rangeUnitsPerCell": 1
+  "rangeUnitsPerCell": 128
 }

@@ -48,10 +48,18 @@ export type MapConfig = {
    */
   pathDurationSeconds: number | null;
   /**
-   * ASSUMPTION, not a verified game fact: how many grid cells one unit of
-   * a tower's `range` stat spans. Defaults to 1:1 pending a range-circle
-   * screenshot to calibrate against. Keep this the single place that
-   * ratio lives so it's trivial to correct.
+   * How many units of a tower's `range` stat span one grid cell.
+   *
+   * Measured, not assumed — 128, from the reference range-circle
+   * screenshots in `public/tower ranges/`. Three of them (875, 1000,
+   * 1125) were shot at one camera zoom; fitting each ring's ellipse and
+   * dividing its horizontal semi-axis by the cell pitch measured on the
+   * same screenshot gives 127.2, 127.0 and 129.0 — under 1% apart, on a
+   * power of two. (The 625 shot is at a slightly different zoom and its
+   * ring fits worse; 1500/1750 each stack two screenshots in one file
+   * and were excluded.) The ratio is per-map only because a map could in
+   * principle be shot at a different zoom — the underlying game constant
+   * is the same everywhere.
    */
   rangeUnitsPerCell: number;
 };
