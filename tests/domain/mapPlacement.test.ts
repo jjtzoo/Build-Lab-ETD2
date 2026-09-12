@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { MapConfig } from "@/lib/domain/mapConfig";
+import { getMap } from "@/lib/domain/mapCatalog";
 import {
   bestSpotsForTower,
   coverageForMode,
@@ -12,6 +13,7 @@ import {
   islands,
   pathLengthCells,
   pathsForMode,
+  sampleRoute,
   worldToGrid,
 } from "@/lib/engine/mapPlacement";
 
@@ -581,6 +583,88 @@ describe("worldToGrid", () => {
   });
 });
 
+describe("route position and radial distribution", () => {
+  it("times first contact from spawn along the route", () => {
+    // 1 cell/sec down row 0. A range-2 tower at (5,1) reaches the path
+    // from col 3.27 to col 6.73 (sqrt(2^2 - 1^2) either side of col 5),
+    // so a creep enters its reach ~3.3s in and leaves ~6.7s in.
+    const map = straightPathMap();
+    const near = coverageForSpot(map, { col: 5, row: 1 }, 2, MAIN_PATH);
+    expect(near.firstContactSeconds).toBeCloseTo(5 - Math.sqrt(3), 3);
+    expect(near.lastContactSeconds).toBeCloseTo(5 + Math.sqrt(3), 3);
+    expect(near.routeRemainingSeconds).toBeCloseTo(10 - (5 - Math.sqrt(3)), 3);
+  });
+
+  it("reports no contact at all rather than contact at zero", () => {
+    // (5,5) is 5 cells off a path a 2-cell tower can't reach. Zero would
+    // read as "catches creeps at spawn", which is the opposite of true.
+    const map = straightPathMap();
+    const far = coverageForSpot(map, { col: 5, row: 5 }, 2, MAIN_PATH);
+    expect(far.firstContactSeconds).toBeNull();
+    expect(far.lastContactSeconds).toBeNull();
+    expect(far.routeRemainingSeconds).toBe(0);
+  });
+
+  it("splits covered time across thirds of the radius", () => {
+    const map = straightPathMap();
+    const coverage = coverageForSpot(map, { col: 5, row: 1 }, 2, MAIN_PATH);
+    const [inner, mid, outer] = coverage.coveredSecondsByBand;
+    // The tower sits 1 cell off the path, so nothing on the route is ever
+    // inside the inner third (0.67 cells) — it cannot be.
+    expect(inner).toBe(0);
+    expect(mid + outer).toBeCloseTo(coverage.coveredSeconds, 3);
+    expect(coverage.meanContactRadiusCells).toBeGreaterThan(1);
+    expect(coverage.meanContactRadiusCells).toBeLessThan(2);
+  });
+
+  it("puts a distant tower's whole contact in the outer band", () => {
+    // Range 6 from 5 cells off the path: the closest approach is 5 cells,
+    // which is already past two thirds of 6. Every bit of route it sees
+    // is rim coverage — the shape of "most of the circle is wasted".
+    const map = straightPathMap();
+    const coverage = coverageForSpot(map, { col: 5, row: 5 }, 6, MAIN_PATH);
+    expect(coverage.coveredSeconds).toBeGreaterThan(0);
+    expect(coverage.coveredSecondsByBand[0]).toBe(0);
+    expect(coverage.coveredSecondsByBand[1]).toBe(0);
+    expect(coverage.coveredSecondsByBand[2]).toBeCloseTo(
+      coverage.coveredSeconds,
+      3,
+    );
+  });
+
+  it("takes the earliest contact across advance-mode lanes", () => {
+    // Sitting by the north lane, a range-2 tower meets those creeps ~3.3s
+    // in and never meets the south lane's at all. The pooled figure has to
+    // be that earliest contact, since that is the wave it can act on.
+    const map = twoLaneMap();
+    const pooled = coverageForMode(map, { col: 5, row: 1 }, 2, "advance");
+    expect(pooled.firstContactSeconds).toBeCloseTo(5 - Math.sqrt(3), 3);
+    expect(pooled.routeRemainingSeconds).toBeCloseTo(
+      10 - (5 - Math.sqrt(3)),
+      3,
+    );
+  });
+});
+
+describe("sampleRoute", () => {
+  it("samples weights that sum to the route's real duration", () => {
+    const map = straightPathMap();
+    const samples = sampleRoute(map, "standard", 0.25);
+    const total = samples.reduce((sum, s) => sum + s.weightSeconds, 0);
+    expect(total).toBeCloseTo(10, 6);
+    expect(samples[0].seconds).toBeLessThan(samples[samples.length - 1].seconds);
+  });
+
+  it("covers both lanes in advance mode", () => {
+    const map = twoLaneMap();
+    const total = sampleRoute(map, "advance", 0.25).reduce(
+      (sum, s) => sum + s.weightSeconds,
+      0,
+    );
+    expect(total).toBeCloseTo(20, 6);
+  });
+});
+
 describe("bestSpotsForTower", () => {
   it("ranks buildable cells best-first by coverage", () => {
     const map = straightPathMap();
@@ -597,6 +681,49 @@ describe("bestSpotsForTower", () => {
       ranked[1].coverage.coveragePercent,
     );
     expect(ranked[2].coverage.coveragePercent).toBe(0);
+  });
+
+  it("skips cells that already hold a tower", () => {
+    // A slot is permanent once taken, so the best spot is only useful if
+    // it's still free — the next-best has to surface instead.
+    const map = straightPathMap();
+    const unoccupied = bestSpotsForTower(map, 2, "standard", 3);
+    const best = unoccupied[0].cell;
+
+    const ranked = bestSpotsForTower(map, 2, "standard", 3, [best]);
+    expect(
+      ranked.some(
+        (entry) =>
+          entry.cell.col === best.col && entry.cell.row === best.row,
+      ),
+    ).toBe(false);
+    expect(ranked[0].cell).toEqual(unoccupied[1].cell);
+  });
+
+  it("actually discriminates between cells on Forest's real data", () => {
+    // The regression this guards: while `rangeUnitsPerCell` was the
+    // placeholder 1, a range-875 tower read as an 875-cell radius, every
+    // buildable cell covered 100% of the route, and the ranking degenerated
+    // into "whatever order the cells happen to sit in the JSON" — the same
+    // six tiles for every tower. Real separation between the top spots is
+    // the property worth locking, not any particular winning cell.
+    const forest = getMap("forest");
+    expect(forest.rangeUnitsPerCell).toBeGreaterThan(1);
+
+    const ranked = bestSpotsForTower(forest, 875, "standard", 6);
+    expect(ranked).toHaveLength(6);
+    expect(ranked[0].coverage.coveragePercent).toBeLessThan(100);
+    expect(ranked[0].coverage.coveragePercent).toBeGreaterThan(
+      ranked[5].coverage.coveragePercent,
+    );
+
+    // A longer-ranged tower must cover more from its own best cell than a
+    // shorter-ranged one does from its — trivially true, and false the
+    // moment the ratio goes back to saturating every cell at 100%.
+    const short = bestSpotsForTower(forest, 625, "standard", 1);
+    expect(ranked[0].coverage.coveragePercent).toBeGreaterThan(
+      short[0].coverage.coveragePercent,
+    );
   });
 
   it("re-ranks for advance mode when a spot only serves one lane", () => {

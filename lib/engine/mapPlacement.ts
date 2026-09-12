@@ -153,6 +153,39 @@ export type SpotCoverage = {
    * `coveredSeconds` for everything else.
    */
   longestRunSeconds: number;
+  /**
+   * When a creep first enters this spot's reach, in seconds from spawn —
+   * null when the route never comes within range at all.
+   *
+   * This is what makes a lasting debuff placeable. Polar removes HP over
+   * 30 seconds, so applied 5s into a 48s route the whole window lands,
+   * while applied at 40s two thirds of it is thrown away because the
+   * creep exits first. Coverage alone cannot see that difference — the
+   * two cells can cover identical amounts of route.
+   */
+  firstContactSeconds: number | null;
+  /** When a creep last leaves this spot's reach, in seconds from spawn. */
+  lastContactSeconds: number | null;
+  /**
+   * Route left after first contact — `pathDuration - firstContactSeconds`,
+   * and 0 when the route never comes into range. The ceiling on any
+   * effect that keeps paying out after it has been applied.
+   */
+  routeRemainingSeconds: number;
+  /**
+   * Covered seconds split across the range circle's inner, middle and
+   * outer third.
+   *
+   * This is "a lot of its theoretical range goes to waste" as a number.
+   * A long-ranged tower parked at the edge of the map reaches the route
+   * only with the far rim of its circle, so everything lands in the
+   * outer band, while the same tower beside a bend uses the whole
+   * radius. Coverage percent cannot tell those apart — both can cover a
+   * similar share of the route.
+   */
+  coveredSecondsByBand: readonly [number, number, number];
+  /** Mean distance from tower to route while in reach, in cells. */
+  meanContactRadiusCells: number;
 };
 
 const EMPTY_COVERAGE: SpotCoverage = {
@@ -161,7 +194,51 @@ const EMPTY_COVERAGE: SpotCoverage = {
   coveragePercent: 0,
   passes: 0,
   longestRunSeconds: 0,
+  firstContactSeconds: null,
+  lastContactSeconds: null,
+  routeRemainingSeconds: 0,
+  coveredSecondsByBand: [0, 0, 0],
+  meanContactRadiusCells: 0,
 };
+
+/**
+ * Samples the covered stretch of one segment to find how far from the
+ * tower the route actually runs, bucketed into thirds of the radius.
+ *
+ * Sampling rather than solving: the exact arc-length-weighted radial
+ * distribution of a chord through a circle has a closed form, but the
+ * route is a polyline whose segments enter and leave at arbitrary
+ * angles, and a few samples per covered cell is accurate well past what
+ * a placement ranking can act on.
+ */
+function accumulateRadialBands(
+  a: GridPoint,
+  b: GridPoint,
+  center: GridPoint,
+  radius: number,
+  overlap: { from: number; to: number; length: number },
+  bandCells: [number, number, number],
+): number {
+  const dx = b.col - a.col;
+  const dy = b.row - a.row;
+  const third = radius / 3;
+  const samples = Math.max(3, Math.ceil((overlap.length / radius) * 8));
+  const share = overlap.length / samples;
+  let radiusWeightedCells = 0;
+
+  for (let s = 0; s < samples; s++) {
+    const t = overlap.from + ((s + 0.5) / samples) * (overlap.to - overlap.from);
+    const r = Math.hypot(
+      a.col + dx * t - center.col,
+      a.row + dy * t - center.row,
+    );
+    const band = Math.min(2, Math.floor(r / third));
+    bandCells[band] += share;
+    radiusWeightedCells += r * share;
+  }
+
+  return radiusWeightedCells;
+}
 
 /**
  * What fraction of one path a tower with `towerRangeUnits` range would
@@ -187,19 +264,41 @@ export function coverageForSpot(
   // the end of one segment and resumes at the start of the next; any gap
   // means the route left the tower's reach and came back.
   let continuing = false;
+  // Distance along the route to the start of the segment being tested —
+  // what turns a covered interval into "how far into the run this is".
+  let travelledCells = 0;
+  let firstContactCells: number | null = null;
+  let lastContactCells: number | null = null;
+  const bandCells: [number, number, number] = [0, 0, 0];
+  let radiusWeightedCells = 0;
+
   for (let i = 1; i < path.points.length; i++) {
-    const overlap = circleSegmentOverlap(
-      path.points[i - 1],
-      path.points[i],
-      cell,
-      rangeCells,
-    );
+    const a = path.points[i - 1];
+    const b = path.points[i];
+    const segLen = cellDistance(a, b);
+    const overlap = circleSegmentOverlap(a, b, cell, rangeCells);
     if (!overlap) {
       continuing = false;
       currentRunCells = 0;
+      travelledCells += segLen;
       continue;
     }
+
+    const enterAt = travelledCells + overlap.from * segLen;
+    const exitAt = travelledCells + overlap.to * segLen;
+    if (firstContactCells === null) firstContactCells = enterAt;
+    lastContactCells = exitAt;
+
     coveredLengthCells += overlap.length;
+    radiusWeightedCells += accumulateRadialBands(
+      a,
+      b,
+      cell,
+      rangeCells,
+      overlap,
+      bandCells,
+    );
+
     if (continuing && overlap.from === 0) {
       currentRunCells += overlap.length;
     } else {
@@ -208,16 +307,35 @@ export function coverageForSpot(
     }
     longestRunCells = Math.max(longestRunCells, currentRunCells);
     continuing = overlap.to === 1;
+    travelledCells += segLen;
   }
 
   const speed = creepSpeedCellsPerSecond(map);
+  const toSeconds = (cells: number) => (speed > 0 ? cells / speed : 0);
+  const firstContactSeconds =
+    firstContactCells === null ? null : toSeconds(firstContactCells);
+  const totalSeconds = toSeconds(totalLengthCells);
 
   return {
     coveredLengthCells,
-    coveredSeconds: speed > 0 ? coveredLengthCells / speed : 0,
+    coveredSeconds: toSeconds(coveredLengthCells),
     coveragePercent: (coveredLengthCells / totalLengthCells) * 100,
     passes,
-    longestRunSeconds: speed > 0 ? longestRunCells / speed : 0,
+    longestRunSeconds: toSeconds(longestRunCells),
+    firstContactSeconds,
+    lastContactSeconds:
+      lastContactCells === null ? null : toSeconds(lastContactCells),
+    routeRemainingSeconds:
+      firstContactSeconds === null
+        ? 0
+        : Math.max(0, totalSeconds - firstContactSeconds),
+    coveredSecondsByBand: [
+      toSeconds(bandCells[0]),
+      toSeconds(bandCells[1]),
+      toSeconds(bandCells[2]),
+    ],
+    meanContactRadiusCells:
+      coveredLengthCells > 0 ? radiusWeightedCells / coveredLengthCells : 0,
   };
 }
 
@@ -261,6 +379,15 @@ export function coverageForMode(
     0,
   );
 
+  const reached = perPath.filter(
+    (entry) => entry.coverage.firstContactSeconds !== null,
+  );
+  const band = (i: 0 | 1 | 2) =>
+    perPath.reduce(
+      (sum, entry) => sum + entry.coverage.coveredSecondsByBand[i],
+      0,
+    );
+
   return {
     coveredLengthCells,
     coveredSeconds: perPath.reduce(
@@ -277,8 +404,110 @@ export function coverageForMode(
     longestRunSeconds: Math.max(
       ...perPath.map((entry) => entry.coverage.longestRunSeconds),
     ),
+    /*
+     * Earliest contact across the lanes, and the route remaining measured
+     * from it. Deliberately the earliest rather than an average: a debuff
+     * tower is judged on the lane it catches soonest, since that is the
+     * creeps it can still affect for the longest.
+     */
+    firstContactSeconds:
+      reached.length === 0
+        ? null
+        : Math.min(...reached.map((e) => e.coverage.firstContactSeconds!)),
+    lastContactSeconds:
+      reached.length === 0
+        ? null
+        : Math.max(...reached.map((e) => e.coverage.lastContactSeconds!)),
+    routeRemainingSeconds:
+      reached.length === 0
+        ? 0
+        : Math.max(...reached.map((e) => e.coverage.routeRemainingSeconds)),
+    coveredSecondsByBand: [band(0), band(1), band(2)],
+    meanContactRadiusCells:
+      coveredLengthCells > 0
+        ? perPath.reduce(
+            (sum, entry) =>
+              sum +
+              entry.coverage.meanContactRadiusCells *
+                entry.coverage.coveredLengthCells,
+            0,
+          ) / coveredLengthCells
+        : 0,
     perPath,
   };
+}
+
+export type RouteSample = {
+  /** Position along the route, in grid space. */
+  at: GridPoint;
+  /** When a creep reaches it, in seconds from spawn. */
+  seconds: number;
+  /** Creep-seconds this sample stands for. */
+  weightSeconds: number;
+};
+
+/**
+ * The mode's route(s) walked at a fixed step, each sample tagged with when
+ * a creep gets there.
+ *
+ * The analytic coverage above answers "how much route does one tower
+ * reach", which is all a single tower needs. It cannot answer "how much
+ * route do *two* towers reach at the same time" — and that question is
+ * the whole value of a support tower, which does nothing unless its
+ * effect lands on the creeps something else is shooting. Sampling makes
+ * that an intersection test instead of interval algebra over polylines.
+ */
+export function sampleRoute(
+  map: MapConfig,
+  mode: WaveMode,
+  stepCells = 0.25,
+): RouteSample[] {
+  const speed = creepSpeedCellsPerSecond(map);
+  if (speed <= 0 || stepCells <= 0) return [];
+
+  const samples: RouteSample[] = [];
+
+  for (const path of pathsForMode(map, mode)) {
+    let travelled = 0;
+    for (let i = 1; i < path.points.length; i++) {
+      const a = path.points[i - 1];
+      const b = path.points[i];
+      const segLen = cellDistance(a, b);
+      if (segLen === 0) continue;
+
+      for (let d = 0; d < segLen; d += stepCells) {
+        // A trailing part-step keeps its real length, so the samples' own
+        // weights still sum to the route's true duration.
+        const span = Math.min(stepCells, segLen - d);
+        const mid = d + span / 2;
+        const t = mid / segLen;
+        samples.push({
+          at: {
+            col: a.col + (b.col - a.col) * t,
+            row: a.row + (b.row - a.row) * t,
+          },
+          seconds: (travelled + mid) / speed,
+          weightSeconds: span / speed,
+        });
+      }
+      travelled += segLen;
+    }
+  }
+
+  return samples;
+}
+
+/** Whether a route sample falls inside a tower's range circle. */
+export function sampleInRange(
+  map: MapConfig,
+  sample: RouteSample,
+  cell: GridPoint,
+  towerRangeUnits: number,
+): boolean {
+  if (map.rangeUnitsPerCell <= 0) return false;
+  return (
+    cellDistance(sample.at, cell) <= towerRangeUnits / map.rangeUnitsPerCell
+  );
 }
 
 export type RankedSpot = {
@@ -302,8 +531,18 @@ export function bestSpotsForTower(
   towerRangeUnits: number,
   mode: WaveMode,
   topN = 5,
+  /**
+   * Cells already holding a tower. A slot is permanent once taken, so a
+   * recommendation that lands on one is not a suggestion, it's a
+   * relocation — excluded rather than ranked and ignored.
+   */
+  occupied: readonly GridPoint[] = [],
 ): RankedSpot[] {
+  const taken = new Set(
+    occupied.map((cell) => `${cell.col},${cell.row}`),
+  );
   return map.buildableCells
+    .filter((cell) => !taken.has(`${cell.col},${cell.row}`))
     .map((cell) => ({
       cell,
       coverage: coverageForMode(map, cell, towerRangeUnits, mode),
