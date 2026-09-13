@@ -14,6 +14,7 @@ import { EndGamePanel } from "@/components/live/EndGamePanel";
 import { FieldPanel } from "@/components/live/FieldPanel";
 import { MapPanel } from "@/components/live/MapPanel";
 import { PlanPanel } from "@/components/live/PlanPanel";
+import { BuildLabTracker } from "@/components/live/BuildLabTracker";
 import { useLiveGame, type LiveSnapshot } from "@/components/live/store";
 import {
   consumeLiveImport,
@@ -180,6 +181,7 @@ export function LiveTracker({
       <LabHeader current="live" />
 
       <StatusStrip assets={assets} />
+      <BuildLabTracker assets={assets} />
 
       {/*
        * One continuous page, deliberately — this tool is read and acted on
