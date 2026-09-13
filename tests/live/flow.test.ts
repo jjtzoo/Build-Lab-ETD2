@@ -137,6 +137,51 @@ describe("Now / Next / Later", () => {
       "Water",
     );
   });
+  it("keeps every keystone unlock in order and labels a legal recovery move", () => {
+    const staged: PortableBuild = {
+      ...plan,
+      source: "engine",
+      towers: [{ towerId: "arrow", level: 1 }],
+      progression: [
+        {
+          stage: "EARLY",
+          headline: "Open Laser",
+          reason: "anchor first",
+          primaryAction: {
+            kind: "build",
+            towerId: "laser",
+            towerName: "Laser",
+            toLevel: 1,
+            roles: [],
+          },
+          keystoneSteps: [
+            {
+              element: "Earth",
+              from: 0,
+              to: 1,
+              unlocks: [
+                {
+                  kind: "build",
+                  towerId: "laser",
+                  towerName: "Laser",
+                  toLevel: 1,
+                  roles: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const coaching = liveCoaching(staged, emptyLiveAllocation(), [], 0);
+    expect(coaching.actions.map((action) => action.towerId)).toEqual([
+      "laser",
+      "arrow",
+    ]);
+    expect(coaching.nextAction?.towerId).toBe("arrow");
+    expect(coaching.blockedAction?.towerId).toBe("laser");
+    expect(coaching.isAdaptive).toBe(true);
+  });
   it("keeps the main DPS anchor ahead of an out-of-order support step", () => {
     const supportFirst: PortableBuild = {
       ...plan,

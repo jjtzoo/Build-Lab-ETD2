@@ -34,19 +34,25 @@ export function liveCoaching(
   const stale = new Set(staleFieldRows(allocation, built));
   const valid = built.filter((entry) => !stale.has(entry));
   const goals: { towerId: string; level: number; quantity: number }[] = [];
+
+  // The engine's keystone steps are the real play order. A stage's primary
+  // action is only a summary of that stage; relying on it alone used to drop
+  // legitimate secondary unlocks such as Laser I on the Light/Darkness/Earth
+  // route. Keep every unlock, then add the primary only as a legacy fallback.
+  const addGoal = (towerId: string, level: number, quantity = 1) => {
+    if (!goals.some((goal) => goal.towerId === towerId && goal.level === level))
+      goals.push({ towerId, level, quantity });
+  };
   for (const stage of plan?.progression ?? []) {
+    for (const step of stage.keystoneSteps) {
+      for (const action of step.unlocks)
+        addGoal(action.towerId, action.toLevel);
+    }
     if (stage.primaryAction)
-      goals.push({
-        towerId: stage.primaryAction.towerId,
-        level: stage.primaryAction.toLevel,
-        quantity: 1,
-      });
+      addGoal(stage.primaryAction.towerId, stage.primaryAction.toLevel);
   }
   for (const tower of plan?.towers ?? []) {
-    if (
-      !goals.some((g) => g.towerId === tower.towerId && g.level === tower.level)
-    )
-      goals.push({ ...tower, quantity: 1 });
+    addGoal(tower.towerId, tower.level);
   }
   for (const choice of plan?.endGame ?? []) {
     const fact = END_GAME_TOWER_FACT_CATALOG.facts.find(
@@ -97,8 +103,18 @@ export function liveCoaching(
     };
   });
   const pending = actions.filter((a) => !a.done);
-  const nextAction = pending.find((a) => !a.missing.length) ?? null;
-  const blockedAction = pending.find((a) => a.missing.length) ?? null;
+  // A player can take a different legal pick or build a later support tower
+  // before the intended step. Offer the next legal recovery move instead of
+  // dead-ending the plan, but keep the skipped step visible to explain why
+  // the route has adapted.
+  const firstPending = pending[0] ?? null;
+  const nextAction = pending.find((action) => !action.missing.length) ?? null;
+  const blockedAction =
+    nextAction && nextAction !== firstPending
+      ? firstPending
+      : nextAction
+        ? null
+        : firstPending;
   const keystones = planKeystoneProgress(plan, allocation);
   const complete =
     !!plan && pending.length === 0 && keystones.stillNeeded.length === 0;
@@ -109,5 +125,6 @@ export function liveCoaching(
     keystones,
     complete,
     nextPick: recommendedPick(allocation, plan),
+    isAdaptive: !!nextAction && nextAction !== firstPending,
   };
 }

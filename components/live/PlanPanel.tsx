@@ -37,7 +37,8 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
     [allocation, built],
   );
   const coverage = useMemo(() => coverageGaps(built), [built]);
-  const { nextAction, blockedAction, nextPick, complete } = coaching;
+  const { nextAction, blockedAction, nextPick, complete, isAdaptive } =
+    coaching;
   const coverageAdvice = useMemo(
     () =>
       // A missing 2× counter is normal in the opening and does not mean the
@@ -86,7 +87,9 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
         )}
         {nextAction && (
           <p className="live-panel-note">
-            Available at your current picks. Log this after building it in game.
+            {isAdaptive
+              ? `Adaptive option — ${blockedAction?.towerName} still needs ${blockedAction?.missing.join(" · ")}.`
+              : "Available at your current picks. Log this after building it in game."}
           </p>
         )}
       </div>

@@ -203,6 +203,7 @@ function PlanMemory({
         data-ready={
           actionState === "Build now" ||
           actionState === "Upgrade now" ||
+          actionState === "Adaptive build" ||
           undefined
         }
       >
@@ -419,9 +420,11 @@ export function BuildLabTracker({ assets }: { assets: BuildLabAssets }) {
   if (!plan) return null;
   const action = coaching.nextAction ?? coaching.blockedAction;
   const actionState = coaching.nextAction
-    ? coaching.nextAction.kind === "upgrade"
-      ? "Upgrade now"
-      : "Build now"
+    ? coaching.isAdaptive
+      ? "Adaptive build"
+      : coaching.nextAction.kind === "upgrade"
+        ? "Upgrade now"
+        : "Build now"
     : action
       ? "Blocked"
       : coaching.complete
