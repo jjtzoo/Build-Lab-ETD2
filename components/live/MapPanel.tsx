@@ -12,6 +12,7 @@ import {
   isCoverageOnlyTower,
   placementKey,
 } from "@/lib/engine/livePlacement";
+import { towerElements } from "@/lib/domain/towerEvolution";
 import { getEndGameTowerFact } from "@/lib/domain/endGameTowerFacts";
 import type { EndGameTowerId } from "@/lib/domain/endGameTower";
 import {
@@ -52,6 +53,7 @@ import { roman } from "@/components/build-lab/primitives";
 import { useLiveGame } from "@/components/live/store";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { LiveDialog } from "@/components/live/LiveDialog";
+import { liveCoaching, type LivePlanAction } from "@/lib/engine/liveCoaching";
 
 type EditMode = "calibrate" | "trace" | "buildable" | "measure" | null;
 
@@ -74,6 +76,47 @@ const SCHEMATIC_PAD = 1.5;
  * source rather than a 16px thumbnail.
  */
 const ICON_BOX = 40;
+
+/**
+ * A final-form picker is most useful when it starts with the branches the
+ * loaded plan will actually use. This ranks a candidate by the first pending
+ * plan action it can still grow into. Within one target, recipe order keeps
+ * Water → Fire → Earth (for Haste, for example) stable and readable.
+ */
+function planDestinationRank(
+  towerId: string,
+  level: number,
+  actions: readonly LivePlanAction[],
+): number {
+  const destinations = placementDestinations(towerId, level);
+  for (let actionIndex = 0; actionIndex < actions.length; actionIndex += 1) {
+    const action = actions[actionIndex];
+    if (action.done) continue;
+    if (
+      !destinations.some(
+        (destination) =>
+          destination.tower.id === action.towerId &&
+          destination.level === action.toLevel,
+      )
+    ) {
+      continue;
+    }
+
+    try {
+      const recipe = towerElements(action.towerId);
+      const ingredientOrder = towerElements(towerId)
+        .map((element) => recipe.indexOf(element))
+        .filter((index) => index >= 0);
+      return actionIndex * 100 + (Math.min(...ingredientOrder, 99) + 1);
+    } catch {
+      // Basic and End Game entries can be valid map choices but don't have a
+      // normal recipe. Keep them behind named plan branches rather than
+      // treating them as a broken route.
+      return actionIndex * 100 + 99;
+    }
+  }
+  return Number.POSITIVE_INFINITY;
+}
 
 /**
  * Reference shots of one tower's in-game range circle, one per distinct
@@ -330,6 +373,8 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
+  const holds = useLiveGame((s) => s.holds);
+  const plan = useLiveGame((s) => s.plan);
   const placements = useLiveGame((s) => s.placements);
   const placeTower = useLiveGame((s) => s.placeTower);
   const movePlacement = useLiveGame((s) => s.movePlacement);
@@ -458,17 +503,29 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const endStatePicks = useMemo(() => {
     return origin ? placementDestinations(origin.towerId, origin.level) : [];
   }, [origin]);
+  const planActions = useMemo(
+    () => liveCoaching(plan, allocation, built, holds).actions,
+    [plan, allocation, built, holds],
+  );
   const destinationGroups = useMemo(() => {
     const query = destinationQuery.trim().toLowerCase();
     return DESTINATION_GROUPS.map((group) => ({
       group,
-      entries: endStatePicks.filter(
-        ({ tower }) =>
-          tower.group === group &&
-          (!query || tower.name.toLowerCase().includes(query)),
-      ),
+      entries: endStatePicks
+        .filter(
+          ({ tower }) =>
+            tower.group === group &&
+            (!query || tower.name.toLowerCase().includes(query)),
+        )
+        .sort(
+          (a, b) =>
+            planDestinationRank(a.tower.id, a.level, planActions) -
+              planDestinationRank(b.tower.id, b.level, planActions) ||
+            a.tower.name.localeCompare(b.tower.name) ||
+            a.level - b.level,
+        ),
     })).filter(({ entries }) => entries.length > 0);
-  }, [destinationQuery, endStatePicks]);
+  }, [destinationQuery, endStatePicks, planActions]);
 
   // Damage per attack x attacks/sec, deliberately narrow — the same
   // "baseDps" discipline used elsewhere in this codebase. Doesn't model
@@ -1610,97 +1667,97 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             style={{ left: overlayRect.left, width: overlayRect.width }}
           >
             {selectedPlacement ? (
-            <>
-              <p>
-                <b>{cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
-                {liveTowerName(selectedPlacement.towerId)}{" "}
-                {liveTowerLevelLabel(
-                  selectedPlacement.towerId,
-                  selectedPlacement.level,
-                )}
-                {selectedPlacement.finalForm && (
-                  <>
-                    {" "}
-                    → {liveTowerName(selectedPlacement.finalForm.towerId)}{" "}
-                    {liveTowerLevelLabel(
-                      selectedPlacement.finalForm.towerId,
-                      selectedPlacement.finalForm.level,
-                    )}{" "}
-                    · locked path
-                  </>
-                )}
-              </p>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => {
-                  selectTower(
+              <>
+                <p>
+                  <b>{cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
+                  {liveTowerName(selectedPlacement.towerId)}{" "}
+                  {liveTowerLevelLabel(
                     selectedPlacement.towerId,
                     selectedPlacement.level,
-                  );
-                  setMovingKey(placementKey(selectedPlacement));
-                  setSelectedTowerId(
-                    selectedPlacement.finalForm?.towerId ??
+                  )}
+                  {selectedPlacement.finalForm && (
+                    <>
+                      {" "}
+                    → {liveTowerName(selectedPlacement.finalForm.towerId)}{" "}
+                      {liveTowerLevelLabel(
+                        selectedPlacement.finalForm.towerId,
+                        selectedPlacement.finalForm.level,
+                      )}{" "}
+                      · locked path
+                    </>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    selectTower(
                       selectedPlacement.towerId,
-                  );
-                  setPlannedLevel(
-                    selectedPlacement.finalForm?.level ??
                       selectedPlacement.level,
-                  );
-                }}
-              >
-                Move this tower
-              </button>
-            </>
-          ) : origin ? (
-            <>
-              <div className="live-placement-review">
-                <span className="live-placement-step" aria-hidden="true">
-                  2
-                </span>
-                <div>
-                  <strong>
-                    {movingCopy ? "Review move" : "Review placement"}
-                  </strong>
-                  <p>
-                    <b>Preview · {cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
-                    {liveTowerName(origin.towerId)}{" "}
-                    {liveTowerLevelLabel(origin.towerId, origin.level)}
-                    {selectedTower &&
-                    (movingCopy?.finalForm ||
-                      finalForms.current.has(
-                        `${origin.towerId}@${origin.level}`,
-                      )) ? (
-                      <>
-                        {" "}
-                        · final form: {selectedTower.name}{" "}
-                        {liveTowerLevelLabel(selectedTower.id, towerLevel)}
-                      </>
-                    ) : (
-                      <> · open evolution path</>
-                    )}
-                  </p>
+                    );
+                    setMovingKey(placementKey(selectedPlacement));
+                    setSelectedTowerId(
+                      selectedPlacement.finalForm?.towerId ??
+                        selectedPlacement.towerId,
+                    );
+                    setPlannedLevel(
+                      selectedPlacement.finalForm?.level ??
+                        selectedPlacement.level,
+                    );
+                  }}
+                >
+                  Move this tower
+                </button>
+              </>
+            ) : origin ? (
+              <>
+                <div className="live-placement-review">
+                  <span className="live-placement-step" aria-hidden="true">
+                    2
+                  </span>
+                  <div>
+                    <strong>
+                      {movingCopy ? "Review move" : "Review placement"}
+                    </strong>
+                    <p>
+                      <b>Preview · {cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
+                      {liveTowerName(origin.towerId)}{" "}
+                      {liveTowerLevelLabel(origin.towerId, origin.level)}
+                      {selectedTower &&
+                      (movingCopy?.finalForm ||
+                        finalForms.current.has(
+                          `${origin.towerId}@${origin.level}`,
+                        )) ? (
+                        <>
+                          {" "}
+                          · final form: {selectedTower.name}{" "}
+                          {liveTowerLevelLabel(selectedTower.id, towerLevel)}
+                        </>
+                      ) : (
+                        <> · open evolution path</>
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                className="primary-button live-placement-confirm-action"
-                disabled={!canConfirmSelectedCell}
-                onClick={confirmSelectedCell}
-              >
-                {movingCopy ? "Confirm move" : "Confirm placement"}
-              </button>
-              <small>
-                Tap {cellLabel(selectedCell, labelOrigin)} again to confirm,
-                or another open cell to change this preview.
-              </small>
-              {!movingCopy && unplacedCopies <= 0 && (
-                <small>Log another copy or move a placed tower first.</small>
-              )}
-            </>
-          ) : (
-            <p>Choose a tower from Your field before confirming this cell.</p>
-          )}
+                <button
+                  type="button"
+                  className="primary-button live-placement-confirm-action"
+                  disabled={!canConfirmSelectedCell}
+                  onClick={confirmSelectedCell}
+                >
+                  {movingCopy ? "Confirm move" : "Confirm placement"}
+                </button>
+                <small>
+                  Tap {cellLabel(selectedCell, labelOrigin)} again to confirm,
+                  or another open cell to change this preview.
+                </small>
+                {!movingCopy && unplacedCopies <= 0 && (
+                  <small>Log another copy or move a placed tower first.</small>
+                )}
+              </>
+            ) : (
+              <p>Choose a tower from Your field before confirming this cell.</p>
+            )}
           </div>,
           document.body,
         )}

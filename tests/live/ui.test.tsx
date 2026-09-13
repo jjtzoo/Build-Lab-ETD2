@@ -166,6 +166,18 @@ describe("placement origin and final form", () => {
         .map((heading) => heading.textContent),
     ).toEqual(["Mono", "Dual", "Trio", "Quad"]);
   });
+  it("puts evolution branches for the loaded plan ahead of unrelated monos", () => {
+    useLiveGame.getState().setPlan(plan);
+    useLiveGame.getState().addBuilt("arrow", 1);
+    render(<MapPanel assets={assets} />);
+    const mono = within(
+      screen.getByRole("region", { name: "Mono final forms" }),
+    ).getAllByRole("button");
+    expect(mono.slice(0, 2).map((button) => button.textContent)).toEqual([
+      expect.stringContaining("Water"),
+      expect.stringContaining("Water"),
+    ]);
+  });
   it("scores Muck II or Crystal Spire while placing the owned Muck I, then arms a duplicate", () => {
     useLiveGame.getState().addBuilt("muck", 1);
     const { container } = render(<MapPanel assets={assets} />);
