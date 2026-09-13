@@ -1,6 +1,8 @@
 import type { GridPoint, MapConfig, WaveMode } from "@/lib/domain/mapConfig";
 import {
   coverageForMode,
+  islandIndexOf,
+  islands,
   sampleInRange,
   sampleRoute,
   type ModeCoverage,
@@ -253,7 +255,9 @@ export function placementValue(input: PlacementValueInput): PlacementValue {
 
   switch (kind) {
     case "uptime":
-      score = damage * radialFactor(fact.radialPreference, coverage.coveredSecondsByBand);
+      score =
+        damage *
+        radialFactor(fact.radialPreference, coverage.coveredSecondsByBand);
       break;
 
     case "late": {
@@ -363,6 +367,65 @@ export type RankedPlacement = {
 };
 
 /**
+ * A camp only earns one of the first recommendations if it is competitive
+ * with the best camp. This avoids spreading a tower onto an isolated tile
+ * that barely touches the route, while preventing six nearly identical
+ * recommendations from consuming the same strong plaza.
+ */
+const VIABLE_CAMP_SCORE_RATIO = 0.65;
+
+function diversifyCamps(
+  map: MapConfig,
+  entries: readonly RankedPlacement[],
+  topN: number,
+): RankedPlacement[] {
+  if (entries.length <= 1 || topN <= 1) return entries.slice(0, topN);
+
+  const first = entries[0];
+  // Buff and short-debuff placement is deliberately a camp decision: their
+  // entire value is overlapping the towers already firing. Damage towers,
+  // however, lose route coverage when all copies pile into that same camp.
+  if (
+    first.value.kind === "tower-buff" ||
+    first.value.kind === "debuff-overlap" ||
+    first.value.score <= 0
+  ) {
+    return entries.slice(0, topN);
+  }
+
+  const mapIslands = islands(map);
+  const bestByCamp = new Map<number, RankedPlacement>();
+  for (const entry of entries) {
+    const camp = islandIndexOf(mapIslands, entry.cell);
+    if (camp >= 0 && !bestByCamp.has(camp)) bestByCamp.set(camp, entry);
+  }
+
+  const viableCampLeads = [...bestByCamp.values()]
+    .filter(
+      (entry) =>
+        entry.value.coverage.coveredSeconds > 0 &&
+        entry.value.score >= first.value.score * VIABLE_CAMP_SCORE_RATIO,
+    )
+    .sort((a, b) => entries.indexOf(a) - entries.indexOf(b));
+  const selected = viableCampLeads.slice(0, topN);
+  const selectedCells = new Set(
+    selected.map((entry) => `${entry.cell.col},${entry.cell.row}`),
+  );
+
+  // After every viable camp has a lead recommendation, raw score resumes so
+  // a player who needs several copies can still see the best extra slots.
+  for (const entry of entries) {
+    if (selected.length >= topN) break;
+    const key = `${entry.cell.col},${entry.cell.row}`;
+    if (!selectedCells.has(key)) {
+      selected.push(entry);
+      selectedCells.add(key);
+    }
+  }
+  return selected;
+}
+
+/**
  * Every free buildable cell ranked for one tower by its own scorer.
  *
  * The route is sampled once and shared across all cells — the overlap
@@ -382,7 +445,7 @@ export function rankPlacements(
     fact.routePreference === "late";
   const samples = needsSamples ? sampleRoute(map, mode) : undefined;
 
-  return map.buildableCells
+  const ranked = map.buildableCells
     .filter((cell) => !taken.has(`${cell.col},${cell.row}`))
     .map((cell) => ({
       cell,
@@ -404,6 +467,7 @@ export function rankPlacements(
       return (
         b.value.coverage.longestRunSeconds - a.value.coverage.longestRunSeconds
       );
-    })
-    .slice(0, topN);
+    });
+
+  return diversifyCamps(map, ranked, topN);
 }

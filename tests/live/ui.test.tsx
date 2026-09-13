@@ -355,6 +355,24 @@ describe("placement origin and final form", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm placement" }));
     expect(useLiveGame.getState().placements).toHaveLength(2);
   });
+  it("does not lock a final form when the current field form is selected", () => {
+    useLiveGame.getState().addBuilt("arrow", 1);
+    const { container } = render(<MapPanel assets={assets} />);
+
+    // Arrow I is the standing form, so selecting it in the final-form list
+    // means no final destination has been chosen.
+    fireEvent.click(screen.getByRole("button", { name: "Score for Arrow I" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select Arrow I, 1 copies" }),
+    );
+    fireEvent.click(container.querySelector('polygon[data-rank="0"]')!);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm placement" }));
+
+    expect(useLiveGame.getState().placements[0]).not.toHaveProperty(
+      "finalForm",
+    );
+  });
   it("shows mixed levels, recommends Arrow cells, and confirms placement and moves explicitly", () => {
     useLiveGame.getState().addBuilt("haste", 2);
     useLiveGame.getState().addBuilt("haste", 1);

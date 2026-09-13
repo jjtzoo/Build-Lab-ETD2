@@ -8,10 +8,7 @@ import type {
   KeystoneStepDto,
   TowerActionDto,
 } from "@/lib/engine/buildRecommendationDto";
-import {
-  ElementIcon,
-  TowerIcon,
-} from "@/components/build-lab/primitives";
+import { ElementIcon, TowerIcon } from "@/components/build-lab/primitives";
 import { useBuildLab } from "@/components/build-lab/store";
 import type { ElementName } from "@/lib/domain/elements";
 
@@ -35,27 +32,16 @@ function ActionRow({
   assets: BuildLabAssets;
   isPrimary: boolean;
 }) {
-  const setHighlightTower = useBuildLab(
-    (s) => s.setHighlightTower,
-  );
-  const highlightTowerId = useBuildLab(
-    (s) => s.highlightTowerId,
-  );
+  const setHighlightTower = useBuildLab((s) => s.setHighlightTower);
+  const highlightTowerId = useBuildLab((s) => s.highlightTowerId);
 
   return (
     <li
       className="prog-action"
       data-primary={isPrimary || undefined}
-      data-active={
-        highlightTowerId === action.towerId ||
-        undefined
-      }
-      onMouseEnter={() =>
-        setHighlightTower(action.towerId)
-      }
-      onMouseLeave={() =>
-        setHighlightTower(null)
-      }
+      data-active={highlightTowerId === action.towerId || undefined}
+      onMouseEnter={() => setHighlightTower(action.towerId)}
+      onMouseLeave={() => setHighlightTower(null)}
     >
       <TowerIcon
         towerId={action.towerId}
@@ -65,26 +51,17 @@ function ActionRow({
       />
       <span className="prog-action-body">
         <span className="prog-action-verb">
-          {action.kind === "build"
-            ? "Build"
-            : "Upgrade"}
+          {action.kind === "build" ? "Build" : "Upgrade"}
         </span>
-        <span className="prog-action-name">
-          {action.towerName}
-        </span>
-        <span className="prog-action-level mono">
-          → L{action.toLevel}
-        </span>
+        <span className="prog-action-name">{action.towerName}</span>
+        <span className="prog-action-level mono">→ L{action.toLevel}</span>
       </span>
-      {isPrimary && (
-        <span className="prog-action-flag">
-          Start here
-        </span>
+      {isPrimary && <span className="prog-action-flag">Start here</span>}
+      {action.temporaryCarry && (
+        <span className="prog-action-role">temporary carry</span>
       )}
       {!isPrimary && action.roles.length > 0 && (
-        <span className="prog-action-role">
-          {action.roles[0]}
-        </span>
+        <span className="prog-action-role">{action.roles[0]}</span>
       )}
     </li>
   );
@@ -104,10 +81,7 @@ function KeystoneBlock({
   primaryKey: string | null;
 }) {
   return (
-    <div
-      className="prog-keystone-block"
-      data-element={step.element}
-    >
+    <div className="prog-keystone-block" data-element={step.element}>
       <div className="prog-keystone-head">
         <span className="prog-keystone-chip">
           <ElementIcon
@@ -115,9 +89,7 @@ function KeystoneBlock({
             assets={assets}
             size={16}
           />
-          <span className="prog-keystone-name">
-            {step.element}
-          </span>
+          <span className="prog-keystone-name">{step.element}</span>
           <span className="mono prog-keystone-delta">
             {step.from}→{step.to}
           </span>
@@ -136,9 +108,7 @@ function KeystoneBlock({
               key={actionKey(action)}
               action={action}
               assets={assets}
-              isPrimary={
-                actionKey(action) === primaryKey
-              }
+              isPrimary={actionKey(action) === primaryKey}
             />
           ))}
         </ul>
@@ -163,24 +133,19 @@ function Stage({
   const primaryKey = stage.primaryAction
     ? actionKey(stage.primaryAction)
     : null;
-  const productiveSteps =
-    stage.keystoneSteps.filter(
-      (step) => step.unlocks.length > 0,
-    );
-  const prerequisiteSteps =
-    stage.keystoneSteps.filter(
-      (step) => step.unlocks.length === 0,
-    );
-  const hasKeystones =
-    stage.keystoneSteps.length > 0;
+  const productiveSteps = stage.keystoneSteps.filter(
+    (step) => step.unlocks.length > 0,
+  );
+  const prerequisiteSteps = stage.keystoneSteps.filter(
+    (step) => step.unlocks.length === 0,
+  );
+  const hasKeystones = stage.keystoneSteps.length > 0;
 
   return (
     <motion.li
       className="prog-stage"
       data-stage={stage.stage}
-      initial={
-        reduce ? false : { opacity: 0, y: 20 }
-      }
+      initial={reduce ? false : { opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.4 }}
       transition={{
@@ -193,17 +158,13 @@ function Stage({
         <span className="prog-node" aria-hidden="true">
           <span className="prog-node-dot" />
         </span>
-        <span className="prog-stage-name">
-          {STAGE_LABEL[stage.stage]}
-        </span>
+        <span className="prog-stage-name">{STAGE_LABEL[stage.stage]}</span>
         <span className="prog-stage-count mono">
           {index + 1}/{total}
         </span>
       </div>
 
-      <p className="prog-stage-headline">
-        {stage.headline}
-      </p>
+      <p className="prog-stage-headline">{stage.headline}</p>
 
       {productiveSteps.length > 0 && (
         <div className="prog-keystone-flow">
@@ -220,63 +181,41 @@ function Stage({
 
       {prerequisiteSteps.length > 0 && (
         <p className="prog-prereq-strip">
-          <span className="prog-prereq-label">
-            Also allocate
-          </span>
+          <span className="prog-prereq-label">Also allocate</span>
           {prerequisiteSteps.map((step, i) => (
             <span
               className="prog-prereq-item mono"
               key={`${step.element}-${step.to}-${i}`}
             >
               <ElementIcon
-                element={
-                  step.element as ElementName
-                }
+                element={step.element as ElementName}
                 assets={assets}
                 size={13}
               />
               {step.element} {step.from}→{step.to}
             </span>
           ))}
-          <span className="prog-prereq-note">
-            prerequisite only
-          </span>
+          <span className="prog-prereq-note">prerequisite only</span>
         </p>
       )}
 
       {stage.endgameSelections && (
         <div className="prog-essence">
-          {stage.endgameSelections.map(
-            (selection) => (
-              <span
-                className="prog-essence-tower"
-                key={selection.name}
-              >
-                {selection.name}
-                {selection.quantity > 1
-                  ? ` ×${selection.quantity}`
-                  : ""}
-              </span>
-            ),
-          )}
-          <span className="prog-essence-note">
-            Essence 2 / 2
-          </span>
+          {stage.endgameSelections.map((selection) => (
+            <span className="prog-essence-tower" key={selection.name}>
+              {selection.name}
+              {selection.quantity > 1 ? ` ×${selection.quantity}` : ""}
+            </span>
+          ))}
+          <span className="prog-essence-note">Essence 2 / 2</span>
         </div>
       )}
 
       {!hasKeystones && !stage.endgameSelections && (
-        <p className="prog-stage-empty">
-          {stage.reason}
-        </p>
+        <p className="prog-stage-empty">{stage.reason}</p>
       )}
 
-      {isEnd && (
-        <span
-          className="prog-end-flare"
-          aria-hidden="true"
-        />
-      )}
+      {isEnd && <span className="prog-end-flare" aria-hidden="true" />}
     </motion.li>
   );
 }
@@ -295,17 +234,14 @@ export function BuildProgression({
         <div>
           <h2>Build progression</h2>
           <p>
-            The route to this build, by milestone. Each keystone is paired
-            with the towers it unlocks — no wave numbers.
+            The route to this build, by milestone. Each keystone is paired with
+            the towers it unlocks — no wave numbers.
           </p>
         </div>
       </div>
 
       <ol className="prog-track">
-        <span
-          className="prog-connector"
-          aria-hidden="true"
-        />
+        <span className="prog-connector" aria-hidden="true" />
         {plan.progression.map((stage, index) => (
           <Stage
             key={stage.stage}

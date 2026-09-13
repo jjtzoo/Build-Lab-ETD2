@@ -211,7 +211,12 @@ describe("placementValue — radial distribution", () => {
         { col: 30, row: 9 },
       ],
     });
-    const args = { map, mode: "standard" as const, rangeUnits: 10, baseDps: 100 };
+    const args = {
+      map,
+      mode: "standard" as const,
+      rangeUnits: 10,
+      baseDps: 100,
+    };
     const near = placementValue({
       ...args,
       cell: { col: 30, row: 1 },
@@ -301,6 +306,34 @@ describe("placementValue — support towers", () => {
 });
 
 describe("rankPlacements", () => {
+  it("leads with each viable camp before recommending extra stacking", () => {
+    const map = longRouteMap({
+      buildableCells: [
+        { col: 5, row: 1 },
+        { col: 30, row: 1 },
+        { col: 30, row: 2 },
+        { col: 31, row: 1 },
+        { col: 55, row: 1 },
+      ],
+    });
+    const ranked = rankPlacements({
+      map,
+      mode: "standard",
+      towerId: "atom",
+      rangeUnits: 5,
+      baseDps: 100,
+      topN: 3,
+    });
+
+    expect(ranked.map((entry) => entry.cell)).toEqual(
+      expect.arrayContaining([
+        { col: 5, row: 1 },
+        { col: 30, row: 1 },
+        { col: 55, row: 1 },
+      ]),
+    );
+  });
+
   it("skips occupied cells and discriminates on Forest's real data", () => {
     const forest = getMap("forest");
     const howitzer = getTower("howitzer");

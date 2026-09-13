@@ -1,14 +1,8 @@
-import type {
-  ElementAllocation,
-} from "./elements";
+import type { ElementAllocation } from "./elements";
 
-import {
-  getTower,
-} from "./towerCatalog";
+import { getTower } from "./towerCatalog";
 
-import type {
-  TowerId,
-} from "./tower";
+import type { TowerId } from "./tower";
 
 /**
  * Build Lab only supports explicitly curated anchor towers.
@@ -35,8 +29,7 @@ export const ANCHOR_ASSUMED_LEVEL = {
   Trio: 2,
 } as const;
 
-export type AnchorCombination =
-  keyof typeof ANCHOR_ASSUMED_LEVEL;
+export type AnchorCombination = keyof typeof ANCHOR_ASSUMED_LEVEL;
 
 export const CURATED_ANCHORS: readonly CuratedAnchor[] = [
   // Dual anchors
@@ -66,13 +59,8 @@ export const CURATED_ANCHORS: readonly CuratedAnchor[] = [
   { towerId: "quake" },
 ];
 
-export function isCuratedAnchor(
-  towerId: TowerId,
-): boolean {
-  return CURATED_ANCHORS.some(
-    (anchor) =>
-      anchor.towerId === towerId,
-  );
+export function isCuratedAnchor(towerId: TowerId): boolean {
+  return CURATED_ANCHORS.some((anchor) => anchor.towerId === towerId);
 }
 
 function emptyAllocation(): ElementAllocation {
@@ -103,33 +91,21 @@ export function getAnchorAssumedAllocation(
   towerId: TowerId,
 ): ElementAllocation {
   if (!isCuratedAnchor(towerId)) {
-    throw new Error(
-      `Tower is not a curated Build Lab anchor: ${towerId}`,
-    );
+    throw new Error(`Tower is not a curated Build Lab anchor: ${towerId}`);
   }
 
   const tower = getTower(towerId);
 
-  if (
-    tower.combination !== "Dual" &&
-    tower.combination !== "Trio"
-  ) {
-    throw new Error(
-      `Unsupported anchor combination: ${tower.combination}`,
-    );
+  if (tower.combination !== "Dual" && tower.combination !== "Trio") {
+    throw new Error(`Unsupported anchor combination: ${tower.combination}`);
   }
 
-  const assumedLevel =
-    ANCHOR_ASSUMED_LEVEL[
-      tower.combination
-    ];
+  const assumedLevel = ANCHOR_ASSUMED_LEVEL[tower.combination];
 
-  const allocation =
-    emptyAllocation();
+  const allocation = emptyAllocation();
 
   for (const element of tower.recipe) {
-    allocation[element] =
-      assumedLevel;
+    allocation[element] = assumedLevel;
   }
 
   return allocation;

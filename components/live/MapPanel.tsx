@@ -1214,13 +1214,32 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                             : "Not reachable yet — shown so you can plan the cell for it"
                         }
                         onClick={() => {
-                          if (origin)
-                            finalForms.current.set(
-                              `${origin.towerId}@${origin.level}`,
-                              { towerId: tower.id, level },
-                            );
+                          if (origin) {
+                            const key = `${origin.towerId}@${origin.level}`;
+                            // The form already standing on the field is the
+                            // uncommitted baseline, not a final-form target.
+                            // Keeping it in this cache made a later
+                            // reselection look like it still had a locked
+                            // path.
+                            if (
+                              tower.id === origin.towerId &&
+                              level === origin.level
+                            ) {
+                              finalForms.current.delete(key);
+                            } else {
+                              finalForms.current.set(key, {
+                                towerId: tower.id,
+                                level,
+                              });
+                            }
+                          }
                           setSelectedTowerId(tower.id);
-                          setPlannedLevel(level);
+                          setPlannedLevel(
+                            tower.id === origin?.towerId &&
+                              level === origin.level
+                              ? null
+                              : level,
+                          );
                           setSelectedCell(null);
                         }}
                       >
@@ -1898,6 +1917,13 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             {coverageOnly
               ? "Ranked by time the route stays in range; ability damage and splash are not simulated."
               : KIND_LABEL[ranked[0].value.kind]}
+            {ranked[0].value.kind !== "tower-buff" &&
+              ranked[0].value.kind !== "debuff-overlap" && (
+                <>
+                  {" "}
+                  · leads are spread across viable camps before extra stacking
+                </>
+              )}
             {placementFact && placementFact.radialPreference !== "any" && (
               <>
                 {" "}
