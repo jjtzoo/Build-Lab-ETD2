@@ -15,6 +15,7 @@ import {
   recommendedPick,
   totalKeystones,
 } from "@/lib/engine/liveGame";
+import { calibratedEconomy } from "@/lib/engine/liveEconomy";
 import { useLiveGame } from "@/components/live/store";
 import { liveCoaching } from "@/lib/engine/liveCoaching";
 import { PlanAction } from "./PlanAction";
@@ -35,6 +36,7 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
+  const matchLength = useLiveGame((s) => s.matchLength);
   const plan = useLiveGame((s) => s.plan);
 
   /*
@@ -79,6 +81,10 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
   const picks = useMemo(() => totalKeystones(allocation), [allocation]);
   const goldSpent = useMemo(() => deriveGoldSpent(built), [built]);
   const phase = derivedPhase(allocation, holds);
+  const economy = useMemo(
+    () => calibratedEconomy(phase, goldSpent, matchLength),
+    [phase, goldSpent, matchLength],
+  );
   const full = picks >= MAX_KEYSTONES;
 
   const recommended = useMemo(
@@ -92,8 +98,11 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
    * the page by then.
    */
   const progress = useMemo(
-    () => (plan ? liveCoaching(plan, allocation, built, holds) : null),
-    [plan, allocation, built, holds],
+    () =>
+      plan
+        ? liveCoaching(plan, allocation, built, holds, economy.availableGold)
+        : null,
+    [plan, allocation, built, holds, economy.availableGold],
   );
 
   const planName = plan
@@ -154,8 +163,11 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
         <span className="live-strip-wave" title="Estimated wave">
           {livePhaseLabel(phase)}
         </span>
-        <span className="mono live-strip-gold" title="Gold spent (derived)">
-          {gold(goldSpent)}
+        <span
+          className="mono live-strip-gold"
+          title={`Estimated bank from ${economy.checkpoint.label} length calibration, before interest. ${gold(goldSpent)} spent.`}
+        >
+          ~{gold(economy.availableGold)}
         </span>
 
         {progress && (

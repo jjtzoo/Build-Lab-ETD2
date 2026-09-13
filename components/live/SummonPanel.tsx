@@ -8,14 +8,18 @@ import { ELEMENTS } from "@/lib/domain/elements";
 import { totalKeystones } from "@/lib/engine/allocation";
 import {
   coverageGaps,
+  deriveGoldSpent,
   MAX_KEYSTONES,
   pickReveal,
   planKeystoneProgress,
   recommendedPick,
 } from "@/lib/engine/liveGame";
+import {
+  calibratedEconomy,
+  LIVE_ECONOMY_CHECKPOINTS,
+} from "@/lib/engine/liveEconomy";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { useLiveGame } from "@/components/live/store";
-import { AvailabilityPanel } from "./AvailabilityPanel";
 
 /**
  * The one screen the player looks at during a summon: what to pick, what
@@ -26,6 +30,8 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
+  const matchLength = useLiveGame((s) => s.matchLength);
+  const setMatchLength = useLiveGame((s) => s.setMatchLength);
   const plan = useLiveGame((s) => s.plan);
   const lastPick = useLiveGame((s) => s.lastPick);
   const spendPick = useLiveGame((s) => s.spendPick);
@@ -37,6 +43,10 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
 
   const picks = useMemo(() => totalKeystones(allocation), [allocation]);
   const full = picks >= MAX_KEYSTONES;
+  const economy = useMemo(
+    () => calibratedEconomy(picks + holds, deriveGoldSpent(built), matchLength),
+    [picks, holds, built, matchLength],
+  );
 
   const planNeeds = useMemo(
     () =>
@@ -224,7 +234,31 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
           )}
         </div>
       )}
-      <AvailabilityPanel assets={assets} />
+      <section className="live-economy" aria-label="Economy calibration">
+        <div>
+          <h3>Economy</h3>
+          <p>
+            Estimated bank <b>{economy.availableGold.toLocaleString()} gold</b>
+            <small> · before interest</small>
+          </p>
+        </div>
+        <label>
+          Match length
+          <select
+            value={matchLength}
+            onChange={(event) =>
+              setMatchLength(event.target.value as typeof matchLength)
+            }
+          >
+            {LIVE_ECONOMY_CHECKPOINTS.map((checkpoint) => (
+              <option key={checkpoint.length} value={checkpoint.length}>
+                {checkpoint.label} · W{checkpoint.startWave} ·{" "}
+                {checkpoint.startingGold.toLocaleString()} gold
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
     </motion.section>
   );
 }

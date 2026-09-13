@@ -17,7 +17,10 @@ import {
   isEndGameTowerId,
   liveTowerLevelLabel,
   liveTowerName,
+  deriveGoldSpent,
+  derivedPhase,
 } from "@/lib/engine/liveGame";
+import { calibratedEconomy } from "@/lib/engine/liveEconomy";
 import { liveCoaching, type LivePlanAction } from "@/lib/engine/liveCoaching";
 import { useLiveGame } from "./store";
 
@@ -80,10 +83,7 @@ function defaultPosition(shell: HTMLElement | null): Point {
   const fallback = { x: window.innerWidth - PANEL_WIDTH - 16, y };
   if (!shell) return fallback;
 
-  const rects = [
-    strip,
-    shell.querySelector<HTMLElement>(".live-focal"),
-  ]
+  const rects = [strip, shell.querySelector<HTMLElement>(".live-focal")]
     .filter((el): el is HTMLElement => !!el)
     .map((el) => el.getBoundingClientRect())
     .filter((rect) => rect.width > 0 && rect.height > 0);
@@ -264,7 +264,11 @@ function PlanMemory({
           </>
         )}
       </div>
-      <a href="#live-plan" className="live-build-rail-open" onClick={onOpenPlan}>
+      <a
+        href="#live-plan"
+        className="live-build-rail-open"
+        onClick={onOpenPlan}
+      >
         Open full plan <span aria-hidden="true">→</span>
       </a>
     </>
@@ -293,6 +297,7 @@ export function BuildLabTracker({ assets }: { assets: BuildLabAssets }) {
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
+  const matchLength = useLiveGame((s) => s.matchLength);
 
   const [narrow, setNarrow] = useState(false);
   const [position, setPosition] = useState<Point | null>(null);
@@ -308,8 +313,19 @@ export function BuildLabTracker({ assets }: { assets: BuildLabAssets }) {
   } | null>(null);
 
   const coaching = useMemo(
-    () => liveCoaching(plan, allocation, built, holds),
-    [plan, allocation, built, holds],
+    () =>
+      liveCoaching(
+        plan,
+        allocation,
+        built,
+        holds,
+        calibratedEconomy(
+          derivedPhase(allocation, holds),
+          deriveGoldSpent(built),
+          matchLength,
+        ).availableGold,
+      ),
+    [plan, allocation, built, holds, matchLength],
   );
 
   const persist = useCallback((next: Point, isCollapsed: boolean) => {
@@ -320,8 +336,7 @@ export function BuildLabTracker({ assets }: { assets: BuildLabAssets }) {
   // wide. Re-clamps on resize so a remembered position from a bigger
   // window never leaves the panel off screen.
   useEffect(() => {
-    const shell =
-      rootRef.current?.closest<HTMLElement>(".live-shell") ?? null;
+    const shell = rootRef.current?.closest<HTMLElement>(".live-shell") ?? null;
     const saved = readSaved();
     if (saved) setCollapsed(saved.collapsed);
 

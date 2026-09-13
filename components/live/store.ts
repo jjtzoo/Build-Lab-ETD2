@@ -20,8 +20,14 @@ import {
 import { canEvolveInto } from "@/lib/domain/towerEvolution";
 import { liveBuildBlock } from "@/lib/engine/liveAvailability";
 import { followsFinalForm, placementKey } from "@/lib/engine/livePlacement";
+import {
+  isLiveMatchLength,
+  type LiveMatchLength,
+} from "@/lib/engine/liveEconomy";
 
 export type LiveSnapshot = {
+  /** The Element TD 2 length checkpoint used to calibrate the coach's bank estimate. */
+  matchLength: LiveMatchLength;
   allocation: ElementAllocation;
   /** Ordered pick history — powers undo and "what this pick unlocked". */
   pickLog: ElementName[];
@@ -84,12 +90,14 @@ type LiveState = LiveSnapshot & {
   movePlacement: (copyKey: string, col: number, row: number) => void;
 
   setPlan: (plan: PortableBuild | null) => void;
+  setMatchLength: (length: LiveMatchLength) => void;
   newGame: () => void;
   hydrate: (snapshot: Partial<LiveSnapshot>) => void;
 };
 
 function emptySnapshot(): LiveSnapshot {
   return {
+    matchLength: "full",
     allocation: emptyLiveAllocation(),
     pickLog: [],
     built: [],
@@ -458,6 +466,7 @@ export const useLiveGame = create<LiveState>((set) => ({
     })),
 
   setPlan: (plan) => set({ plan }),
+  setMatchLength: (matchLength) => set({ matchLength }),
 
   newGame: () =>
     set({
@@ -473,6 +482,9 @@ export const useLiveGame = create<LiveState>((set) => ({
       return {
         placementCue: null,
         evolutionHistory: [],
+        matchLength: isLiveMatchLength(snapshot.matchLength)
+          ? snapshot.matchLength
+          : state.matchLength,
         allocation: snapshot.allocation ?? state.allocation,
         pickLog: snapshot.pickLog ?? state.pickLog,
         built,

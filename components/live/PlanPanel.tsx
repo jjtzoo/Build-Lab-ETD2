@@ -11,7 +11,10 @@ import {
   coreRoleStatus,
   liveTowerLevelLabel,
   planProgress,
+  deriveGoldSpent,
+  derivedPhase,
 } from "@/lib/engine/liveGame";
+import { calibratedEconomy } from "@/lib/engine/liveEconomy";
 import { liveCoaching } from "@/lib/engine/liveCoaching";
 import { PlanAction } from "./PlanAction";
 import { useLiveGame } from "./store";
@@ -21,9 +24,19 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
   const allocation = useLiveGame((s) => s.allocation);
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
+  const matchLength = useLiveGame((s) => s.matchLength);
+  const economy = useMemo(
+    () =>
+      calibratedEconomy(
+        derivedPhase(allocation, holds),
+        deriveGoldSpent(built),
+        matchLength,
+      ),
+    [allocation, holds, built, matchLength],
+  );
   const coaching = useMemo(
-    () => liveCoaching(plan, allocation, built, holds),
-    [plan, allocation, built, holds],
+    () => liveCoaching(plan, allocation, built, holds, economy.availableGold),
+    [plan, allocation, built, holds, economy.availableGold],
   );
   const roadmap = useMemo(
     () =>
@@ -89,7 +102,7 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
           <p className="live-panel-note">
             {isAdaptive
               ? `Adaptive option — ${blockedAction?.towerName} still needs ${blockedAction?.missing.join(" · ")}.`
-              : "Available at your current picks. Log this after building it in game."}
+              : `Affordable in the estimated ${economy.checkpoint.label} bank. Log this after building it in game.`}
           </p>
         )}
       </div>
@@ -146,8 +159,8 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
                     </span>
                   ) : (
                     <span>
-                      is a low-damage matchup. This plan has no remaining
-                      direct counter ready to recommend.
+                      is a low-damage matchup. This plan has no remaining direct
+                      counter ready to recommend.
                     </span>
                   )}
                 </li>
@@ -196,7 +209,7 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
                       ? "On the field"
                       : a.missing.length
                         ? `Needs ${a.missing.join(" · ")}`
-                        : "Buildable now"}
+                        : `Buildable now · ${a.goldCost.toLocaleString()} gold`}
                   </small>
                 </li>
               ))}

@@ -9,6 +9,7 @@ import {
 import { emptyLiveAllocation, recommendedPick } from "@/lib/engine/liveGame";
 import { liveAvailability } from "@/lib/engine/liveAvailability";
 import { liveCoaching } from "@/lib/engine/liveCoaching";
+import { calibratedEconomy } from "@/lib/engine/liveEconomy";
 import { placementDestinations } from "@/lib/engine/livePlacement";
 import { evolutionTargets } from "@/lib/domain/towerEvolution";
 
@@ -84,6 +85,14 @@ describe("placement destinations", () => {
 });
 
 describe("Now / Next / Later", () => {
+  it("does not label an element-ready plan tower as buildable before its bank can buy it", () => {
+    const coaching = liveCoaching(plan, allocation, [], 0, 300);
+    expect(coaching.nextAction).toBeNull();
+    expect(coaching.blockedAction).toMatchObject({ towerId: "haste" });
+    expect(
+      coaching.blockedAction?.missing.some((gap) => gap.startsWith("Save ")),
+    ).toBe(true);
+  });
   it("offers a single-copy upgrade for Theory Craft goals", () => {
     const result = liveCoaching(
       plan,
@@ -222,6 +231,15 @@ describe("Now / Next / Later", () => {
         4,
       ).nextAction?.towerId,
     ).toBe("pure-water");
+  });
+});
+
+describe("live economy calibration", () => {
+  it("uses the supplied match-length starting checkpoints before deducting field spend", () => {
+    expect(calibratedEconomy(0, 0, "full").availableGold).toBe(300);
+    expect(calibratedEconomy(0, 500, "short").availableGold).toBe(1000);
+    expect(calibratedEconomy(0, 0, "extra-short").availableGold).toBe(7500);
+    expect(calibratedEconomy(0, 0, "boss-hunt").availableGold).toBe(130000);
   });
 });
 

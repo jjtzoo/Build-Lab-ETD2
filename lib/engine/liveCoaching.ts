@@ -7,6 +7,7 @@ import {
   liveTowerReachableLevel,
   planKeystoneProgress,
   recommendedPick,
+  resolveLiveTowerCost,
   staleFieldRows,
   towerReachGap,
   type BuiltTower,
@@ -20,6 +21,7 @@ export type LivePlanAction = {
   kind: "build" | "upgrade";
   /** Copies the plan wants — 1 for a normal tower, the chosen count for an End Game form. */
   quantity: number;
+  goldCost: number;
   missing: readonly string[];
   done: boolean;
 };
@@ -30,6 +32,7 @@ export function liveCoaching(
   allocation: ElementAllocation,
   built: readonly BuiltTower[],
   holds: number,
+  availableGold?: number,
 ) {
   const stale = new Set(staleFieldRows(allocation, built));
   const valid = built.filter((entry) => !stale.has(entry));
@@ -91,6 +94,13 @@ export function liveCoaching(
       !missing.length
     )
       missing.push("Higher element levels");
+    const goldCost = Math.max(
+      0,
+      resolveLiveTowerCost(goal.towerId, goal.level) -
+        (from ? resolveLiveTowerCost(goal.towerId, from.level) : 0),
+    );
+    if (availableGold !== undefined && goldCost > availableGold)
+      missing.push(`Save ${(goldCost - availableGold).toLocaleString()} gold`);
     return {
       towerId: goal.towerId,
       towerName: liveTowerName(goal.towerId),
@@ -98,6 +108,7 @@ export function liveCoaching(
       fromLevel: from?.level,
       kind: from ? "upgrade" : "build",
       quantity: goal.quantity,
+      goldCost,
       missing,
       done,
     };

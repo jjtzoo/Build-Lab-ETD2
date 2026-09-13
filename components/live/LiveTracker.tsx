@@ -14,7 +14,6 @@ import { EndGamePanel } from "@/components/live/EndGamePanel";
 import { FieldPanel } from "@/components/live/FieldPanel";
 import { MapPanel } from "@/components/live/MapPanel";
 import { PlanPanel } from "@/components/live/PlanPanel";
-import { BuildLabTracker } from "@/components/live/BuildLabTracker";
 import { useLiveGame, type LiveSnapshot } from "@/components/live/store";
 import {
   consumeLiveImport,
@@ -40,6 +39,7 @@ export function LiveTracker({
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
   const placements = useLiveGame((s) => s.placements);
+  const matchLength = useLiveGame((s) => s.matchLength);
   const plan = useLiveGame((s) => s.plan);
   const newGame = useLiveGame((s) => s.newGame);
   const [ready, setReady] = useState(false);
@@ -121,7 +121,14 @@ export function LiveTracker({
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ allocation, pickLog, built, holds, placements }),
+        JSON.stringify({
+          matchLength,
+          allocation,
+          pickLog,
+          built,
+          holds,
+          placements,
+        }),
       );
       if (plan)
         window.localStorage.setItem(LIVE_PLAN_KEY, JSON.stringify(plan));
@@ -129,7 +136,7 @@ export function LiveTracker({
     } catch {
       /* storage unavailable */
     }
-  }, [ready, allocation, pickLog, built, holds, placements, plan]);
+  }, [ready, matchLength, allocation, pickLog, built, holds, placements, plan]);
 
   if (!ready)
     return (
@@ -173,7 +180,6 @@ export function LiveTracker({
       <LabHeader current="live" />
 
       <StatusStrip assets={assets} />
-      <BuildLabTracker assets={assets} />
 
       {/*
        * One continuous page, deliberately — this tool is read and acted on
@@ -194,13 +200,6 @@ export function LiveTracker({
        */}
       <div className="live-focal">
         <div className="live-col live-col-main">
-          <div className="live-section">
-            {endGame ? (
-              <EndGamePanel assets={assets} />
-            ) : (
-              <SummonPanel assets={assets} />
-            )}
-          </div>
           {/*
             Plan sits second, not last. It answers "what am I aiming at",
             which belongs next to the summon decision it informs — and at
@@ -209,6 +208,13 @@ export function LiveTracker({
           */}
           <div className="live-section">
             <PlanPanel assets={assets} />
+          </div>
+          <div className="live-section">
+            {endGame ? (
+              <EndGamePanel assets={assets} />
+            ) : (
+              <SummonPanel assets={assets} />
+            )}
           </div>
           <div className="live-section">
             <FieldPanel assets={assets} />
