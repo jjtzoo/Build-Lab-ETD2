@@ -29,10 +29,7 @@ import {
   isMonoTowerId,
   monoTowerCost,
 } from "@/lib/domain/auxiliaryTowers";
-import type {
-  BasicTowerId,
-  MonoTowerId,
-} from "@/lib/domain/auxiliaryTowers";
+import type { BasicTowerId, MonoTowerId } from "@/lib/domain/auxiliaryTowers";
 import type {
   PortableBuild,
   PortableProgressionStage,
@@ -92,6 +89,8 @@ export type TowerPlacement = {
   level: number;
   col: number;
   row: number;
+  /** Final-form intent belongs to this copy, never the entire quantity row. */
+  finalForm?: { towerId: string; level: number };
 };
 
 /** Placements on one map, in no particular order. */
@@ -128,15 +127,12 @@ export function placedCount(
 }
 
 /** Stable identity for a field row — also the React key. */
-export function builtRowKey(
-  towerId: string,
-  level: number,
-): string {
+export function builtRowKey(towerId: string, level: number): string {
   return `${towerId}@${level}`;
 }
 
 export function isSameBuiltRow(
-  entry: BuiltTower,
+  entry: Pick<BuiltTower, "towerId" | "level"> & { quantity?: number },
   towerId: string,
   level: number,
 ): boolean {
@@ -168,13 +164,9 @@ export function isAuxiliaryTowerId(towerId: string): boolean {
  * Costs are cumulative per level, so a tower counts once at its level;
  * upgrades are not summed on top.
  */
-export function resolveLiveTowerCost(
-  towerId: string,
-  level: number,
-): number {
+export function resolveLiveTowerCost(towerId: string, level: number): number {
   if (isEndGameTowerId(towerId)) {
-    return getEndGameTowerFact(towerId as EndGameTowerId)
-      .minimumFieldCost;
+    return getEndGameTowerFact(towerId as EndGameTowerId).minimumFieldCost;
   }
   if (isBasicTowerId(towerId)) {
     return getBasicTower(towerId).cost;
@@ -183,10 +175,7 @@ export function resolveLiveTowerCost(
     return monoTowerCost(level);
   }
   const tower = getTower(towerId);
-  const clamped = Math.max(
-    1,
-    Math.min(tower.maxLevel, Math.round(level)),
-  );
+  const clamped = Math.max(1, Math.min(tower.maxLevel, Math.round(level)));
   return resolveNormalTowerCost(towerId, clamped).minimumFieldCost;
 }
 
@@ -202,6 +191,13 @@ export function liveTowerName(towerId: string): string {
     return getMonoTower(towerId as MonoTowerId).name;
   }
   return getTower(towerId).name;
+}
+
+/** Pure is stored as a single terminal form, but displayed as Mono level IV. */
+export function liveTowerLevelLabel(towerId: string, level: number): string {
+  return towerId.startsWith("pure-") && isEndGameTowerId(towerId)
+    ? "IV"
+    : (["", "I", "II", "III"][level] ?? String(level));
 }
 
 /** Highest level a loggable tower can reach at all (ignores allocation). */
@@ -290,10 +286,11 @@ export function staleFieldRows(
   return built.filter((entry) => {
     if (entry.quantity <= 0) return false;
     if (isAuxiliaryTowerId(entry.towerId)) {
+      if (isEndGameTowerId(entry.towerId))
+        return !isTowerLoggable(entry.towerId, allocation);
       return (
         isMonoTowerId(entry.towerId) &&
-        (allocation[getMonoTower(entry.towerId).element] ?? 0) <
-          entry.level
+        (allocation[getMonoTower(entry.towerId).element] ?? 0) < entry.level
       );
     }
     try {
@@ -308,15 +305,11 @@ export function staleFieldRows(
 }
 
 /** Gold the player has committed, summed from what they logged. */
-export function deriveGoldSpent(
-  built: readonly BuiltTower[],
-): number {
+export function deriveGoldSpent(built: readonly BuiltTower[]): number {
   return built.reduce((total, entry) => {
     if (entry.quantity <= 0) return total;
     return (
-      total +
-      resolveLiveTowerCost(entry.towerId, entry.level) *
-        entry.quantity
+      total + resolveLiveTowerCost(entry.towerId, entry.level) * entry.quantity
     );
   }, 0);
 }
@@ -339,9 +332,7 @@ function primaryRole(towerId: TowerId): CoreRole | "support" {
 }
 
 function roleLabel(role: CoreRole | "support"): string {
-  return role === "support"
-    ? SUPPORT_ROLE_LABEL
-    : CORE_ROLE_LABEL[role];
+  return role === "support" ? SUPPORT_ROLE_LABEL : CORE_ROLE_LABEL[role];
 }
 
 /** Every tower the current allocation can field, grouped by core role. */
@@ -386,10 +377,7 @@ export function basicBuildables(
   }));
 
   for (const mono of MONO_TOWERS) {
-    const level = Math.min(
-      MONO_MAX_LEVEL,
-      allocation[mono.element] ?? 0,
-    );
+    const level = Math.min(MONO_MAX_LEVEL, allocation[mono.element] ?? 0);
     if (level >= 1) {
       out.push({
         id: mono.id,
@@ -410,7 +398,7 @@ export type LoggableTower = {
   name: string;
   /** Highest level fieldable at the current allocation. */
   maxLevel: number;
-  group: "basic" | "element" | "end-game";
+  group: "basic" | "mono" | "element" | "end-game";
   role: CoreRole | "support" | null;
   element: ElementName | null;
 };
@@ -431,7 +419,7 @@ export function loggableTowers(
       id: basic.id,
       name: basic.name,
       maxLevel: basic.maxLevel,
-      group: "basic",
+      group: basic.element ? "mono" : "basic",
       role: null,
       element: basic.element,
     });
@@ -458,8 +446,7 @@ export function loggableTowers(
       maxLevel: 1,
       group: "end-game",
       role: null,
-      element:
-        candidate.element === "Composite" ? null : candidate.element,
+      element: candidate.element === "Composite" ? null : candidate.element,
     });
   }
 
@@ -540,9 +527,7 @@ function damageElementOf(towerId: string): ElementName | null {
  * Nature-into-Fire-armour hole that costs games. Computed from the
  * `damageElement` of everything on the field against `ELEMENT_MATCHUPS`.
  */
-export function coverageGaps(
-  built: readonly BuiltTower[],
-): CoverageGaps {
+export function coverageGaps(built: readonly BuiltTower[]): CoverageGaps {
   const weightByElement = new Map<ElementName, number>();
   for (const entry of built) {
     if (entry.quantity <= 0) continue;
@@ -599,6 +584,8 @@ export type NextPickOption = {
   coreRolesOpened: readonly CoreRole[];
   /** Derived rank: core roles opened dominate, then breadth of access. */
   score: number;
+  /** A loaded Build Lab plan keeps its main DPS anchor online first. */
+  planPriority?: { kind: "anchor-first"; towerName: string };
 };
 
 /**
@@ -611,19 +598,14 @@ export function nextPickOptions(
 ): readonly NextPickOption[] {
   const beforeRoles = getCoreRoleFeasibility(allocation);
   const beforeAvailable = new Set(
-    beforeRoles
-      .filter((entry) => entry.available)
-      .map((entry) => entry.role),
+    beforeRoles.filter((entry) => entry.available).map((entry) => entry.role),
   );
 
   return legalNextAllocations(allocation)
     .map((after) => {
       const transition = evaluateKeystoneTransition(allocation, after);
       const coreRolesOpened = getCoreRoleFeasibility(after)
-        .filter(
-          (entry) =>
-            entry.available && !beforeAvailable.has(entry.role),
-        )
+        .filter((entry) => entry.available && !beforeAvailable.has(entry.role))
         .map((entry) => entry.role);
 
       return {
@@ -643,9 +625,46 @@ export function nextPickOptions(
           transition.deepenedTowerIds.length,
       } satisfies NextPickOption;
     })
-    .sort(
-      (a, b) => b.score - a.score || a.element.localeCompare(b.element),
+    .sort((a, b) => b.score - a.score || a.element.localeCompare(b.element));
+}
+
+/**
+ * Main damage must exist before the multiplier package can matter. Keep the
+ * anchor's recipe moving until it reaches the same operational floor the
+ * Build Lab progression engine uses: Dual II or Trio I. Importing a plan
+ * must not let a stale/support-first serialized step sequence undo that.
+ */
+function anchorFirstPick(
+  options: readonly NextPickOption[],
+  allocation: ElementAllocation,
+  plan: PortableBuild,
+): NextPickOption | null {
+  try {
+    const anchor = getTower(plan.anchorTowerId);
+    const operationalLevel = anchor.combination === "Dual" ? 2 : 1;
+    const required = options.filter(
+      (option) =>
+        anchor.recipe.includes(option.element) &&
+        allocation[option.element] < operationalLevel,
     );
+    if (!required.length) return null;
+
+    // Bring the lowest anchor ingredient up first. Recipe order only breaks
+    // an otherwise equal choice, making the advice stable and predictable.
+    const next = [...required].sort(
+      (a, b) =>
+        allocation[a.element] - allocation[b.element] ||
+        anchor.recipe.indexOf(a.element) - anchor.recipe.indexOf(b.element),
+    )[0];
+    return {
+      ...next,
+      planPriority: { kind: "anchor-first", towerName: anchor.name },
+    };
+  } catch {
+    // Theory Craft or an old shared link can name a tower no longer in the
+    // normal catalog. Its stored route remains the safe fallback.
+    return null;
+  }
 }
 
 /**
@@ -662,13 +681,20 @@ export function recommendedPick(
   if (options.length === 0) return null;
 
   if (plan) {
+    const anchorPick = anchorFirstPick(options, allocation, plan);
+    if (anchorPick) return anchorPick;
+    const firstStep = plan.progression
+      ?.flatMap((stage) => stage.keystoneSteps)
+      .find((step) => (allocation[step.element] ?? 0) < step.to);
+    const routePick =
+      firstStep &&
+      options.find((option) => option.element === firstStep.element);
+    if (routePick) return routePick;
     const stillNeeded = new Set(
       planKeystoneProgress(plan, allocation).stillNeeded,
     );
     if (stillNeeded.size > 0) {
-      const onPlan = options.find((option) =>
-        stillNeeded.has(option.element),
-      );
+      const onPlan = options.find((option) => stillNeeded.has(option.element));
       if (onPlan) return onPlan;
     }
   }
@@ -713,9 +739,7 @@ export function coreRoleStatus(
       .filter(
         (placed) =>
           !isAuxiliaryTowerId(placed.towerId) &&
-          getTowerProfile(placed.towerId).coreRoles.includes(
-            entry.role,
-          ),
+          getTowerProfile(placed.towerId).coreRoles.includes(entry.role),
       )
       .map((placed) => getTower(placed.towerId).name);
 
@@ -817,17 +841,11 @@ export function planTargets(
   return plan.towers.map((entry) => {
     const tower = getTower(entry.towerId);
     const missing = tower.recipe
-      .filter(
-        (element) => (allocation[element] ?? 0) < entry.level,
-      )
-      .map(
-        (element) =>
-          `${element} ${ROMAN[entry.level] ?? entry.level}`,
-      );
+      .filter((element) => (allocation[element] ?? 0) < entry.level)
+      .map((element) => `${element} ${ROMAN[entry.level] ?? entry.level}`);
     const onField = fielded.some(
       (placed) =>
-        placed.towerId === entry.towerId &&
-        placed.level >= entry.level,
+        placed.towerId === entry.towerId && placed.level >= entry.level,
     );
 
     return {
@@ -876,16 +894,10 @@ export function planKeystoneProgress(
   return {
     rows,
     heldTotal: rows.reduce((sum, row) => sum + row.held, 0),
-    plannedTotal: rows.reduce(
-      (sum, row) => sum + row.planned,
-      0,
-    ),
+    plannedTotal: rows.reduce((sum, row) => sum + row.planned, 0),
     stillNeeded: rows
       .filter((row) => row.held < row.planned)
-      .sort(
-        (a, b) =>
-          b.planned - b.held - (a.planned - a.held),
-      )
+      .sort((a, b) => b.planned - b.held - (a.planned - a.held))
       .map((row) => row.element),
   };
 }
@@ -912,9 +924,10 @@ export type PlanProgress = {
    * The next planned build that is still out of reach — shown as a
    * non-tappable "needs X" hint so the plan never invites an illegal log.
    */
-  blockedAction:
-    | { action: PortableTowerAction; missing: readonly string[] }
-    | null;
+  blockedAction: {
+    action: PortableTowerAction;
+    missing: readonly string[];
+  } | null;
   roadmap: readonly RoadmapEntry[];
   keystonesPlanned: number;
   keystonesDone: number;
@@ -981,8 +994,7 @@ export function planProgress(
   let blockedAction: PlanProgress["blockedAction"] = null;
   for (let i = stageIndex; i < progression.length; i += 1) {
     const candidate = progression[i].primaryAction;
-    if (!candidate || actionSatisfied(candidate, allocation, built))
-      continue;
+    if (!candidate || actionSatisfied(candidate, allocation, built)) continue;
     const reachTo = isEndGameTowerId(candidate.towerId)
       ? isTowerLoggable(candidate.towerId, allocation)
         ? 1
@@ -1009,11 +1021,7 @@ export function planProgress(
     headline: stage.headline,
     reason: stage.reason,
     nextAction,
-    nextActionDone: actionSatisfied(
-      stage.primaryAction,
-      allocation,
-      built,
-    ),
+    nextActionDone: actionSatisfied(stage.primaryAction, allocation, built),
     blockedAction,
     roadmap,
     keystonesPlanned: roadmap.length,

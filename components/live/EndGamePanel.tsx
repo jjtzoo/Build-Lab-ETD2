@@ -8,8 +8,8 @@ import {
   derivedPhase,
   endGameReadiness,
 } from "@/lib/engine/liveGame";
-import { EssencePicker } from "@/components/live/EssencePicker";
 import { useLiveGame } from "@/components/live/store";
+import { AvailabilityPanel } from "./AvailabilityPanel";
 
 /**
  * Replaces the Summon view once all eleven keystones are spent. The game
@@ -33,8 +33,7 @@ export function EndGamePanel({ assets }: { assets: BuildLabAssets }) {
   const pure = readiness.access.pureCandidates.map(
     (candidate) => candidate.element,
   );
-  const remaining =
-    readiness.essenceAvailable - readiness.essenceSpent;
+  const remaining = readiness.essenceAvailable - readiness.essenceSpent;
 
   return (
     <motion.section
@@ -46,17 +45,17 @@ export function EndGamePanel({ assets }: { assets: BuildLabAssets }) {
     >
       <header className="live-summon-head">
         <h2>End Game</h2>
-        <span className="mono live-summon-count">
-          all 11 picks spent
-        </span>
+        <span className="mono live-summon-count">all 11 picks spent</span>
       </header>
 
       <p className="live-stage-headline">
-        No more keystones. Spend Essence on your finish and hold to the
-        boss.
+        No more keystones. Spend Essence on your finish and hold to the boss.
       </p>
 
-      <div className="live-endgame-block" data-live={remaining > 0 || undefined}>
+      <div
+        className="live-endgame-block"
+        data-live={remaining > 0 || undefined}
+      >
         <h4>Essence</h4>
         {readiness.essenceAvailable > 0 ? (
           <>
@@ -80,12 +79,9 @@ export function EndGamePanel({ assets }: { assets: BuildLabAssets }) {
                   .join(", ")}
               </p>
             )}
-            <EssencePicker assets={assets} />
           </>
         ) : (
-          <p className="live-locked-need">
-            Essence arrives around wave 50–55.
-          </p>
+          <p className="live-locked-need">Essence arrives around wave 50–55.</p>
         )}
       </div>
 
@@ -97,12 +93,12 @@ export function EndGamePanel({ assets }: { assets: BuildLabAssets }) {
       )}
 
       {readiness.planSelections.length === 0 &&
-        plan?.coverageWeaknesses?.length ? (
+      plan?.coverageWeaknesses?.length ? (
         <p className="live-coverage-warn live-coverage-soft">
-          Plan flagged {plan.coverageWeaknesses.join(", ")} armour as
-          uncovered.
+          Plan flagged {plan.coverageWeaknesses.join(", ")} armour as uncovered.
         </p>
       ) : null}
+      <AvailabilityPanel assets={assets} />
     </motion.section>
   );
 }

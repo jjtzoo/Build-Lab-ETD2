@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
-import { TOWERS } from "@/lib/domain/towerCatalog";
+import {
+  LIVE_MAP_TOWERS as TOWERS,
+  placementDestinations,
+  isCoverageOnlyTower,
+  placementKey,
+} from "@/lib/engine/livePlacement";
+import { getEndGameTowerFact } from "@/lib/domain/endGameTowerFacts";
+import type { EndGameTowerId } from "@/lib/domain/endGameTower";
 import {
   cellLabel,
   type GridPoint,
@@ -32,20 +40,31 @@ import { getTowerPlacementFact } from "@/lib/domain/towerPlacementFacts";
 import { resolveTowerContribution } from "@/lib/engine/resolvedTowerContribution";
 import {
   isTowerLoggable,
+  isEndGameTowerId,
   liveTowerName,
+  liveTowerLevelLabel,
   liveTowerReachableLevel,
   placedCount,
   placementAt,
   placementsOnMap,
 } from "@/lib/engine/liveGame";
-import { evolutionTargets } from "@/lib/domain/towerEvolution";
 import { roman } from "@/components/build-lab/primitives";
 import { useLiveGame } from "@/components/live/store";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
+import { LiveDialog } from "@/components/live/LiveDialog";
 
 type EditMode = "calibrate" | "trace" | "buildable" | "measure" | null;
 
 const TOP_N = 6;
+const MAX_VISIBLE_RANGE_CELLS = 1.5;
+const DESTINATION_GROUPS = [
+  "Basic",
+  "Mono",
+  "Dual",
+  "Trio",
+  "Quad",
+  "End Game",
+] as const;
 /** Padding around the traced extent, in cells, for the schematic view. */
 const SCHEMATIC_PAD = 1.5;
 /**
@@ -93,9 +112,13 @@ const KIND_LABEL: Record<PlacementKind, string> = {
  * damage data to rank with in the first place.
  */
 function baseDpsFor(towerId: string, level: number): number {
+  if (isEndGameTowerId(towerId)) {
+    const fact = getEndGameTowerFact(towerId as EndGameTowerId);
+    return fact.damage * fact.attackSpeed;
+  }
   try {
-    return resolveTowerContribution(towerId as never, level)
-      .factualStatsAtLevel.baseDps;
+    return resolveTowerContribution(towerId as never, level).factualStatsAtLevel
+      .baseDps;
   } catch {
     return 0;
   }
@@ -155,7 +178,13 @@ function arrowMarkers(
     const dy = b.row - a.row;
     const len = Math.hypot(dx, dy);
     if (len > 1e-6) {
-      segments.push({ a, dx, dy, len, angle: (Math.atan2(dy, dx) * 180) / Math.PI });
+      segments.push({
+        a,
+        dx,
+        dy,
+        len,
+        angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+      });
     }
   }
   const total = segments.reduce((sum, seg) => sum + seg.len, 0);
@@ -247,9 +276,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const [mode, setMode] = useState<WaveMode>("standard");
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [tracePathId, setTracePathId] = useState<string>("main");
-  const [calibrationClicks, setCalibrationClicks] = useState<PixelPoint[]>(
-    [],
-  );
+  const [calibrationClicks, setCalibrationClicks] = useState<PixelPoint[]>([]);
   const [measureClicks, setMeasureClicks] = useState<PixelPoint[]>([]);
   /** First corner of a rectangle fill, while the second is being chosen. */
   const [fillAnchor, setFillAnchor] = useState<GridPoint | null>(null);
@@ -259,10 +286,22 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
 
   const [query, setQuery] = useState("");
-  const [selectedTowerId, setSelectedTowerId] = useState<string | null>(
-    null,
-  );
+  const [selectedTowerId, setSelectedTowerId] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<GridPoint | null>(null);
+  const [movingKey, setMovingKey] = useState<string | null>(null);
+  const [removeRequest, setRemoveRequest] = useState<{
+    towerId: string;
+    level: number;
+    quantity: number;
+  } | null>(null);
+  const [origin, setOrigin] = useState<{
+    towerId: string;
+    level: number;
+  } | null>(null);
+  const [destinationQuery, setDestinationQuery] = useState("");
+  const finalForms = useRef(
+    new Map<string, { towerId: string; level: number }>(),
+  );
   /**
    * Level the cell is being judged for, when the player overrides the
    * default. Null means "whatever this game can reach" — see
@@ -273,9 +312,15 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   /** Switching towers drops any level override with it. */
-  function selectTower(towerId: string | null) {
-    setSelectedTowerId(towerId);
-    setPlannedLevel(null);
+  function selectTower(towerId: string | null, level = 1) {
+    setMovingKey(null);
+    setDestinationQuery("");
+    setOrigin(towerId ? { towerId, level } : null);
+    const intent = towerId
+      ? finalForms.current.get(`${towerId}@${level}`)
+      : null;
+    setSelectedTowerId(intent?.towerId ?? towerId);
+    setPlannedLevel(intent?.level ?? null);
     setSelectedCell(null);
   }
 
@@ -287,7 +332,21 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const built = useLiveGame((s) => s.built);
   const placements = useLiveGame((s) => s.placements);
   const placeTower = useLiveGame((s) => s.placeTower);
-  const unplaceTower = useLiveGame((s) => s.unplaceTower);
+  const movePlacement = useLiveGame((s) => s.movePlacement);
+  const removeBuilt = useLiveGame((s) => s.removeBuilt);
+  const placementCue = useLiveGame((s) => s.placementCue);
+  useEffect(() => {
+    if (!placementCue) return;
+    setMovingKey(null);
+    const intent = finalForms.current.get(
+      `${placementCue.towerId}@${placementCue.level}`,
+    );
+    setOrigin(placementCue);
+    setSelectedTowerId(intent?.towerId ?? placementCue.towerId);
+    setPlannedLevel(intent?.level ?? null);
+    setDestinationQuery("");
+    setSelectedCell(null);
+  }, [placementCue]);
 
   /** Only this map's placements — a cell is only taken on its own map. */
   const placedHere = useMemo(
@@ -308,25 +367,14 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
    *
    * This panel is reading the same game state the field log already
    * holds, so asking the player to retype a tower's name mid-match is
-   * busywork. Rows are per (tower, level); a tower held at two levels
-   * collapses to its highest, since that's the copy worth placing well.
-   *
-   * Mono and basic towers are deliberately absent: `monoTowers.v1.json`
-   * carries no range, damage, or attack speed, so there is nothing
-   * honest to rank them with.
+   * busywork. Keep every (tower, level) row visible, including early-game
+   * towers whose missing range data limits them to manual placement.
    */
   const fieldPicks = useMemo(() => {
-    const highestLevel = new Map<string, number>();
-    for (const row of built) {
-      highestLevel.set(
-        row.towerId,
-        Math.max(highestLevel.get(row.towerId) ?? 0, row.level),
-      );
-    }
-    return [...highestLevel.entries()]
-      .map(([towerId, level]) => {
+    return built
+      .map(({ towerId, level, quantity }) => {
         const tower = TOWERS.find((t) => t.id === towerId);
-        return tower ? { tower, level } : null;
+        return tower ? { tower, level, quantity } : null;
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
   }, [built]);
@@ -343,10 +391,10 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   // evolution target you're saving toward is a legitimate thing to plan a
   // cell around before its keystones are in hand.
   const selectedTower = selectedTowerId
-    ? TOWERS.find((t) => t.id === selectedTowerId) ?? null
+    ? (TOWERS.find((t) => t.id === selectedTowerId) ?? null)
     : null;
-  const selectionReachable = selectedTower
-    ? isTowerLoggable(selectedTower.id, allocation)
+  const selectionReachable = origin
+    ? isTowerLoggable(origin.towerId, allocation)
     : false;
 
   /**
@@ -360,9 +408,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
    * understated its damage fourfold (1,000 -> 4,000 per attack) and gave
    * no way to say "I'm taking this one to max".
    */
-  const standingLevel = selectedTower
-    ? fieldPicks.find((entry) => entry.tower.id === selectedTower.id)?.level
-    : undefined;
+  const standingLevel = origin?.level;
   const reachableLevel = selectedTower
     ? liveTowerReachableLevel(selectedTower.id, allocation)
     : 0;
@@ -382,7 +428,16 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
       )
     : 1;
   const towerLevel = selectedTower
-    ? Math.max(1, Math.min(plannedLevel ?? defaultPlannedLevel, selectedTower.maxLevel))
+    ? Math.max(
+        1,
+        Math.min(
+          plannedLevel ??
+            (origin?.towerId === selectedTower.id
+              ? origin.level
+              : defaultPlannedLevel),
+          selectedTower.maxLevel,
+        ),
+      )
     : 1;
 
   /**
@@ -401,30 +456,19 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
    * keystones land is the whole point of looking.
    */
   const endStatePicks = useMemo(() => {
-    if (!selectedTower) return [];
-    const picks: { tower: (typeof TOWERS)[number]; level: number }[] = [];
-
-    // Same tower, higher level — every step above what's standing.
-    const from = standingLevel ?? 1;
-    for (let level = from + 1; level <= selectedTower.maxLevel; level++) {
-      picks.push({ tower: selectedTower, level });
-    }
-
-    /*
-     * Evolutions come from the level you *hold*, not the level being
-     * planned. An evolved tower arrives at the level it came in with, and
-     * the Quads cap at level 1, so asking from a planned level II
-     * silently dropped every Quad — Railgun, Crystal Spire and Tsunami
-     * vanished from this row the moment the default started scoring for
-     * max level. Both branches answer the same question: what can the
-     * copy I have today finish as?
-     */
-    for (const step of evolutionTargets(selectedTower.id, from)) {
-      const tower = TOWERS.find((t) => t.id === step.towerId);
-      if (tower) picks.push({ tower, level: step.level });
-    }
-    return picks;
-  }, [selectedTower, standingLevel]);
+    return origin ? placementDestinations(origin.towerId, origin.level) : [];
+  }, [origin]);
+  const destinationGroups = useMemo(() => {
+    const query = destinationQuery.trim().toLowerCase();
+    return DESTINATION_GROUPS.map((group) => ({
+      group,
+      entries: endStatePicks.filter(
+        ({ tower }) =>
+          tower.group === group &&
+          (!query || tower.name.toLowerCase().includes(query)),
+      ),
+    })).filter(({ entries }) => entries.length > 0);
+  }, [destinationQuery, endStatePicks]);
 
   // Damage per attack x attacks/sec, deliberately narrow — the same
   // "baseDps" discipline used elsewhere in this codebase. Doesn't model
@@ -432,16 +476,11 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   // ability damage; a spot's # of passes and longest run (shown
   // alongside) are the signal for whether ramp-up towers benefit.
   const towerDps = selectedTower
-    ? baseDpsFor(
-        selectedTower.id,
-        Math.min(towerLevel, selectedTower.maxLevel),
-      )
+    ? baseDpsFor(selectedTower.id, Math.min(towerLevel, selectedTower.maxLevel))
     : 0;
+  const coverageOnly = !!selectedTower && isCoverageOnlyTower(selectedTower.id);
 
-  const activePaths = useMemo(
-    () => pathsForMode(map, mode),
-    [map, mode],
-  );
+  const activePaths = useMemo(() => pathsForMode(map, mode), [map, mode]);
   const hasAdvance = useMemo(
     () => pathsForMode(map, "advance").length > 0,
     [map],
@@ -468,32 +507,41 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   );
 
   const ranked = useMemo(() => {
-    if (!selectedTower) return [];
+    if (!selectedTower || !selectedTower.stats.range) return [];
     return rankPlacements({
       map,
       mode,
       towerId: selectedTower.id,
       rangeUnits: selectedTower.stats.range,
-      baseDps: towerDps,
+      baseDps: coverageOnly ? 1 : towerDps,
       placed: placedRefs,
       occupied: placedRefs.map((p) => p.cell),
       topN: TOP_N,
     });
-  }, [map, mode, selectedTower, towerDps, placedRefs]);
+  }, [map, mode, selectedTower, towerDps, placedRefs, coverageOnly]);
 
   /** The selected cell judged by the same model the ranking uses. */
   const spotValue = useMemo(() => {
-    if (!selectedTower || !selectedCell) return null;
+    if (!selectedTower || !selectedTower.stats.range || !selectedCell)
+      return null;
     return placementValue({
       map,
       cell: selectedCell,
       mode,
       towerId: selectedTower.id,
       rangeUnits: selectedTower.stats.range,
-      baseDps: towerDps,
+      baseDps: coverageOnly ? 1 : towerDps,
       placed: placedRefs,
     });
-  }, [map, selectedCell, mode, selectedTower, towerDps, placedRefs]);
+  }, [
+    map,
+    selectedCell,
+    mode,
+    selectedTower,
+    towerDps,
+    placedRefs,
+    coverageOnly,
+  ]);
 
   const placementFact = selectedTower
     ? getTowerPlacementFact(selectedTower.id)
@@ -507,16 +555,18 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
    * against the planned level found no rows and reported a tower you own
    * as "not on your field yet".
    */
-  const ownedCopies = selectedTower
+  const ownedCopies = origin
     ? (built.find(
-        (row) =>
-          row.towerId === selectedTower.id && row.level === standingLevel,
+        (row) => row.towerId === origin.towerId && row.level === standingLevel,
       )?.quantity ?? 0)
     : 0;
   /** Copies still in hand, not yet standing anywhere. */
   const unplacedCopies =
-    selectedTower && standingLevel !== undefined
-      ? ownedCopies - placedCount(placements, selectedTower.id, standingLevel)
+    origin && standingLevel !== undefined
+      ? Math.max(
+          0,
+          ownedCopies - placedCount(placements, origin.towerId, standingLevel),
+        )
       : 0;
 
   const rankByKey = useMemo(() => {
@@ -528,6 +578,86 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   }, [ranked]);
 
   const spotCoverage: ModeCoverage | null = spotValue?.coverage ?? null;
+  const selectedPlacement = selectedCell
+    ? placementAt(placements, map.id, selectedCell.col, selectedCell.row)
+    : null;
+  const movingCopy = movingKey
+    ? placements.find(
+        (p) => placementKey(p) === movingKey && p.mapId === map.id,
+      )
+    : undefined;
+
+  /**
+   * Where to float the placement-confirm bar: over the bottom of this
+   * panel, in viewport coordinates.
+   *
+   * It is a fixed overlay through a portal rather than an element in the
+   * flow, for two reasons that rule out the obvious alternatives. Anything
+   * in the flow above the map would push the grid down the moment a cell
+   * was tapped, moving that cell out from under the cursor and defeating
+   * tap-again-to-confirm. And anything sticky *inside* the map column
+   * pins to the column's own bottom edge, which sits 98px below the
+   * viewport whenever the page is scrolled to the top (the page header and
+   * strip margin above the column's natural position scroll away once it
+   * sticks). Fixed to the viewport, it is simply always there.
+   */
+  const panelRef = useRef<HTMLElement | null>(null);
+  const [overlayRect, setOverlayRect] = useState<{
+    left: number;
+    width: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!selectedCell || editMode) return;
+    const measure = () => {
+      const rect = panelRef.current?.getBoundingClientRect();
+      if (rect) setOverlayRect({ left: rect.left, width: rect.width });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [selectedCell, editMode]);
+
+  /**
+   * Whether the previewed cell can be committed right now — the one
+   * condition both the Confirm button and a second tap on the cell share.
+   */
+  const canConfirmSelectedCell =
+    !editMode &&
+    !!selectedCell &&
+    !selectedPlacement &&
+    !!origin &&
+    (!!movingCopy || unplacedCopies > 0);
+
+  /**
+   * Commit the previewed cell.
+   *
+   * Reached two ways: the Confirm button under the map, and tapping the
+   * already-previewed cell a second time. The second exists because the
+   * button sits below a tall map inside a scrolling column, so confirming
+   * meant scrolling away from the grid mid-wave — the exact hassle a live
+   * tracker is supposed to spare the player. Preview stays a single tap;
+   * only the *same* cell tapped again commits.
+   */
+  const confirmSelectedCell = () => {
+    if (!canConfirmSelectedCell || !selectedCell || !origin) return;
+    if (movingCopy) {
+      movePlacement(placementKey(movingCopy), selectedCell.col, selectedCell.row);
+    } else {
+      placeTower(
+        map.id,
+        origin.towerId,
+        origin.level,
+        selectedCell.col,
+        selectedCell.row,
+        finalForms.current.get(`${origin.towerId}@${origin.level}`),
+      );
+    }
+    setMovingKey(null);
+    // Confirmation completes this cell interaction. Keep the tower
+    // selected for another copy, but remove the preview so there is no
+    // stale action left.
+    setSelectedCell(null);
+  };
 
   const traced =
     map.buildableCells.length > 0 ||
@@ -539,7 +669,10 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   // cells behind it are filled in separately per plaza — so two
   // different plazas never land on the same label (no two "D7"s).
   const labelOrigin = useMemo(() => {
-    const cells = [...map.buildableCells, ...map.paths.flatMap((p) => p.points)];
+    const cells = [
+      ...map.buildableCells,
+      ...map.paths.flatMap((p) => p.points),
+    ];
     if (cells.length === 0) return { col: 0, row: 0 };
     return {
       col: Math.floor(Math.min(...cells.map((c) => c.col))),
@@ -557,6 +690,8 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const rangeRadius = selectedTower
     ? selectedTower.stats.range / map.rangeUnitsPerCell
     : 0;
+  const visibleRangeRadius = Math.min(rangeRadius, MAX_VISIBLE_RANGE_CELLS);
+  const rangeDisplayCompressed = rangeRadius > MAX_VISIBLE_RANGE_CELLS;
 
   // Cell size in whatever unit the current view draws in: 1 in the
   // schematic (grid space, where a cell is literally 1 unit), the actual
@@ -665,9 +800,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     }
   }
 
-  function mutateTracePath(
-    change: (path: MapPath) => MapPath,
-  ) {
+  function mutateTracePath(change: (path: MapPath) => MapPath) {
     updateMap((current) => ({
       ...current,
       paths: current.paths.map((path) =>
@@ -744,10 +877,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const measurement = useMemo(() => {
     if (measureClicks.length < 2) return null;
     const [centre, edge] = measureClicks;
-    const radiusPixels = Math.hypot(
-      edge.x - centre.x,
-      edge.y - centre.y,
-    );
+    const radiusPixels = Math.hypot(edge.x - centre.x, edge.y - centre.y);
     const cellPixels =
       (Math.hypot(map.grid.colVector.x, map.grid.colVector.y) +
         Math.hypot(map.grid.rowVector.x, map.grid.rowVector.y)) /
@@ -766,6 +896,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
   return (
     <motion.section
+      ref={panelRef}
       className="live-map-panel"
       aria-label="Map placement"
       initial={reduce ? false : { opacity: 0, y: 8 }}
@@ -777,8 +908,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         <span className="live-panel-note">
           {map.pathDurationSeconds != null ? (
             <>
-              path length{" "}
-              <b className="mono">{map.pathDurationSeconds}s</b>
+              path length <b className="mono">{map.pathDurationSeconds}s</b>
             </>
           ) : (
             "path length unknown"
@@ -793,6 +923,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             value={map.id}
             onChange={(e) => {
               setMapId(e.target.value);
+              setMovingKey(null);
               setDraft(null);
               setSelectedCell(null);
               setMode("standard");
@@ -815,11 +946,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
           </select>
         </label>
 
-        <div
-          className="live-map-modes"
-          role="group"
-          aria-label="Wave mode"
-        >
+        <div className="live-map-modes" role="group" aria-label="Wave mode">
           {(["standard", "advance"] as const).map((waveMode) => (
             <button
               key={waveMode}
@@ -850,8 +977,8 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
       */}
       {!editEnabled && selectableMaps.length < MAPS.length && (
         <p className="live-map-basis">
-          {selectableMaps.length} of {MAPS.length} maps traced so far — more
-          are added one at a time.
+          {selectableMaps.length} of {MAPS.length} maps traced so far — more are
+          added one at a time.
         </p>
       )}
 
@@ -859,86 +986,163 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         <div className="live-map-picks">
           <span className="live-map-picks-label">On your field</span>
           <div className="live-map-chiprow">
-            {fieldPicks.map(({ tower, level }) => (
-              <button
-                key={tower.id}
-                type="button"
-                className="live-map-chip"
-                data-on={tower.id === selectedTowerId || undefined}
-                onClick={() =>
-                  selectTower(tower.id === selectedTowerId ? null : tower.id)
-                }
-              >
-                <LiveTowerIcon
-                  towerId={tower.id}
-                  assets={assets}
-                  size={18}
-                />
-                <span>{tower.name}</span>
-                {tower.maxLevel > 1 && (
-                  <span className="mono live-map-chip-level">
-                    {roman(level)}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {endStatePicks.length > 0 && (
-        <div className="live-map-picks">
-          <span className="live-map-picks-label">
-            Judge the cell on where it ends up — {selectedTower?.name} can
-            level up or evolve
-          </span>
-          <div className="live-map-chiprow">
-            {endStatePicks.map(({ tower, level }) => {
-              const isUpgrade = tower.id === selectedTower?.id;
-              // An upgrade is in reach if this game's picks can take the
-              // tower that far; an evolution, if its recipe is satisfied.
-              const reachable = isUpgrade
-                ? reachableLevel >= level
-                : isTowerLoggable(tower.id, allocation);
-              const active =
-                tower.id === selectedTowerId && towerLevel === level;
-              return (
+            {fieldPicks.map(({ tower, level, quantity }) => (
+              <div className="live-map-chip-wrap" key={`${tower.id}@${level}`}>
                 <button
-                  key={`${tower.id}-${level}`}
                   type="button"
                   className="live-map-chip"
-                  data-on={active || undefined}
-                  data-locked={!reachable || undefined}
-                  title={
-                    reachable
-                      ? isUpgrade
-                        ? `Judge this cell for ${tower.name} ${roman(level)}`
-                        : undefined
-                      : "Not reachable yet — shown so you can plan the cell for it"
+                  data-on={
+                    (tower.id === origin?.towerId && level === origin.level) ||
+                    undefined
                   }
-                  onClick={() => {
-                    setSelectedTowerId(tower.id);
-                    setPlannedLevel(level);
-                    setSelectedCell(null);
-                  }}
+                  aria-label={`Select ${tower.name} ${liveTowerLevelLabel(tower.id, level)}, ${quantity} copies`}
+                  onClick={() => selectTower(tower.id, level)}
                 >
-                  <LiveTowerIcon
-                    towerId={tower.id}
-                    assets={assets}
-                    size={18}
-                  />
+                  <LiveTowerIcon towerId={tower.id} assets={assets} size={18} />
                   <span>{tower.name}</span>
+                  <b>×{quantity}</b>
                   {tower.maxLevel > 1 && (
                     <span className="mono live-map-chip-level">
                       {roman(level)}
                     </span>
                   )}
-                  <span className="mono live-map-chip-range">
-                    {tower.stats.range}
-                  </span>
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  className="live-map-chip-remove"
+                  aria-label={`Remove ${tower.name} ${liveTowerLevelLabel(tower.id, level)} from your field`}
+                  title="Remove this tower row"
+                  onClick={() =>
+                    setRemoveRequest({ towerId: tower.id, level, quantity })
+                  }
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {removeRequest && (
+        <LiveDialog
+          title={`Delete ${liveTowerName(removeRequest.towerId)} ${liveTowerLevelLabel(removeRequest.towerId, removeRequest.level)}?`}
+          onCancel={() => setRemoveRequest(null)}
+        >
+          <p>
+            Remove all {removeRequest.quantity}{" "}
+            {removeRequest.quantity === 1 ? "copy" : "copies"} and their map
+            placements from this tower-log row?
+          </p>
+          <div className="live-dialog-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              autoFocus
+              onClick={() => setRemoveRequest(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => {
+                removeBuilt(removeRequest.towerId, removeRequest.level);
+                if (
+                  origin?.towerId === removeRequest.towerId &&
+                  origin.level === removeRequest.level
+                )
+                  selectTower(null);
+                setRemoveRequest(null);
+              }}
+            >
+              Delete tower row
+            </button>
+          </div>
+        </LiveDialog>
+      )}
+
+      {endStatePicks.length > 0 && (
+        <div className="live-map-picks live-map-destinations">
+          <span className="live-map-picks-label">
+            Final form for{" "}
+            {origin &&
+              `${liveTowerName(origin.towerId)} ${liveTowerLevelLabel(origin.towerId, origin.level)}`}
+          </span>
+          {endStatePicks.length > 12 && (
+            <input
+              className="live-log-input"
+              aria-label="Filter final forms"
+              placeholder="Find a final form"
+              value={destinationQuery}
+              onChange={(event) => setDestinationQuery(event.target.value)}
+            />
+          )}
+          <div className="live-map-destination-list">
+            {destinationGroups.map(({ group, entries }) => (
+              <section
+                className="live-map-destination-group"
+                key={group}
+                aria-label={`${group} final forms`}
+              >
+                <h4>{group}</h4>
+                <div className="live-map-chiprow">
+                  {entries.map(({ tower, level }) => {
+                    const isUpgrade = tower.id === origin?.towerId;
+                    // An upgrade is in reach if this game's picks can take the
+                    // tower that far; an evolution, if its recipe is satisfied.
+                    const reachable =
+                      isTowerLoggable(tower.id, allocation) &&
+                      liveTowerReachableLevel(tower.id, allocation) >= level;
+                    const active =
+                      tower.id === selectedTowerId && towerLevel === level;
+                    return (
+                      <button
+                        key={`${tower.id}-${level}`}
+                        type="button"
+                        className="live-map-chip"
+                        data-on={active || undefined}
+                        data-locked={!reachable || undefined}
+                        disabled={!!movingCopy}
+                        aria-label={`Score for ${tower.name} ${liveTowerLevelLabel(tower.id, level)}`}
+                        title={
+                          reachable
+                            ? isUpgrade
+                              ? `Judge this cell for ${tower.name} ${roman(level)}`
+                              : undefined
+                            : "Not reachable yet — shown so you can plan the cell for it"
+                        }
+                        onClick={() => {
+                          if (origin)
+                            finalForms.current.set(
+                              `${origin.towerId}@${origin.level}`,
+                              { towerId: tower.id, level },
+                            );
+                          setSelectedTowerId(tower.id);
+                          setPlannedLevel(level);
+                          setSelectedCell(null);
+                        }}
+                      >
+                        <LiveTowerIcon
+                          towerId={tower.id}
+                          assets={assets}
+                          size={18}
+                        />
+                        <span>{tower.name}</span>
+                        {tower.maxLevel > 1 && (
+                          <span className="mono live-map-chip-level">
+                            {roman(level)}
+                          </span>
+                        )}
+                        <span className="mono live-map-chip-range">
+                          {tower.stats.range || "range unknown"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         </div>
       )}
@@ -975,14 +1179,12 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                     setQuery("");
                   }}
                 >
-                  <LiveTowerIcon
-                    towerId={tower.id}
-                    assets={assets}
-                    size={20}
-                  />
+                  <LiveTowerIcon towerId={tower.id} assets={assets} size={20} />
                   <span>{tower.name}</span>
                   <span className="live-log-max mono">
-                    {tower.stats.range} range
+                    {tower.stats.range
+                      ? `${tower.stats.range} range`
+                      : "manual placement"}
                   </span>
                 </button>
               </li>
@@ -992,20 +1194,30 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
       </div>
 
       {selectedTower && (
-        <p className="live-map-selection">
-          <LiveTowerIcon
-            towerId={selectedTower.id}
-            assets={assets}
-            size={22}
-          />
+        <p className="live-map-selection" aria-live="polite">
+          <LiveTowerIcon towerId={selectedTower.id} assets={assets} size={22} />
           <span>
             <b>{selectedTower.name}</b> · level{" "}
-            <span className="mono">{roman(towerLevel)}</span> · range{" "}
-            <span className="mono">{selectedTower.stats.range}</span> ·{" "}
             <span className="mono">
-              {Math.round(towerDps).toLocaleString()}
+              {liveTowerLevelLabel(selectedTower.id, towerLevel)}
             </span>{" "}
-            DPS
+            · range{" "}
+            <span className="mono">
+              {selectedTower.stats.range || "unknown"}
+            </span>{" "}
+            ·{" "}
+            {coverageOnly ? (
+              "route-coverage recommendations"
+            ) : (
+              <>
+                <span className="mono">
+                  {selectedTower.stats.range
+                    ? Math.round(towerDps).toLocaleString()
+                    : "unknown"}
+                </span>{" "}
+                DPS
+              </>
+            )}
             {!selectionReachable && (
               <span className="live-map-planning"> · planning ahead</span>
             )}
@@ -1015,21 +1227,21 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
               can put down today is the one standing. Saying so beats
               letting the level in the line silently mean two things.
             */}
-            {standingLevel !== undefined && standingLevel < towerLevel && (
+            {origin && (
               <span className="live-map-planning">
                 {" "}
-                · holding{" "}
-                <span className="mono">{roman(standingLevel)}</span>, scored
-                for <span className="mono">{roman(towerLevel)}</span>
+                · placing {liveTowerName(origin.towerId)}{" "}
+                {liveTowerLevelLabel(origin.towerId, origin.level)}; scoring{" "}
+                {selectedTower.name}{" "}
+                {liveTowerLevelLabel(selectedTower.id, towerLevel)}
               </span>
             )}
             {selectionReachable && (
               <span className="live-map-planning">
                 {" "}
-                ·{" "}
-                {/* "all copies placed" is only true if you own some. */}
+                · {/* "all copies placed" is only true if you own some. */}
                 {unplacedCopies > 0
-                  ? `${unplacedCopies} to place — tap a cell`
+                  ? `${unplacedCopies} to place — preview a cell, then confirm`
                   : ownedCopies > 0
                     ? "all copies placed"
                     : "not on your field yet — scouting the spot"}
@@ -1041,34 +1253,43 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             className="live-map-clear"
             onClick={() => selectTower(null)}
           >
-            clear
+            Deselect tower
           </button>
         </p>
       )}
 
+      {selectedTower && !selectedTower.stats.range && (
+        <p className="live-map-planning">
+          Manual placement available. Choose a final form to see suggested
+          cells; this tower’s range data is not available.
+        </p>
+      )}
+
       <p className="live-map-assumption">
-        Range is scaled at{" "}
-        <span className="mono">{map.rangeUnitsPerCell}</span> units per
-        cell, measured off the game&apos;s own range circles. Damage
+        Range is scaled at <span className="mono">{map.rangeUnitsPerCell}</span>{" "}
+        units per cell, measured off the game&apos;s own range circles. Damage
         estimates are single-target uptime (time in range × damage ×
-        attacks/sec) — they don&apos;t model AoE hitting more than one
-        creep, ramp-up, or resist.
+        attacks/sec) — they don&apos;t model AoE hitting more than one creep,
+        ramp-up, or resist.
       </p>
 
       {!traced && !editEnabled ? (
         <p className="live-empty">
-          {map.name} hasn&apos;t been traced yet — no path or buildable
-          cells are recorded for it.
+          {map.name} hasn&apos;t been traced yet — no path or buildable cells
+          are recorded for it.
         </p>
       ) : (
-        <div className="live-map-stage" data-schematic={!showScreenshot || undefined}>
+        <div
+          className="live-map-stage"
+          data-schematic={!showScreenshot || undefined}
+        >
           <svg
             ref={svgRef}
             className="live-map-svg"
             viewBox={
               showScreenshot
                 ? `0 0 ${map.imageSize.w} ${map.imageSize.h}`
-                : viewBox ?? `0 0 ${map.imageSize.w} ${map.imageSize.h}`
+                : (viewBox ?? `0 0 ${map.imageSize.w} ${map.imageSize.h}`)
             }
             onClick={handleSvgClick}
             data-editing={editMode !== null || undefined}
@@ -1117,44 +1338,44 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                     data-rank={rank !== undefined ? rank : undefined}
                     data-selected={isSelected || undefined}
                     data-occupied={standing ? true : undefined}
+                    role="button"
+                    tabIndex={
+                      standing || (rank !== undefined && rank < TOP_N) ? 0 : -1
+                    }
+                    aria-label={`${standing ? liveTowerName(standing.towerId) : "Preview cell"} ${cellLabel(cell, labelOrigin)}`}
+                    onKeyDown={(e) => {
+                      if (!editMode && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        if (isSelected && canConfirmSelectedCell) {
+                          confirmSelectedCell();
+                        } else {
+                          setSelectedCell(cell);
+                        }
+                      }
+                    }}
                     onClick={(e) => {
                       if (editMode) return;
                       e.stopPropagation();
-                      // Tapping a cell commits the selection to it, and
-                      // tapping an occupied cell lifts what's there —
-                      // each change re-ranks everything still to place.
-                      if (standing) {
-                        unplaceTower(map.id, cell.col, cell.row);
+                      // First tap previews; tapping the same cell again
+                      // commits it, so confirming never means scrolling
+                      // away from the grid. Any other cell re-previews.
+                      if (isSelected && canConfirmSelectedCell) {
+                        confirmSelectedCell();
+                      } else {
                         setSelectedCell(cell);
-                        return;
                       }
-                      // What goes down is the copy you hold, at the level
-                      // it stands at — not the level the cell is scored
-                      // for, which may be an upgrade you haven't bought.
-                      if (
-                        selectedTower &&
-                        standingLevel !== undefined &&
-                        unplacedCopies > 0
-                      ) {
-                        placeTower(
-                          map.id,
-                          selectedTower.id,
-                          standingLevel,
-                          cell.col,
-                          cell.row,
-                        );
-                      }
-                      setSelectedCell(cell);
                     }}
                   >
                     <title>
                       {standing
                         ? `${liveTowerName(standing.towerId)} ${roman(
                             standing.level,
-                          )} — tap to lift`
-                        : selectedTower && unplacedCopies > 0
-                          ? `Place ${selectedTower.name} here`
-                          : cellLabel(cell, labelOrigin)}
+                          )} — select to inspect or move`
+                        : isSelected && canConfirmSelectedCell
+                          ? `Tap again to confirm ${origin ? liveTowerName(origin.towerId) : selectedTower?.name ?? ""} at ${cellLabel(cell, labelOrigin)}`
+                          : selectedTower && unplacedCopies > 0
+                            ? `Preview ${origin ? liveTowerName(origin.towerId) : selectedTower.name} here`
+                            : cellLabel(cell, labelOrigin)}
                     </title>
                   </polygon>
                   {standing ? (
@@ -1166,7 +1387,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                      * itself in user units would lay the HTML out inside a
                      * sub-pixel box in the schematic view, where one cell
                      * is one unit. pointerEvents stays off it: the polygon
-                     * underneath owns the click, lifting included.
+                     * underneath owns the preview click.
                      */
                     <g
                       transform={`translate(${center.x} ${center.y}) scale(${
@@ -1191,6 +1412,27 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                           />
                         </div>
                       </foreignObject>
+                      <rect
+                        x={2}
+                        y={8}
+                        width={24}
+                        height={16}
+                        rx={4}
+                        fill="#10151f"
+                        stroke="#c6d9c0"
+                        strokeWidth={1}
+                      />
+                      <text
+                        x={14}
+                        y={20}
+                        textAnchor="middle"
+                        fontSize={12}
+                        fontWeight={800}
+                        fill="#fff"
+                        aria-label={`Tower level ${liveTowerLevelLabel(standing.towerId, standing.level)}`}
+                      >
+                        {liveTowerLevelLabel(standing.towerId, standing.level)}
+                      </text>
                     </g>
                   ) : rank !== undefined ? (
                     /*
@@ -1257,8 +1499,18 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 return (
                   <g key={`portals-${path.id}`}>
                     <g className="live-map-portal" data-kind="in">
-                      <circle cx={start.col} cy={start.row} r={0.62} className="live-map-portal-glow" />
-                      <circle cx={start.col} cy={start.row} r={0.34} className="live-map-portal-core" />
+                      <circle
+                        cx={start.col}
+                        cy={start.row}
+                        r={0.62}
+                        className="live-map-portal-glow"
+                      />
+                      <circle
+                        cx={start.col}
+                        cy={start.row}
+                        r={0.34}
+                        className="live-map-portal-core"
+                      />
                       <text
                         x={start.col}
                         y={start.row + 0.95}
@@ -1269,8 +1521,18 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                       </text>
                     </g>
                     <g className="live-map-portal" data-kind="out">
-                      <circle cx={end.col} cy={end.row} r={0.62} className="live-map-portal-glow" />
-                      <circle cx={end.col} cy={end.row} r={0.34} className="live-map-portal-core" />
+                      <circle
+                        cx={end.col}
+                        cy={end.row}
+                        r={0.62}
+                        className="live-map-portal-glow"
+                      />
+                      <circle
+                        cx={end.col}
+                        cy={end.row}
+                        r={0.34}
+                        className="live-map-portal-core"
+                      />
                       <text
                         x={end.col}
                         y={end.row + 0.95}
@@ -1327,30 +1589,139 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
             {/* Grid space only: over the screenshot this would have to be
                 the ellipse the tilted camera projects, not a circle. */}
-            {!showScreenshot && selectedCell && rangeRadius > 0 && (
+            {!showScreenshot && selectedCell && visibleRangeRadius > 0 && (
               <circle
                 cx={selectedCell.col}
                 cy={selectedCell.row}
-                r={rangeRadius}
+                r={visibleRangeRadius}
                 className="live-map-range"
+                data-compressed={rangeDisplayCompressed || undefined}
               />
             )}
           </svg>
         </div>
       )}
 
+      {!editMode && selectedCell && overlayRect &&
+        createPortal(
+          <div
+            className="live-placement-confirm"
+            aria-live="polite"
+            style={{ left: overlayRect.left, width: overlayRect.width }}
+          >
+            {selectedPlacement ? (
+            <>
+              <p>
+                <b>{cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
+                {liveTowerName(selectedPlacement.towerId)}{" "}
+                {liveTowerLevelLabel(
+                  selectedPlacement.towerId,
+                  selectedPlacement.level,
+                )}
+                {selectedPlacement.finalForm && (
+                  <>
+                    {" "}
+                    → {liveTowerName(selectedPlacement.finalForm.towerId)}{" "}
+                    {liveTowerLevelLabel(
+                      selectedPlacement.finalForm.towerId,
+                      selectedPlacement.finalForm.level,
+                    )}{" "}
+                    · locked path
+                  </>
+                )}
+              </p>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  selectTower(
+                    selectedPlacement.towerId,
+                    selectedPlacement.level,
+                  );
+                  setMovingKey(placementKey(selectedPlacement));
+                  setSelectedTowerId(
+                    selectedPlacement.finalForm?.towerId ??
+                      selectedPlacement.towerId,
+                  );
+                  setPlannedLevel(
+                    selectedPlacement.finalForm?.level ??
+                      selectedPlacement.level,
+                  );
+                }}
+              >
+                Move this tower
+              </button>
+            </>
+          ) : origin ? (
+            <>
+              <div className="live-placement-review">
+                <span className="live-placement-step" aria-hidden="true">
+                  2
+                </span>
+                <div>
+                  <strong>
+                    {movingCopy ? "Review move" : "Review placement"}
+                  </strong>
+                  <p>
+                    <b>Preview · {cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
+                    {liveTowerName(origin.towerId)}{" "}
+                    {liveTowerLevelLabel(origin.towerId, origin.level)}
+                    {selectedTower &&
+                    (movingCopy?.finalForm ||
+                      finalForms.current.has(
+                        `${origin.towerId}@${origin.level}`,
+                      )) ? (
+                      <>
+                        {" "}
+                        · final form: {selectedTower.name}{" "}
+                        {liveTowerLevelLabel(selectedTower.id, towerLevel)}
+                      </>
+                    ) : (
+                      <> · open evolution path</>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="primary-button live-placement-confirm-action"
+                disabled={!canConfirmSelectedCell}
+                onClick={confirmSelectedCell}
+              >
+                {movingCopy ? "Confirm move" : "Confirm placement"}
+              </button>
+              <small>
+                Tap {cellLabel(selectedCell, labelOrigin)} again to confirm,
+                or another open cell to change this preview.
+              </small>
+              {!movingCopy && unplacedCopies <= 0 && (
+                <small>Log another copy or move a placed tower first.</small>
+              )}
+            </>
+          ) : (
+            <p>Choose a tower from Your field before confirming this cell.</p>
+          )}
+          </div>,
+          document.body,
+        )}
+      {!editMode && !selectedCell && (
+        <p className="live-map-basis">
+          {movingCopy
+            ? "Choose a new cell, then Confirm move. The tower stays in its old cell until you confirm."
+            : "Choose a tower → preview a cell → Confirm placement."}
+        </p>
+      )}
+
       {selectedTower && spotValue && spotCoverage && selectedCell && (
         <p className="live-map-readout mono">
-          <b>{cellLabel(selectedCell, labelOrigin)}</b> · ≈
-          {Math.round(spotValue.damage).toLocaleString()} dmg ·{" "}
+          <b>{cellLabel(selectedCell, labelOrigin)}</b> ·{" "}
+          {!coverageOnly && (
+            <>≈{Math.round(spotValue.damage).toLocaleString()} dmg · </>
+          )}
           {spotCoverage.coveragePercent.toFixed(1)}% of the route ·{" "}
           {spotCoverage.coveredSeconds.toFixed(1)}s
           {spotCoverage.firstContactSeconds !== null && (
-            <>
-              {" "}
-              · in reach from{" "}
-              {spotCoverage.firstContactSeconds.toFixed(1)}s
-            </>
+            <> · in reach from {spotCoverage.firstContactSeconds.toFixed(1)}s</>
           )}
           {spotValue.effectiveWindowSeconds !== null && (
             <>
@@ -1362,16 +1733,15 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
           {spotValue.kind === "tower-buff" && (
             <>
               {" "}
-              · buffs{" "}
-              <b>{Math.round(spotValue.score).toLocaleString()}</b> dps
+              · buffs <b>{Math.round(spotValue.score).toLocaleString()}</b> dps
             </>
           )}
           {spotValue.kind === "debuff-overlap" &&
             spotValue.overlapSeconds > 0 && (
               <>
                 {" "}
-                · <b>{spotValue.overlapSeconds.toFixed(1)}s</b> overlapping
-                your damage
+                · <b>{spotValue.overlapSeconds.toFixed(1)}s</b> overlapping your
+                damage
               </>
             )}
           {spotValue.kind === "late" && (
@@ -1408,7 +1778,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             tower's own mechanic being applied.
           */}
           <p className="live-map-basis">
-            {KIND_LABEL[ranked[0].value.kind]}
+            {coverageOnly
+              ? "Ranked by time the route stays in range; ability damage and splash are not simulated."
+              : KIND_LABEL[ranked[0].value.kind]}
             {placementFact && placementFact.radialPreference !== "any" && (
               <>
                 {" "}
@@ -1430,6 +1802,15 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             {ranked.map((entry, i) => (
               <li
                 key={`${entry.cell.col},${entry.cell.row}`}
+                role="button"
+                tabIndex={0}
+                aria-label={`Preview recommended cell ${cellLabel(entry.cell, labelOrigin)}`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedCell(entry.cell);
+                  }
+                }}
                 data-selected={
                   selectedCell?.col === entry.cell.col &&
                   selectedCell?.row === entry.cell.row
@@ -1443,7 +1824,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                   {cellLabel(entry.cell, labelOrigin)}
                 </span>
                 <span className="mono">
-                  ≈{Math.round(entry.value.damage).toLocaleString()} dmg
+                  {coverageOnly
+                    ? "coverage"
+                    : `≈${Math.round(entry.value.damage).toLocaleString()} dmg`}
                 </span>
                 <span className="mono">
                   {entry.value.coverage.coveragePercent.toFixed(1)}%
@@ -1459,12 +1842,11 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                     {entry.value.lateSharePercent.toFixed(0)}% late
                   </span>
                 )}
-                {entry.value.kind === "tower-buff" &&
-                  entry.value.score > 0 && (
-                    <span className="live-map-pass" data-basis>
-                      +{Math.round(entry.value.score).toLocaleString()} dps
-                    </span>
-                  )}
+                {entry.value.kind === "tower-buff" && entry.value.score > 0 && (
+                  <span className="live-map-pass" data-basis>
+                    +{Math.round(entry.value.score).toLocaleString()} dps
+                  </span>
+                )}
                 {entry.value.kind === "debuff-overlap" &&
                   entry.value.overlapSeconds > 0 && (
                     <span className="live-map-pass" data-basis>
@@ -1517,8 +1899,8 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
 
           {editMode === "calibrate" && (
             <p className="live-panel-note">
-              Click the grid origin, then one cell to the right, then one
-              cell down. {calibrationClicks.length}/3 clicked.
+              Click the grid origin, then one cell to the right, then one cell
+              down. {calibrationClicks.length}/3 clicked.
             </p>
           )}
 
@@ -1533,8 +1915,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                     data-on={path.id === tracePathId || undefined}
                     onClick={() => setTracePathId(path.id)}
                   >
-                    {path.id}{" "}
-                    <span className="mono">{path.points.length}</span>
+                    {path.id} <span className="mono">{path.points.length}</span>
                   </button>
                 ))}
                 <button
@@ -1555,9 +1936,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                       <input
                         type="checkbox"
                         checked={tracePath.modes.includes(waveMode)}
-                        onChange={() =>
-                          togglePathMode(tracePath.id, waveMode)
-                        }
+                        onChange={() => togglePathMode(tracePath.id, waveMode)}
                       />
                       {waveMode}
                     </label>
@@ -1597,12 +1976,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                   <b className="mono">
                     {fillAnchor.col},{fillAnchor.row}
                   </b>{" "}
-                  — click the opposite corner to fill the block, or the
-                  same cell again to toggle just it.{" "}
-                  <button
-                    type="button"
-                    onClick={() => setFillAnchor(null)}
-                  >
+                  — click the opposite corner to fill the block, or the same
+                  cell again to toggle just it.{" "}
+                  <button type="button" onClick={() => setFillAnchor(null)}>
                     cancel
                   </button>
                 </>
@@ -1639,18 +2015,13 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                     setBackdrop(value || null);
                     setMeasureClicks([]);
                     if (value) {
-                      setMeasureRange(
-                        value.replace(/\D+/g, "").slice(-4),
-                      );
+                      setMeasureRange(value.replace(/\D+/g, "").slice(-4));
                     }
                   }}
                 >
                   <option value="">map image</option>
                   {RANGE_REFERENCES.map((range) => (
-                    <option
-                      key={range}
-                      value={`/tower ranges/${range}.png`}
-                    >
+                    <option key={range} value={`/tower ranges/${range}.png`}>
                       {range} range
                     </option>
                   ))}
@@ -1665,10 +2036,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                   style={{ width: 72 }}
                 />
               </label>
-              <button
-                type="button"
-                onClick={() => setMeasureClicks([])}
-              >
+              <button type="button" onClick={() => setMeasureClicks([])}>
                 reset
               </button>
               {measurement && (
@@ -1689,9 +2057,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                       updateMap((current) => ({
                         ...current,
                         rangeUnitsPerCell:
-                          Math.round(
-                            measurement.rangeUnitsPerCell * 10,
-                          ) / 10,
+                          Math.round(measurement.rangeUnitsPerCell * 10) / 10,
                       }))
                     }
                   >

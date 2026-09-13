@@ -14,9 +14,17 @@ import { EndGamePanel } from "@/components/live/EndGamePanel";
 import { FieldPanel } from "@/components/live/FieldPanel";
 import { MapPanel } from "@/components/live/MapPanel";
 import { PlanPanel } from "@/components/live/PlanPanel";
+import { BuildLabTracker } from "@/components/live/BuildLabTracker";
 import { useLiveGame, type LiveSnapshot } from "@/components/live/store";
-
-const STORAGE_KEY = "etd2:live:v1";
+import {
+  consumeLiveImport,
+  getLiveStorage,
+  LIVE_PLAN_KEY,
+  LIVE_STORAGE_KEY as STORAGE_KEY,
+  parseStoredPlan,
+  resolveLiveImport,
+} from "@/lib/domain/liveImport";
+import { LiveDialog } from "./LiveDialog";
 
 export function LiveTracker({
   assets,
@@ -32,6 +40,11 @@ export function LiveTracker({
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
   const placements = useLiveGame((s) => s.placements);
+  const plan = useLiveGame((s) => s.plan);
+  const newGame = useLiveGame((s) => s.newGame);
+  const [ready, setReady] = useState(false);
+  const [incoming, setIncoming] = useState<PortableBuild | null>(null);
+  const saved = useRef<Partial<LiveSnapshot> | null>(null);
 
   const hydrated = useRef(false);
 
@@ -56,40 +69,103 @@ export function LiveTracker({
     if (hydrated.current) return;
     hydrated.current = true;
 
-    if (initialPlan) {
-      setPlan(initialPlan);
-    } else {
-      try {
-        const handed = window.localStorage.getItem(PENDING_IMPORT_KEY);
-        if (handed) {
-          const parsed = JSON.parse(handed) as PortableBuild;
-          if (parsed?.anchorTowerId) setPlan(parsed);
-        }
-      } catch {
-        /* ignore a malformed handoff */
-      }
-    }
-
+    let imported = initialPlan;
+    let savedPlan: PortableBuild | null = null;
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) hydrate(JSON.parse(raw) as Partial<LiveSnapshot>);
+      if (raw) saved.current = JSON.parse(raw) as Partial<LiveSnapshot>;
+    } catch {
+      /* A corrupt saved match must not hide a new import. */
+    }
+    try {
+      imported ??= parseStoredPlan(
+        window.localStorage.getItem(PENDING_IMPORT_KEY),
+      );
+      savedPlan = parseStoredPlan(window.localStorage.getItem(LIVE_PLAN_KEY));
     } catch {
       /* corrupt game log — start fresh */
     }
-  }, [initialPlan, setPlan, hydrate]);
+    if (imported) {
+      setIncoming(imported);
+      return;
+    }
+    newGame();
+    try {
+      if (saved.current) hydrate(saved.current);
+    } catch {
+      newGame();
+    }
+    setPlan(savedPlan);
+    setReady(true);
+  }, [initialPlan, setPlan, hydrate, newGame]);
+
+  function acceptImport(choice: "fresh" | "keep") {
+    if (!incoming) return;
+    const resolved = resolveLiveImport(choice, incoming, saved.current);
+    newGame();
+    try {
+      if (resolved.snapshot) hydrate(resolved.snapshot);
+    } catch {
+      newGame();
+    }
+    setPlan(resolved.plan);
+    const cleanUrl = consumeLiveImport(getLiveStorage(), window.location.href);
+    window.history.replaceState(window.history.state, "", cleanUrl);
+    setIncoming(null);
+    setReady(true);
+  }
 
   // Persist the game in progress on every change.
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (!ready) return;
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({ allocation, pickLog, built, holds, placements }),
       );
+      if (plan)
+        window.localStorage.setItem(LIVE_PLAN_KEY, JSON.stringify(plan));
+      else window.localStorage.removeItem(LIVE_PLAN_KEY);
     } catch {
       /* storage unavailable */
     }
-  }, [allocation, pickLog, built, holds, placements]);
+  }, [ready, allocation, pickLog, built, holds, placements, plan]);
+
+  if (!ready)
+    return (
+      <main className="lab-shell live-shell">
+        <LabHeader current="live" />
+        {incoming ? (
+          <LiveDialog title="Import into Live Tracker">
+            <p>
+              Load the incoming{" "}
+              {incoming.source === "engine" ? "Build Lab" : "Theory Craft"} plan
+              into a fresh match, or keep your current picks, towers and map
+              placements?
+            </p>
+            <div className="live-dialog-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                autoFocus
+                onClick={() => acceptImport("keep")}
+              >
+                Keep current match
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => acceptImport("fresh")}
+              >
+                Start fresh
+              </button>
+            </div>
+          </LiveDialog>
+        ) : (
+          <p className="live-empty">Loading your tracker…</p>
+        )}
+      </main>
+    );
 
   return (
     <main className="lab-shell live-shell">
@@ -97,6 +173,7 @@ export function LiveTracker({
       <LabHeader current="live" />
 
       <StatusStrip assets={assets} />
+      <BuildLabTracker assets={assets} />
 
       {/*
        * One continuous page, deliberately — this tool is read and acted on

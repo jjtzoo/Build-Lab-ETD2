@@ -13,6 +13,47 @@ import { useLiveGame } from "@/components/live/store";
  */
 const store = useLiveGame;
 
+describe("copy-specific planned forms", () => {
+  beforeEach(reset);
+  it("locks only the selected copy and retains its path through evolution, undo, reload and move", () => {
+    store.getState().addBuilt("vapor", 1);
+    store.getState().addBuilt("vapor", 1);
+    const finalForm = { towerId: "haste", level: 2 };
+    store.getState().placeTower("forest", "vapor", 1, 3, 3, finalForm);
+    store.getState().placeTower("forest", "vapor", 1, 4, 3);
+    store.getState().setBuiltLevel("vapor", 1, 3, "forest:3,3");
+    expect(store.getState().built[0].quantity).toBe(2);
+    store.getState().evolveBuilt("vapor", 1, "haste", "forest:3,3");
+    expect(store.getState().placements[0]).toMatchObject({
+      towerId: "haste",
+      finalForm,
+    });
+    expect(store.getState().placements[1].towerId).toBe("vapor");
+    store.getState().undoEvolution();
+    expect(store.getState().placements[0]).toMatchObject({
+      towerId: "vapor",
+      finalForm,
+    });
+    store.getState().hydrate(store.getState());
+    expect(store.getState().placements[0].finalForm).toEqual(finalForm);
+    store.getState().movePlacement("forest:3,3", 5, 5);
+    expect(store.getState().placements[0]).toMatchObject({
+      col: 5,
+      row: 5,
+      finalForm,
+    });
+    store.getState().clearFinalForm("forest:5,5");
+    expect(store.getState().placements[0].finalForm).toBeUndefined();
+  });
+  it("rejects an unrelated destination without consuming a copy", () => {
+    store.getState().addBuilt("vapor", 1);
+    store
+      .getState()
+      .placeTower("forest", "vapor", 1, 1, 1, { towerId: "doom", level: 1 });
+    expect(store.getState().placements).toEqual([]);
+  });
+});
+
 /**
  * Haste is a Water/Fire/Earth Trio, so two keystones in each is the
  * smallest allocation that both makes it loggable and lets it reach
@@ -53,7 +94,7 @@ describe("live store — placements track the field log", () => {
     ]);
   });
 
-  it("carries a placement when levelling merges into an existing row", () => {
+  it("upgrades an unplaced copy and merges just that copy into the target row", () => {
     const s = store.getState();
     s.addBuilt("haste", 1);
     s.addBuilt("haste", 1);
@@ -65,10 +106,11 @@ describe("live store — placements track the field log", () => {
     s.setBuiltLevel("haste", 1, 2);
 
     const state = store.getState();
-    expect(state.placements[0].level).toBe(2);
-    expect(
-      state.built.filter((row) => row.towerId === "haste"),
-    ).toHaveLength(1);
+    expect(state.placements[0].level).toBe(1);
+    expect(state.built).toEqual([
+      { towerId: "haste", level: 1, quantity: 1 },
+      { towerId: "haste", level: 2, quantity: 2 },
+    ]);
   });
 
   it("carries a placement across an evolution", () => {
@@ -123,5 +165,93 @@ describe("live store — placements track the field log", () => {
     expect(store.getState().placements).toEqual([
       { mapId: "lava", towerId: "haste", level: 1, col: 3, row: 3 },
     ]);
+  });
+
+  it("arms each duplicate without adding a placement or hiding lower-level rows", () => {
+    fieldAndPlace("haste", 2);
+    store.getState().addBuilt("haste", 1);
+    const cue = store.getState().placementCue;
+    store.getState().addBuilt("haste", 1);
+    expect(store.getState().placementCue).toEqual({
+      towerId: "haste",
+      level: 1,
+    });
+    expect(store.getState().placementCue).not.toBe(cue);
+    expect(store.getState().built.find((r) => r.level === 1)?.quantity).toBe(2);
+    expect(store.getState().placements).toHaveLength(1);
+    store.getState().placeTower("forest", "haste", 1, 5, 5);
+    store.getState().placeTower("forest", "haste", 1, 6, 6);
+    expect(store.getState().placements).toHaveLength(3);
+  });
+
+  it("changes only one placement when every copy is placed", () => {
+    fieldAndPlace("haste", 1, 2);
+    store.getState().placeTower("forest", "haste", 1, 5, 5);
+    store.getState().setBuiltLevel("haste", 1, 2);
+    expect(store.getState().placements.map((p) => p.level)).toEqual([2, 1]);
+    expect(store.getState().built.map((r) => r.quantity)).toEqual([1, 1]);
+  });
+
+  it("undoes multiple evolutions, restoring row counts and cells without undoing picks", () => {
+    fieldAndPlace("mono-water", 1, 2);
+    const before = store.getState();
+    store.getState().evolveBuilt("mono-water", 1, "vapor");
+    expect(store.getState().placements[0].towerId).toBe("mono-water");
+    store.getState().evolveBuilt("vapor", 1, "haste");
+    store.getState().spendPick("Light");
+    expect(store.getState().evolutionHistory).toHaveLength(2);
+    store.getState().undoEvolution();
+    expect(store.getState().built.some((r) => r.towerId === "vapor")).toBe(
+      true,
+    );
+    store.getState().undoEvolution();
+    expect(store.getState().built).toEqual(before.built);
+    expect(store.getState().placements).toEqual(before.placements);
+    expect(store.getState().allocation.Light).toBe(1);
+  });
+
+  it("invalidates evolution snapshots after field or map edits and hydration", () => {
+    fieldAndPlace("vapor", 1);
+    store.getState().evolveBuilt("vapor", 1, "haste");
+    store.getState().setBuiltLevel("haste", 1, 2);
+    store.getState().undoEvolution();
+    expect(store.getState().built).toEqual([
+      { towerId: "haste", level: 2, quantity: 1 },
+    ]);
+    store.getState().addBuilt("vapor", 1);
+    store.getState().evolveBuilt("vapor", 1, "haste");
+    store.getState().hydrate(store.getState());
+    expect(store.getState().evolutionHistory).toEqual([]);
+    expect(store.getState().placementCue).toBeNull();
+  });
+
+  it("refuses upgrades and evolutions above current element depth", () => {
+    store.getState().newGame();
+    for (const el of ["Water", "Fire", "Earth"] as const)
+      store.getState().spendPick(el);
+    store.getState().addBuilt("vapor", 1);
+    store.getState().setBuiltLevel("vapor", 1, 2);
+    expect(store.getState().built[0].level).toBe(1);
+    store
+      .getState()
+      .hydrate({ built: [{ towerId: "vapor", level: 2, quantity: 1 }] });
+    store.getState().evolveBuilt("vapor", 2, "haste");
+    expect(store.getState().built[0].towerId).toBe("vapor");
+  });
+
+  it("enforces Essence timing and budget through add and quantity controls", () => {
+    store.getState().spendPick("Water");
+    store.getState().addBuilt("pure-water");
+    expect(store.getState().built).toEqual([]);
+    for (let i = 0; i < 4; i++) store.getState().hold();
+    store.getState().addBuilt("pure-water");
+    store.getState().setBuiltQuantity("pure-water", 1, 3);
+    expect(store.getState().built[0].quantity).toBe(1);
+    store.getState().setBuiltQuantity("pure-water", 1, 2);
+    store.getState().addBuilt("pure-water");
+    expect(store.getState().built[0].quantity).toBe(2);
+    store.getState().removeBuilt("pure-water", 1);
+    store.getState().addBuilt("pure-water");
+    expect(store.getState().built[0].quantity).toBe(1);
   });
 });

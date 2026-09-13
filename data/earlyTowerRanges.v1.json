@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "note": "Standard-mode ranges: baseline tower references reconciled with the global 1.9.4 range changes and 1.9.4.1 850-to-875 change. No campaign specializations. These facts support route-coverage ranking, not an ability-inclusive damage estimate.",
+  "sources": [
+    "https://gamingph.com/2021/04/list-of-all-towers-in-element-td-2/",
+    "https://eletd2.fandom.com/wiki/Cannon_Tower",
+    "https://steamdb.info/patchnotes/14857572/",
+    "https://steamdb.info/patchnotes/15327783/"
+  ],
+  "ranges": {
+    "arrow": 1150,
+    "cannon": 875,
+    "mono-light": 1750,
+    "mono-darkness": 1450,
+    "mono-water": 1000,
+    "mono-fire": 875,
+    "mono-nature": 875,
+    "mono-earth": 1000
+  }
+}

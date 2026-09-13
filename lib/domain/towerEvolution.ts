@@ -52,9 +52,7 @@ function basicTowerTargets(level: number): EvolutionStep[] {
 }
 
 /** The elements a tower is made of: its recipe, or a mono's single element. */
-export function towerElements(
-  towerId: TowerId,
-): readonly ElementName[] {
+export function towerElements(towerId: TowerId): readonly ElementName[] {
   if (isMonoTowerId(towerId)) {
     return [getMonoTower(towerId).element];
   }
@@ -62,9 +60,7 @@ export function towerElements(
 }
 
 function maxLevelOf(towerId: TowerId): number {
-  return isMonoTowerId(towerId)
-    ? MONO_MAX_LEVEL
-    : getTower(towerId).maxLevel;
+  return isMonoTowerId(towerId) ? MONO_MAX_LEVEL : getTower(towerId).maxLevel;
 }
 
 function isSupersetOf(
@@ -85,6 +81,9 @@ export function evolutionTargets(
   level: number,
 ): EvolutionStep[] {
   if (isBasicTowerId(towerId)) return basicTowerTargets(level);
+  // Pure / Periodic are terminal forms outside the normal catalog.
+  if (!isMonoTowerId(towerId) && !TOWERS.some((t) => t.id === towerId))
+    return [];
 
   const from = towerElements(towerId);
 
@@ -150,10 +149,7 @@ export function canEvolveInto(
 }
 
 /** Gold already sunk into a tower standing at `level`. */
-export function fieldedCost(
-  towerId: TowerId,
-  level: number,
-): number {
+export function fieldedCost(towerId: TowerId, level: number): number {
   if (isBasicTowerId(towerId)) return getBasicTower(towerId).cost;
   if (isMonoTowerId(towerId)) return monoTowerCost(level);
   return resolveNormalTowerCost(towerId, level).minimumFieldCost;
@@ -169,13 +165,9 @@ export function fieldedCost(
  * earning the whole time instead of leaving the field empty. A Trio II
  * costs 5,000 either way, but the mono route puts a tower up for 175.
  */
-export function evolutionCost(
-  from: EvolutionStep,
-  to: EvolutionStep,
-): number {
+export function evolutionCost(from: EvolutionStep, to: EvolutionStep): number {
   return Math.max(
     0,
-    fieldedCost(to.towerId, to.level) -
-      fieldedCost(from.towerId, from.level),
+    fieldedCost(to.towerId, to.level) - fieldedCost(from.towerId, from.level),
   );
 }

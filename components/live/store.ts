@@ -2,10 +2,7 @@
 
 import { create } from "zustand";
 
-import {
-  MAX_ELEMENT_LEVEL,
-  totalKeystones,
-} from "@/lib/engine/allocation";
+import { MAX_ELEMENT_LEVEL, totalKeystones } from "@/lib/engine/allocation";
 import type { ElementAllocation, ElementName } from "@/lib/domain/elements";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
 import {
@@ -21,6 +18,8 @@ import {
   type TowerPlacement,
 } from "@/lib/engine/liveGame";
 import { canEvolveInto } from "@/lib/domain/towerEvolution";
+import { liveBuildBlock } from "@/lib/engine/liveAvailability";
+import { followsFinalForm, placementKey } from "@/lib/engine/livePlacement";
 
 export type LiveSnapshot = {
   allocation: ElementAllocation;
@@ -39,6 +38,13 @@ export type LiveSnapshot = {
 };
 
 type LiveState = LiveSnapshot & {
+  placementCue: { towerId: string; level: number } | null;
+  evolutionHistory: {
+    built: BuiltTower[];
+    placements: TowerPlacement[];
+    label: string;
+  }[];
+  undoEvolution: () => void;
   plan: PortableBuild | null;
   /** Set for one render after a pick, so the UI can show what changed. */
   lastPick: { before: ElementAllocation; after: ElementAllocation } | null;
@@ -54,18 +60,17 @@ type LiveState = LiveSnapshot & {
     towerId: string,
     fromLevel: number,
     toLevel: number,
+    copyKey?: string,
   ) => void;
-  setBuiltQuantity: (
-    towerId: string,
-    level: number,
-    quantity: number,
-  ) => void;
+  setBuiltQuantity: (towerId: string, level: number, quantity: number) => void;
   removeBuilt: (towerId: string, level: number) => void;
   evolveBuilt: (
     fromTowerId: string,
     level: number,
     toTowerId: string,
+    copyKey?: string,
   ) => void;
+  clearFinalForm: (copyKey: string) => void;
 
   placeTower: (
     mapId: string,
@@ -73,8 +78,10 @@ type LiveState = LiveSnapshot & {
     level: number,
     col: number,
     row: number,
+    finalForm?: TowerPlacement["finalForm"],
   ) => void;
   unplaceTower: (mapId: string, col: number, row: number) => void;
+  movePlacement: (copyKey: string, col: number, row: number) => void;
 
   setPlan: (plan: PortableBuild | null) => void;
   newGame: () => void;
@@ -93,10 +100,7 @@ function emptySnapshot(): LiveSnapshot {
 
 /** Clamp a requested level to 1..absolute-max (ignores allocation). */
 function clampLevel(towerId: string, level: number): number {
-  return Math.max(
-    1,
-    Math.min(liveTowerMaxLevel(towerId), Math.round(level)),
-  );
+  return Math.max(1, Math.min(liveTowerMaxLevel(towerId), Math.round(level)));
 }
 
 /** Clamp to what the current picks actually support — used when logging. */
@@ -114,6 +118,19 @@ export const useLiveGame = create<LiveState>((set) => ({
   ...emptySnapshot(),
   plan: null,
   lastPick: null,
+  placementCue: null,
+  evolutionHistory: [],
+  undoEvolution: () =>
+    set((state) => {
+      const previous = state.evolutionHistory.at(-1);
+      if (!previous) return state;
+      return {
+        built: previous.built,
+        placements: previous.placements,
+        placementCue: null,
+        evolutionHistory: state.evolutionHistory.slice(0, -1),
+      };
+    }),
 
   spendPick: (element) =>
     set((state) => {
@@ -147,15 +164,15 @@ export const useLiveGame = create<LiveState>((set) => ({
   clearReveal: () => set({ lastPick: null }),
 
   hold: () => set((state) => ({ holds: state.holds + 1 })),
-  unhold: () =>
-    set((state) => ({ holds: Math.max(0, state.holds - 1) })),
+  unhold: () => set((state) => ({ holds: Math.max(0, state.holds - 1) })),
 
   addBuilt: (towerId, level) =>
     set((state) => {
       // The tracker mirrors the game — it must not let you log a tower the
       // current keystones can't reach. The UI already hides those; this is
       // the backstop.
-      if (!isTowerLoggable(towerId, state.allocation)) return state;
+      if (liveBuildBlock(towerId, state.allocation, state.holds, state.built))
+        return state;
 
       const lvl = clampReachable(towerId, level ?? 1, state.allocation);
       const existing = state.built.find((entry) =>
@@ -163,6 +180,8 @@ export const useLiveGame = create<LiveState>((set) => ({
       );
       if (existing) {
         return {
+          placementCue: { towerId, level: lvl },
+          evolutionHistory: [],
           built: state.built.map((entry) =>
             isSameBuiltRow(entry, towerId, lvl)
               ? { ...entry, quantity: entry.quantity + 1 }
@@ -171,61 +190,66 @@ export const useLiveGame = create<LiveState>((set) => ({
         };
       }
       return {
+        placementCue: { towerId, level: lvl },
+        evolutionHistory: [],
         built: [...state.built, { towerId, level: lvl, quantity: 1 }],
       };
     }),
 
-  setBuiltLevel: (towerId, fromLevel, toLevel) =>
+  setBuiltLevel: (towerId, fromLevel, toLevel, copyKey) =>
     set((state) => {
+      if (!Number.isFinite(toLevel)) return state;
       const lvl = clampLevel(towerId, toLevel);
       if (lvl === fromLevel) return state;
+      if (
+        lvl > fromLevel &&
+        liveTowerReachableLevel(towerId, state.allocation) < lvl
+      )
+        return state;
       const moving = state.built.find((entry) =>
         isSameBuiltRow(entry, towerId, fromLevel),
       );
       if (!moving) return state;
 
-      const mergeInto = state.built.find((entry) =>
+      const copy = copyKey
+        ? state.placements.find(
+            (p) =>
+              placementKey(p) === copyKey &&
+              isSameBuiltRow(p, towerId, fromLevel),
+          )
+        : moving.quantity <= placedCount(state.placements, towerId, fromLevel)
+          ? state.placements.find((p) => isSameBuiltRow(p, towerId, fromLevel))
+          : undefined;
+      if (copyKey && !copy) return state;
+      if (!followsFinalForm(towerId, lvl, copy?.finalForm)) return state;
+
+      let moved = !copy;
+      const placements = state.placements.map((placement) => {
+        if (moved || placement !== copy) return placement;
+        moved = true;
+        return { ...placement, level: lvl };
+      });
+      const drained = state.built
+        .map((entry) =>
+          isSameBuiltRow(entry, towerId, fromLevel)
+            ? { ...entry, quantity: entry.quantity - 1 }
+            : entry,
+        )
+        .filter((entry) => entry.quantity > 0);
+      const mergeInto = drained.some((entry) =>
         isSameBuiltRow(entry, towerId, lvl),
       );
-      /*
-       * Levelling a tower keeps it in its cell — it is the same building,
-       * upgraded in place, exactly as evolving it is. Without this the
-       * placement stayed pinned to the old level: the map went on drawing
-       * a Haste I on the grid while the field held only a Haste II, and
-       * the panel offered the copy for placement a second time.
-       */
-      const placements = state.placements.map((placement) =>
-        placement.towerId === towerId && placement.level === fromLevel
-          ? { ...placement, level: lvl }
-          : placement,
-      );
-
-      if (!mergeInto) {
-        // No row at the target level — just relabel this one in place.
-        return {
-          placements,
-          built: state.built.map((entry) =>
-            isSameBuiltRow(entry, towerId, fromLevel)
-              ? { ...entry, level: lvl }
-              : entry,
-          ),
-        };
-      }
-      // Fold the moving row's count into the existing target row.
       return {
         placements,
-        built: state.built
-          .filter(
-            (entry) => !isSameBuiltRow(entry, towerId, fromLevel),
-          )
-          .map((entry) =>
-            isSameBuiltRow(entry, towerId, lvl)
-              ? {
-                  ...entry,
-                  quantity: entry.quantity + moving.quantity,
-                }
-              : entry,
-          ),
+        evolutionHistory: [],
+        placementCue: { towerId, level: lvl },
+        built: mergeInto
+          ? drained.map((entry) =>
+              isSameBuiltRow(entry, towerId, lvl)
+                ? { ...entry, quantity: entry.quantity + 1 }
+                : entry,
+            )
+          : [...drained, { towerId, level: lvl, quantity: 1 }],
       };
     }),
 
@@ -233,7 +257,24 @@ export const useLiveGame = create<LiveState>((set) => ({
     set((state) => {
       // Dropping copies has to drop their cells too, or the map keeps
       // showing towers the field log says you no longer own.
-      const keep = Math.max(0, quantity);
+      if (!Number.isFinite(quantity)) return state;
+      const keep = Math.max(0, Math.round(quantity));
+      const previous = state.built.find((entry) =>
+        isSameBuiltRow(entry, towerId, level),
+      );
+      if (!previous || previous.quantity === keep) return state;
+      if (
+        keep > previous.quantity &&
+        (liveTowerReachableLevel(towerId, state.allocation) < level ||
+          liveBuildBlock(
+            towerId,
+            state.allocation,
+            state.holds,
+            state.built,
+            keep - previous.quantity,
+          ))
+      )
+        return state;
       let seen = 0;
       const placements = state.placements.filter((entry) => {
         if (entry.towerId !== towerId || entry.level !== level) return true;
@@ -242,6 +283,8 @@ export const useLiveGame = create<LiveState>((set) => ({
       });
 
       return {
+        evolutionHistory: [],
+        placementCue: keep > previous.quantity ? { towerId, level } : null,
         placements,
         built:
           keep <= 0
@@ -258,6 +301,8 @@ export const useLiveGame = create<LiveState>((set) => ({
 
   removeBuilt: (towerId, level) =>
     set((state) => ({
+      evolutionHistory: [],
+      placementCue: null,
       built: state.built.filter(
         (entry) => !isSameBuiltRow(entry, towerId, level),
       ),
@@ -274,14 +319,27 @@ export const useLiveGame = create<LiveState>((set) => ({
    * reach a tower is the same by any route. Swapping the row is the whole
    * operation.
    */
-  evolveBuilt: (fromTowerId, level, toTowerId) =>
+  evolveBuilt: (fromTowerId, level, toTowerId, copyKey) =>
     set((state) => {
       const source = state.built.find((entry) =>
         isSameBuiltRow(entry, fromTowerId, level),
       );
       if (!source) return state;
+      const copy = copyKey
+        ? state.placements.find(
+            (p) =>
+              placementKey(p) === copyKey &&
+              isSameBuiltRow(p, fromTowerId, level),
+          )
+        : source.quantity <= placedCount(state.placements, fromTowerId, level)
+          ? state.placements.find((p) => isSameBuiltRow(p, fromTowerId, level))
+          : undefined;
+      if (copyKey && !copy) return state;
+      if (!followsFinalForm(toTowerId, level, copy?.finalForm)) return state;
       if (!canEvolveInto(fromTowerId, toTowerId, level)) return state;
       if (!isTowerLoggable(toTowerId, state.allocation)) return state;
+      if (liveTowerReachableLevel(toTowerId, state.allocation) < level)
+        return state;
 
       const drained = state.built
         .map((entry) =>
@@ -299,13 +357,9 @@ export const useLiveGame = create<LiveState>((set) => ({
       // permanence is the whole reason to field a cheap tower early and
       // grow it in place rather than pay for the big one outright. Only
       // one copy evolves, so only the first matching placement moves.
-      let moved = false;
+      let moved = !copy;
       const placements = state.placements.map((entry) => {
-        if (
-          moved ||
-          entry.towerId !== fromTowerId ||
-          entry.level !== level
-        ) {
+        if (moved || entry !== copy) {
           return entry;
         }
         moved = true;
@@ -313,6 +367,15 @@ export const useLiveGame = create<LiveState>((set) => ({
       });
 
       return {
+        evolutionHistory: [
+          ...state.evolutionHistory,
+          {
+            built: state.built,
+            placements: state.placements,
+            label: `${fromTowerId} → ${toTowerId}`,
+          },
+        ],
+        placementCue: { towerId: toTowerId, level },
         placements,
         built: existing
           ? drained.map((entry) =>
@@ -331,9 +394,18 @@ export const useLiveGame = create<LiveState>((set) => ({
    * own is already standing somewhere — the map must not be able to
    * invent towers the tracker doesn't think you bought.
    */
-  placeTower: (mapId, towerId, level, col, row) =>
+  clearFinalForm: (copyKey) =>
+    set((state) => ({
+      evolutionHistory: [],
+      placements: state.placements.map((p) =>
+        placementKey(p) === copyKey ? { ...p, finalForm: undefined } : p,
+      ),
+    })),
+
+  placeTower: (mapId, towerId, level, col, row, finalForm) =>
     set((state) => {
       if (placementAt(state.placements, mapId, col, row)) return state;
+      if (!followsFinalForm(towerId, level, finalForm)) return state;
 
       const owned =
         state.built.find((entry) => isSameBuiltRow(entry, towerId, level))
@@ -343,15 +415,42 @@ export const useLiveGame = create<LiveState>((set) => ({
       }
 
       return {
+        evolutionHistory: [],
         placements: [
           ...state.placements,
-          { mapId, towerId, level, col, row },
+          {
+            mapId,
+            towerId,
+            level,
+            col,
+            row,
+            ...(finalForm ? { finalForm } : {}),
+          },
         ],
+      };
+    }),
+
+  movePlacement: (copyKey, col, row) =>
+    set((state) => {
+      const copy = state.placements.find((p) => placementKey(p) === copyKey);
+      if (
+        !copy ||
+        !Number.isInteger(col) ||
+        !Number.isInteger(row) ||
+        placementAt(state.placements, copy.mapId, col, row)
+      )
+        return state;
+      return {
+        evolutionHistory: [],
+        placements: state.placements.map((p) =>
+          p === copy ? { ...p, col, row } : p,
+        ),
       };
     }),
 
   unplaceTower: (mapId, col, row) =>
     set((state) => ({
+      evolutionHistory: [],
       placements: state.placements.filter(
         (entry) =>
           !(entry.mapId === mapId && entry.col === col && entry.row === row),
@@ -360,12 +459,20 @@ export const useLiveGame = create<LiveState>((set) => ({
 
   setPlan: (plan) => set({ plan }),
 
-  newGame: () => set({ ...emptySnapshot(), lastPick: null }),
+  newGame: () =>
+    set({
+      ...emptySnapshot(),
+      lastPick: null,
+      placementCue: null,
+      evolutionHistory: [],
+    }),
 
   hydrate: (snapshot) =>
     set((state) => {
       const built = mergeLegacyBuilt(snapshot.built) ?? state.built;
       return {
+        placementCue: null,
+        evolutionHistory: [],
         allocation: snapshot.allocation ?? state.allocation,
         pickLog: snapshot.pickLog ?? state.pickLog,
         built,
@@ -425,6 +532,10 @@ function sanePlacements(
       level,
       col: Math.round(entry.col),
       row: Math.round(entry.row),
+      ...(entry.finalForm &&
+      followsFinalForm(entry.towerId, level, entry.finalForm)
+        ? { finalForm: entry.finalForm }
+        : {}),
     });
   }
 

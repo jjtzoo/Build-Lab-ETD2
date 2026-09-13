@@ -53,6 +53,19 @@ export type PortableBuild = {
   coverageWeaknesses?: readonly ElementName[];
   /** v2, optional — the plan's End Game selections. */
   endGame?: readonly { name: string; quantity: number }[];
+  strategy?: {
+    towers: readonly {
+      towerId: string;
+      purpose: string;
+      roles: readonly string[];
+      synergyTags: readonly string[];
+    }[];
+    relations: readonly {
+      providerId: string;
+      consumerId: string;
+      text: string;
+    }[];
+  };
 };
 
 /** localStorage key the live game tracker reads for a handed-off build. */
@@ -68,10 +81,7 @@ function toBase64Url(input: string): string {
     typeof btoa === "function"
       ? btoa(binary)
       : Buffer.from(input, "utf-8").toString("base64");
-  return base64
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function fromBase64Url(input: string): string {
@@ -81,9 +91,7 @@ function fromBase64Url(input: string): string {
     .padEnd(Math.ceil(input.length / 4) * 4, "=");
   if (typeof atob === "function") {
     const binary = atob(base64);
-    const bytes = Uint8Array.from(binary, (char) =>
-      char.charCodeAt(0),
-    );
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
     return new TextDecoder().decode(bytes);
   }
   return Buffer.from(base64, "base64").toString("utf-8");
@@ -93,16 +101,13 @@ export function encodePortableBuild(build: PortableBuild): string {
   return toBase64Url(JSON.stringify(build));
 }
 
-export function decodePortableBuild(
-  encoded: string,
-): PortableBuild | null {
+export function decodePortableBuild(encoded: string): PortableBuild | null {
   try {
     const parsed = JSON.parse(fromBase64Url(encoded)) as unknown;
     if (!parsed || typeof parsed !== "object") return null;
     const build = parsed as PortableBuild;
     if (
-      (build.schema !== "etd2-build/1" &&
-        build.schema !== "etd2-build/2") ||
+      (build.schema !== "etd2-build/1" && build.schema !== "etd2-build/2") ||
       typeof build.anchorTowerId !== "string" ||
       !Array.isArray(build.towers)
     ) {
@@ -111,11 +116,38 @@ export function decodePortableBuild(
     if (
       build.towers.some(
         (entry) =>
-          typeof entry.towerId !== "string" ||
-          typeof entry.level !== "number",
+          typeof entry.towerId !== "string" || typeof entry.level !== "number",
       )
     ) {
       return null;
+    }
+    // Optional strategy metadata must never make an otherwise valid legacy
+    // plan unsafe to render (shared links and local storage are untrusted).
+    if (build.strategy) {
+      const s = build.strategy;
+      if (
+        !Array.isArray(s.towers) ||
+        !Array.isArray(s.relations) ||
+        s.towers.some(
+          (t) =>
+            !t ||
+            typeof t.towerId !== "string" ||
+            typeof t.purpose !== "string" ||
+            !Array.isArray(t.roles) ||
+            t.roles.some((r: unknown) => typeof r !== "string") ||
+            !Array.isArray(t.synergyTags) ||
+            t.synergyTags.some((r: unknown) => typeof r !== "string"),
+        ) ||
+        s.relations.some(
+          (r) =>
+            !r ||
+            typeof r.providerId !== "string" ||
+            typeof r.consumerId !== "string" ||
+            typeof r.text !== "string",
+        )
+      ) {
+        delete build.strategy;
+      }
     }
     return build;
   } catch {

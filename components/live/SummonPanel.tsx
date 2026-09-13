@@ -15,6 +15,7 @@ import {
 } from "@/lib/engine/liveGame";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { useLiveGame } from "@/components/live/store";
+import { AvailabilityPanel } from "./AvailabilityPanel";
 
 /**
  * The one screen the player looks at during a summon: what to pick, what
@@ -39,9 +40,7 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
 
   const planNeeds = useMemo(
     () =>
-      plan
-        ? new Set(planKeystoneProgress(plan, allocation).stillNeeded)
-        : null,
+      plan ? new Set(planKeystoneProgress(plan, allocation).stillNeeded) : null,
     [plan, allocation],
   );
   // Shared with the status bar's pips so the two can't disagree about
@@ -81,6 +80,8 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
         target &&
         (target.tagName === "INPUT" ||
           target.tagName === "SELECT" ||
+          target.tagName === "TEXTAREA" ||
+          target.closest("dialog") ||
           target.isContentEditable)
       ) {
         return;
@@ -139,13 +140,15 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
               )}
             </strong>
             <span className="live-rec-why">
-              {recommended.coreRolesOpened.length > 0
-                ? `opens ${recommended.coreRolesOpened.join(", ")}`
-                : recommended.newlyUnlocked.length > 0
-                  ? `unlocks ${recommended.newlyUnlocked.slice(0, 3).join(", ")}`
-                  : recommended.deepened.length > 0
-                    ? `deepens ${recommended.deepened.slice(0, 3).join(", ")}`
-                    : "no new access — pick for coverage"}
+              {recommended.planPriority?.kind === "anchor-first"
+                ? `anchor first: bring ${recommended.planPriority.towerName} online`
+                : recommended.coreRolesOpened.length > 0
+                  ? `opens ${recommended.coreRolesOpened.join(", ")}`
+                  : recommended.newlyUnlocked.length > 0
+                    ? `unlocks ${recommended.newlyUnlocked.slice(0, 3).join(", ")}`
+                    : recommended.deepened.length > 0
+                      ? `deepens ${recommended.deepened.slice(0, 3).join(", ")}`
+                      : "no new access — pick for coverage"}
             </span>
           </div>
           <span className="live-rec-key">
@@ -162,8 +165,8 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
       {gaps.weakAgainst.length > 0 && (
         <p className="live-coverage-warn">
           <span aria-hidden="true">⚠</span> Your damage is halved into{" "}
-          <strong>{gaps.weakAgainst.join(", ")}</strong> armour — nothing on
-          the field answers it.
+          <strong>{gaps.weakAgainst.join(", ")}</strong> armour — nothing on the
+          field answers it.
         </p>
       )}
 
@@ -195,8 +198,7 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
       {reveal && (revealChips.length > 0 || deepened.length > 0) && (
         <div className="live-reveal">
           <span className="live-reveal-label">
-            {reveal.element} {roman(reveal.toElementLevel)} — tap what you
-            built
+            {reveal.element} {roman(reveal.toElementLevel)} — tap what you built
           </span>
           <div className="live-reveal-chips">
             {revealChips.map((change) => (
@@ -204,9 +206,7 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
                 key={change.towerId}
                 type="button"
                 className="live-reveal-chip"
-                onClick={() =>
-                  addBuilt(change.towerId, change.afterLevel)
-                }
+                onClick={() => addBuilt(change.towerId, change.afterLevel)}
               >
                 <LiveTowerIcon
                   towerId={change.towerId}
@@ -224,6 +224,7 @@ export function SummonPanel({ assets }: { assets: BuildLabAssets }) {
           )}
         </div>
       )}
+      <AvailabilityPanel assets={assets} />
     </motion.section>
   );
 }

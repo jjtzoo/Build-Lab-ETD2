@@ -4,10 +4,10 @@ import { useState } from "react";
 import type { PlanDto } from "@/lib/engine/buildRecommendationDto";
 import {
   encodePortableBuild,
-  PENDING_IMPORT_KEY,
   PORTABLE_BUILD_SCHEMA,
   type PortableBuild,
 } from "@/lib/domain/portableBuild";
+import { getLiveStorage, liveImportUrl } from "@/lib/domain/liveImport";
 
 /** Query strings much past this stop being reliably shareable. */
 const MAX_URL_PAYLOAD = 6000;
@@ -24,6 +24,19 @@ export function planToPortableBuild(plan: PlanDto): PortableBuild {
     })),
     allocation: plan.allocation,
     createdAt: new Date().toISOString(),
+    strategy: {
+      towers: plan.package.map((t) => ({
+        towerId: t.id,
+        purpose: t.purpose,
+        roles: t.roles,
+        synergyTags: t.synergyTags,
+      })),
+      relations: plan.synergy.relations.map((r) => ({
+        providerId: r.providerId,
+        consumerId: r.consumerId,
+        text: r.text,
+      })),
+    },
     progression: plan.progression.map((stage) => ({
       stage: stage.stage,
       headline: stage.headline,
@@ -52,19 +65,7 @@ export function OpenInLive({ plan }: { plan: PlanDto }) {
 
   function open() {
     const portable = planToPortableBuild(plan);
-    const encoded = encodePortableBuild(portable);
-    try {
-      window.localStorage.setItem(
-        PENDING_IMPORT_KEY,
-        JSON.stringify(portable),
-      );
-    } catch {
-      /* storage unavailable — the URL path still works */
-    }
-    window.location.href =
-      encoded.length <= MAX_URL_PAYLOAD
-        ? `/live?b=${encoded}`
-        : "/live";
+    window.location.href = liveImportUrl(portable, getLiveStorage());
   }
 
   async function copyLink() {
@@ -86,11 +87,7 @@ export function OpenInLive({ plan }: { plan: PlanDto }) {
       <button type="button" className="primary-button" onClick={open}>
         Open in Live Tracker →
       </button>
-      <button
-        type="button"
-        className="secondary-button"
-        onClick={copyLink}
-      >
+      <button type="button" className="secondary-button" onClick={copyLink}>
         {copied ? "Link copied" : "Copy plan link"}
       </button>
       <span className="featured-handoff-note">
