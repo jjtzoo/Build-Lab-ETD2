@@ -17,6 +17,7 @@ import { LiveTracker } from "@/components/live/LiveTracker";
 import { BuildLabTracker } from "@/components/live/BuildLabTracker";
 import { PlanPanel } from "@/components/live/PlanPanel";
 import { StrategyStatus } from "@/components/live/StrategyStatus";
+import { EvolutionQueue } from "@/components/live/EvolutionQueue";
 import { useLiveGame } from "@/components/live/store";
 import { emptyLiveAllocation } from "@/lib/engine/liveGame";
 import {
@@ -153,6 +154,21 @@ describe("live field controls", () => {
 });
 
 describe("placement origin and final form", () => {
+  it("advances the reserved placed copy and keeps its final target", () => {
+    const state = useLiveGame.getState();
+    state.addBuilt("vapor", 1);
+    state.placeTower("forest", "vapor", 1, 3, 3, {
+      towerId: "haste",
+      level: 1,
+    });
+    render(<EvolutionQueue assets={assets} />);
+    fireEvent.click(screen.getByRole("button", { name: /Advance → Haste/ }));
+    expect(useLiveGame.getState().placements[0]).toMatchObject({
+      towerId: "haste",
+      level: 1,
+      finalForm: { towerId: "haste", level: 1 },
+    });
+  });
   it("orders final-form choices by Mono, Dual, Trio, then Quad", () => {
     useLiveGame.getState().spendPick("Nature");
     useLiveGame.getState().addBuilt("mono-nature", 1);

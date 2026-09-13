@@ -77,6 +77,10 @@ type LiveState = LiveSnapshot & {
     copyKey?: string,
   ) => void;
   clearFinalForm: (copyKey: string) => void;
+  setFinalForm: (
+    copyKey: string,
+    finalForm: NonNullable<TowerPlacement["finalForm"]>,
+  ) => void;
 
   placeTower: (
     mapId: string,
@@ -407,6 +411,17 @@ export const useLiveGame = create<LiveState>((set) => ({
       evolutionHistory: [],
       placements: state.placements.map((p) =>
         placementKey(p) === copyKey ? { ...p, finalForm: undefined } : p,
+      ),
+    })),
+
+  setFinalForm: (copyKey, finalForm) =>
+    set((state) => ({
+      evolutionHistory: [],
+      placements: state.placements.map((p) =>
+        placementKey(p) === copyKey &&
+        followsFinalForm(p.towerId, p.level, finalForm)
+          ? { ...p, finalForm }
+          : p,
       ),
     })),
 

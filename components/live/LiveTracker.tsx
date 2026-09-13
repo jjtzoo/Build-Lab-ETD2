@@ -15,6 +15,7 @@ import { FieldPanel } from "@/components/live/FieldPanel";
 import { MapPanel } from "@/components/live/MapPanel";
 import { PlanPanel } from "@/components/live/PlanPanel";
 import { BuildLabTracker } from "@/components/live/BuildLabTracker";
+import { EvolutionQueue } from "@/components/live/EvolutionQueue";
 import { useLiveGame, type LiveSnapshot } from "@/components/live/store";
 import {
   consumeLiveImport,
@@ -217,6 +218,9 @@ export function LiveTracker({
             ) : (
               <SummonPanel assets={assets} />
             )}
+          </div>
+          <div className="live-section">
+            <EvolutionQueue assets={assets} />
           </div>
           <div className="live-section">
             <FieldPanel assets={assets} />

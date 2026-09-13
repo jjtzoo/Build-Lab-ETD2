@@ -4870,6 +4870,119 @@ button.mechanic-chip {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
 }
+.live-evolution-queue {
+  padding: clamp(18px, 3.5vw, 26px);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-raised));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.live-queue-count {
+  color: var(--text-2);
+  font-size: 12px;
+}
+.live-queue-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.live-queue-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(132px, auto) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.live-queue-row[data-ready] {
+  border-color: color-mix(in srgb, var(--focus) 42%, var(--line));
+}
+.live-queue-icon {
+  display: grid;
+  place-items: center;
+}
+.live-queue-route {
+  min-width: 0;
+}
+.live-queue-route strong,
+.live-queue-route small,
+.live-queue-action small {
+  display: block;
+}
+.live-queue-route strong {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-queue-route small,
+.live-queue-action small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.live-queue-target select {
+  max-width: 175px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12.5px;
+}
+.live-queue-action {
+  min-width: 112px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.live-queue-action button {
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--focus) 38%, var(--line));
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--focus) 9%, var(--surface-raised));
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+.live-queue-action button:disabled {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+.live-queue-clear {
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+}
+.live-queue-clear:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+@media (max-width: 700px) {
+  .live-queue-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .live-queue-target,
+  .live-queue-action {
+    grid-column: 2 / -1;
+  }
+  .live-queue-target select {
+    max-width: 100%;
+    width: 100%;
+  }
+  .live-queue-clear {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
 /* The left column is intentionally a decision stack, not three equal cards. */
 .live-col-main > .live-section:first-child .live-plan-panel {
   border-color: color-mix(in srgb, var(--focus) 34%, var(--line));
