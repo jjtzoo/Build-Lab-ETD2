@@ -71,7 +71,7 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
       window.removeEventListener("resize", apply);
       observer?.disconnect();
     };
-  }, [allocation, built, holds, plan]);
+  }, [allocation, built, holds, plan, matchLength]);
   const setPlan = useLiveGame((s) => s.setPlan);
   const newGame = useLiveGame((s) => s.newGame);
   const spendPick = useLiveGame((s) => s.spendPick);
@@ -167,12 +167,13 @@ export function StatusStrip({ assets }: { assets: BuildLabAssets }) {
           className="mono live-strip-gold"
           title={`Estimated bank from ${economy.checkpoint.label} length calibration, before interest. ${gold(goldSpent)} spent.`}
         >
-          ~{gold(economy.availableGold)}
+          <small>Estimated gold</small>
+          <strong>~{gold(economy.availableGold)}</strong>
         </span>
 
         {progress && (
           <span className="live-strip-next">
-            <span className="live-strip-stage">Now</span>
+            <span className="live-strip-stage">Next action</span>
             {progress.nextAction ? (
               <PlanAction action={progress.nextAction} />
             ) : progress.blockedAction ? (

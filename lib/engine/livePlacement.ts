@@ -66,6 +66,12 @@ export function followsFinalForm(
 ): boolean {
   return (
     !finalForm ||
+    // Reaching a reserved tower completes its branch, not its level cap.
+    // Later levels of that same tower remain valid; different branches
+    // still need to reach the exact reserved form below.
+    (towerId === finalForm.towerId &&
+      level >= finalForm.level &&
+      level <= liveTowerMaxLevel(towerId)) ||
     placementDestinations(towerId, level).some(
       (step) =>
         step.tower.id === finalForm.towerId && step.level === finalForm.level,

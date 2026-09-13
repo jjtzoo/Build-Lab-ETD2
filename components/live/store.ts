@@ -7,6 +7,8 @@ import type { ElementAllocation, ElementName } from "@/lib/domain/elements";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
 import {
   emptyLiveAllocation,
+  deriveGoldSpent,
+  derivedPhase,
   isSameBuiltRow,
   isTowerLoggable,
   liveTowerMaxLevel,
@@ -21,11 +23,19 @@ import { canEvolveInto } from "@/lib/domain/towerEvolution";
 import { liveBuildBlock } from "@/lib/engine/liveAvailability";
 import { followsFinalForm, placementKey } from "@/lib/engine/livePlacement";
 import {
+  calibratedEconomy,
   isLiveMatchLength,
   type LiveMatchLength,
 } from "@/lib/engine/liveEconomy";
+import {
+  queuePurchaseBlock,
+  validQueueForm,
+  type PlannedCopy,
+  type QueueForm,
+} from "@/lib/engine/liveQueue";
 
 export type LiveSnapshot = {
+  plannedCopies: PlannedCopy[];
   /** The Element TD 2 length checkpoint used to calibrate the coach's bank estimate. */
   matchLength: LiveMatchLength;
   allocation: ElementAllocation;
@@ -44,7 +54,21 @@ export type LiveSnapshot = {
 };
 
 type LiveState = LiveSnapshot & {
-  placementCue: { towerId: string; level: number } | null;
+  placementCue: {
+    towerId: string;
+    level: number;
+    plannedCopyId?: string;
+    finalForm?: QueueForm;
+  } | null;
+  reserveCopy: (form: QueueForm, target: QueueForm) => void;
+  cancelCopy: (id: string) => void;
+  selectPlannedCopy: (id: string) => void;
+  placePlannedCopy: (
+    id: string,
+    mapId: string,
+    col: number,
+    row: number,
+  ) => void;
   evolutionHistory: {
     built: BuiltTower[];
     placements: TowerPlacement[];
@@ -101,6 +125,7 @@ type LiveState = LiveSnapshot & {
 
 function emptySnapshot(): LiveSnapshot {
   return {
+    plannedCopies: [],
     matchLength: "full",
     allocation: emptyLiveAllocation(),
     pickLog: [],
@@ -132,6 +157,103 @@ export const useLiveGame = create<LiveState>((set) => ({
   lastPick: null,
   placementCue: null,
   evolutionHistory: [],
+  reserveCopy: (form, target) =>
+    set((state) => {
+      if (
+        !validQueueForm(form) ||
+        !validQueueForm(target) ||
+        !followsFinalForm(form.towerId, form.level, target)
+      )
+        return state;
+      const copy = {
+        ...form,
+        finalForm: { ...target },
+        id: crypto.randomUUID(),
+      };
+      return {
+        plannedCopies: [...state.plannedCopies, copy],
+        placementCue: {
+          ...form,
+          finalForm: copy.finalForm,
+          plannedCopyId: copy.id,
+        },
+      };
+    }),
+  cancelCopy: (id) =>
+    set((state) => ({
+      plannedCopies: state.plannedCopies.filter((copy) => copy.id !== id),
+      placementCue:
+        state.placementCue?.plannedCopyId === id ? null : state.placementCue,
+    })),
+  selectPlannedCopy: (id) =>
+    set((state) => {
+      const copy = state.plannedCopies.find((entry) => entry.id === id);
+      return copy
+        ? {
+            placementCue: {
+              towerId: copy.towerId,
+              level: copy.level,
+              finalForm: copy.finalForm,
+              plannedCopyId: id,
+            },
+          }
+        : state;
+    }),
+  placePlannedCopy: (id, mapId, col, row) =>
+    set((state) => {
+      const copy = state.plannedCopies.find((entry) => entry.id === id);
+      if (
+        !copy ||
+        !Number.isInteger(col) ||
+        !Number.isInteger(row) ||
+        placementAt(state.placements, mapId, col, row)
+      )
+        return state;
+      const bank = calibratedEconomy(
+        derivedPhase(state.allocation, state.holds),
+        deriveGoldSpent(state.built),
+        state.matchLength,
+      ).availableGold;
+      if (
+        queuePurchaseBlock(
+          copy,
+          state.allocation,
+          state.holds,
+          state.built,
+          bank,
+        )
+      )
+        return state;
+      const existing = state.built.some((entry) =>
+        isSameBuiltRow(entry, copy.towerId, copy.level),
+      );
+      return {
+        plannedCopies: state.plannedCopies.filter((entry) => entry.id !== id),
+        built: existing
+          ? state.built.map((entry) =>
+              isSameBuiltRow(entry, copy.towerId, copy.level)
+                ? { ...entry, quantity: entry.quantity + 1 }
+                : entry,
+            )
+          : [
+              ...state.built,
+              { towerId: copy.towerId, level: copy.level, quantity: 1 },
+            ],
+        placements: [
+          ...state.placements,
+          {
+            mapId,
+            col,
+            row,
+            towerId: copy.towerId,
+            level: copy.level,
+            finalForm: copy.finalForm,
+          },
+        ],
+        placementCue: null,
+        evolutionHistory: [],
+      };
+    }),
   undoEvolution: () =>
     set((state) => {
       const previous = state.evolutionHistory.at(-1);
@@ -239,7 +361,14 @@ export const useLiveGame = create<LiveState>((set) => ({
       const placements = state.placements.map((placement) => {
         if (moved || placement !== copy) return placement;
         moved = true;
-        return { ...placement, level: lvl };
+        const finalForm = placement.finalForm;
+        return {
+          ...placement,
+          level: lvl,
+          ...(finalForm?.towerId === towerId && lvl > finalForm.level
+            ? { finalForm: { ...finalForm, level: lvl } }
+            : {}),
+        };
       });
       const drained = state.built
         .map((entry) =>
@@ -497,6 +626,17 @@ export const useLiveGame = create<LiveState>((set) => ({
       return {
         placementCue: null,
         evolutionHistory: [],
+        plannedCopies: Array.isArray(snapshot.plannedCopies)
+          ? snapshot.plannedCopies.filter(
+              (copy, index, all) =>
+                copy &&
+                typeof copy.id === "string" &&
+                all.findIndex((item) => item?.id === copy.id) === index &&
+                validQueueForm(copy) &&
+                validQueueForm(copy.finalForm) &&
+                followsFinalForm(copy.towerId, copy.level, copy.finalForm),
+            )
+          : [],
         matchLength: isLiveMatchLength(snapshot.matchLength)
           ? snapshot.matchLength
           : state.matchLength,

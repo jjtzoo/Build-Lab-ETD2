@@ -15,6 +15,59 @@ const store = useLiveGame;
 
 describe("copy-specific planned forms", () => {
   beforeEach(reset);
+  it("raises only the selected copy's reached target and preserves it after reload", () => {
+    fieldAndPlace("haste", 1, 2);
+    store.getState().setFinalForm("forest:3,3", { towerId: "haste", level: 1 });
+    store
+      .getState()
+      .placeTower("forest", "haste", 1, 4, 3, { towerId: "haste", level: 1 });
+    store.getState().setBuiltLevel("haste", 1, 2, "forest:4,3");
+    const saved = store.getState();
+    store.getState().newGame();
+    store.getState().hydrate(saved);
+    expect(
+      store.getState().placements.map((p) => [p.level, p.finalForm?.level]),
+    ).toEqual([
+      [1, 1],
+      [2, 2],
+    ]);
+  });
+  it("keeps planned copies through reload and refuses double confirmation or an unaffordable purchase", () => {
+    store
+      .getState()
+      .reserveCopy(
+        { towerId: "cannon", level: 1 },
+        { towerId: "haste", level: 2 },
+      );
+    const saved = store.getState();
+    const id = saved.plannedCopies[0].id;
+    expect(saved.built).toEqual([]);
+    store.getState().newGame();
+    store.getState().hydrate(saved);
+    store.getState().placePlannedCopy(id, "forest", 3, 3);
+    store.getState().placePlannedCopy(id, "forest", 4, 3);
+    expect(store.getState().placements).toHaveLength(1);
+    expect(store.getState().built).toEqual([
+      { towerId: "cannon", level: 1, quantity: 1 },
+    ]);
+    reset();
+    store.getState().addBuilt("haste", 2);
+    store
+      .getState()
+      .reserveCopy(
+        { towerId: "haste", level: 2 },
+        { towerId: "haste", level: 2 },
+      );
+    store
+      .getState()
+      .placePlannedCopy(store.getState().plannedCopies[0].id, "forest", 3, 3);
+    expect(store.getState().built).toEqual([
+      { towerId: "haste", level: 2, quantity: 1 },
+    ]);
+    expect(store.getState().plannedCopies).toHaveLength(1);
+    store.getState().cancelCopy(store.getState().plannedCopies[0].id);
+    expect(store.getState().plannedCopies).toEqual([]);
+  });
   it("locks only the selected copy and retains its path through evolution, undo, reload and move", () => {
     store.getState().addBuilt("vapor", 1);
     store.getState().addBuilt("vapor", 1);

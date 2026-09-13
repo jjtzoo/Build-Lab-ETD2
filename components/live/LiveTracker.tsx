@@ -41,6 +41,7 @@ export function LiveTracker({
   const built = useLiveGame((s) => s.built);
   const holds = useLiveGame((s) => s.holds);
   const placements = useLiveGame((s) => s.placements);
+  const plannedCopies = useLiveGame((s) => s.plannedCopies);
   const matchLength = useLiveGame((s) => s.matchLength);
   const plan = useLiveGame((s) => s.plan);
   const newGame = useLiveGame((s) => s.newGame);
@@ -130,6 +131,7 @@ export function LiveTracker({
           built,
           holds,
           placements,
+          plannedCopies,
         }),
       );
       if (plan)
@@ -138,7 +140,17 @@ export function LiveTracker({
     } catch {
       /* storage unavailable */
     }
-  }, [ready, matchLength, allocation, pickLog, built, holds, placements, plan]);
+  }, [
+    ready,
+    matchLength,
+    allocation,
+    pickLog,
+    built,
+    holds,
+    placements,
+    plannedCopies,
+    plan,
+  ]);
 
   if (!ready)
     return (

@@ -16,6 +16,7 @@ import { AvailabilityPanel } from "@/components/live/AvailabilityPanel";
 import { LiveTracker } from "@/components/live/LiveTracker";
 import { BuildLabTracker } from "@/components/live/BuildLabTracker";
 import { PlanPanel } from "@/components/live/PlanPanel";
+import { StatusStrip } from "@/components/live/StatusStrip";
 import { StrategyStatus } from "@/components/live/StrategyStatus";
 import { EvolutionQueue } from "@/components/live/EvolutionQueue";
 import { useLiveGame } from "@/components/live/store";
@@ -85,6 +86,59 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("live field controls", () => {
+  it.each(["field", "plan", "status strip"])(
+    "upgrades Trickery locked to I through the %s control",
+    (control) => {
+      const state = useLiveGame.getState();
+      state.hydrate({
+        allocation: {
+          Light: 2,
+          Darkness: 2,
+          Water: 1,
+          Fire: 1,
+          Nature: 1,
+          Earth: 1,
+        },
+      });
+      state.addBuilt("trickery", 1);
+      state.placeTower("forest", "trickery", 1, 7, 4, {
+        towerId: "trickery",
+        level: 1,
+      });
+      state.setPlan({
+        ...plan,
+        anchorTowerId: "trickery",
+        towers: [{ towerId: "trickery", level: 2 }],
+      });
+      render(
+        control === "field" ? (
+          <FieldPanel assets={assets} />
+        ) : control === "status strip" ? (
+          <StatusStrip assets={assets} />
+        ) : (
+          <PlanPanel assets={assets} />
+        ),
+      );
+      const button =
+        control === "field"
+          ? within(
+              screen.getByRole("group", { name: "Trickery level" }),
+            ).getByRole("button", { name: "II" })
+          : screen.getByRole("button", { name: "Upgrade one Trickery II" });
+      expect(button).toBeEnabled();
+      fireEvent.click(button);
+      expect(useLiveGame.getState().built).toEqual([
+        { towerId: "trickery", level: 2, quantity: 1 },
+      ]);
+      expect(useLiveGame.getState().placements[0]).toMatchObject({
+        towerId: "trickery",
+        level: 2,
+        col: 7,
+        row: 4,
+        finalForm: { towerId: "trickery", level: 2 },
+      });
+    },
+  );
   it("confirms all copies and placements before deleting a row", () => {
     const state = useLiveGame.getState();
     state.addBuilt("haste", 1);
@@ -154,6 +208,65 @@ describe("live field controls", () => {
 });
 
 describe("placement origin and final form", () => {
+  it("advances an ordinary level upgrade in the queue", () => {
+    const state = useLiveGame.getState();
+    state.addBuilt("muck", 1);
+    state.placeTower("forest", "muck", 1, 3, 3, { towerId: "muck", level: 2 });
+    render(<EvolutionQueue assets={assets} />);
+    fireEvent.click(screen.getByRole("button", { name: "Advance → Muck II" }));
+    expect(useLiveGame.getState().placements[0]).toMatchObject({
+      towerId: "muck",
+      level: 2,
+      col: 3,
+      row: 3,
+    });
+  });
+  it("reserves another target from Cannon and logs it only when placed", () => {
+    const state = useLiveGame.getState();
+    state.addBuilt("haste", 1);
+    state.placeTower("forest", "haste", 1, 3, 3, {
+      towerId: "haste",
+      level: 2,
+    });
+    const { container } = render(
+      <>
+        <EvolutionQueue assets={assets} />
+        <MapPanel assets={assets} />
+      </>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Add copy of Haste II/ }),
+    );
+    fireEvent.change(screen.getByLabelText("Starting tower"), {
+      target: { value: "cannon@1" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reserve and choose spot" }),
+    );
+    expect(useLiveGame.getState().built).toEqual([
+      { towerId: "haste", level: 1, quantity: 1 },
+    ]);
+    expect(useLiveGame.getState().plannedCopies[0]).toMatchObject({
+      towerId: "cannon",
+      finalForm: { towerId: "haste", level: 2 },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    expect(useLiveGame.getState().plannedCopies).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Choose spot" }));
+    fireEvent.click(container.querySelector('polygon[data-rank="0"]')!);
+    fireEvent.click(screen.getByRole("button", { name: "Log and place copy" }));
+    expect(useLiveGame.getState().plannedCopies).toEqual([]);
+    expect(useLiveGame.getState().placements).toHaveLength(2);
+    expect(useLiveGame.getState().placements[1]).toMatchObject({
+      towerId: "cannon",
+      level: 1,
+      finalForm: { towerId: "haste", level: 2 },
+    });
+    expect(
+      useLiveGame.getState().built.find((entry) => entry.towerId === "cannon")
+        ?.quantity,
+    ).toBe(1);
+  });
   it("advances the reserved placed copy and keeps its final target", () => {
     const state = useLiveGame.getState();
     state.addBuilt("vapor", 1);

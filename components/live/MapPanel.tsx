@@ -54,6 +54,9 @@ import { useLiveGame } from "@/components/live/store";
 import { LiveTowerIcon } from "@/components/live/LiveTowerIcon";
 import { LiveDialog } from "@/components/live/LiveDialog";
 import { liveCoaching, type LivePlanAction } from "@/lib/engine/liveCoaching";
+import { queuePurchaseBlock } from "@/lib/engine/liveQueue";
+import { calibratedEconomy } from "@/lib/engine/liveEconomy";
+import { deriveGoldSpent, derivedPhase } from "@/lib/engine/liveGame";
 
 type EditMode = "calibrate" | "trace" | "buildable" | "measure" | null;
 
@@ -340,6 +343,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const [origin, setOrigin] = useState<{
     towerId: string;
     level: number;
+    plannedCopyId?: string;
   } | null>(null);
   const [destinationQuery, setDestinationQuery] = useState("");
   const finalForms = useRef(
@@ -380,18 +384,45 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
   const movePlacement = useLiveGame((s) => s.movePlacement);
   const removeBuilt = useLiveGame((s) => s.removeBuilt);
   const placementCue = useLiveGame((s) => s.placementCue);
+  const plannedCopies = useLiveGame((s) => s.plannedCopies);
+  const placePlannedCopy = useLiveGame((s) => s.placePlannedCopy);
+  const matchLength = useLiveGame((s) => s.matchLength);
+  const plannedCopy = plannedCopies.find(
+    (copy) => copy.id === origin?.plannedCopyId,
+  );
+  const plannedCopyBlock = plannedCopy
+    ? queuePurchaseBlock(
+        plannedCopy,
+        allocation,
+        holds,
+        built,
+        calibratedEconomy(
+          derivedPhase(allocation, holds),
+          deriveGoldSpent(built),
+          matchLength,
+        ).availableGold,
+      )
+    : null;
   useEffect(() => {
     if (!placementCue) return;
     setMovingKey(null);
-    const intent = finalForms.current.get(
-      `${placementCue.towerId}@${placementCue.level}`,
-    );
+    const intent =
+      placementCue.finalForm ??
+      finalForms.current.get(`${placementCue.towerId}@${placementCue.level}`);
     setOrigin(placementCue);
     setSelectedTowerId(intent?.towerId ?? placementCue.towerId);
     setPlannedLevel(intent?.level ?? null);
     setDestinationQuery("");
     setSelectedCell(null);
   }, [placementCue]);
+  useEffect(() => {
+    if (origin?.plannedCopyId && !plannedCopy) {
+      setOrigin(null);
+      setSelectedTowerId(null);
+      setPlannedLevel(null);
+      setSelectedCell(null);
+    }
+  }, [origin, plannedCopy]);
 
   /** Only this map's placements — a cell is only taken on its own map. */
   const placedHere = useMemo(
@@ -683,7 +714,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
     !!selectedCell &&
     !selectedPlacement &&
     !!origin &&
-    (!!movingCopy || unplacedCopies > 0);
+    (origin.plannedCopyId
+      ? !!plannedCopy && !plannedCopyBlock
+      : !!movingCopy || unplacedCopies > 0);
 
   /**
    * Commit the previewed cell.
@@ -697,8 +730,19 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
    */
   const confirmSelectedCell = () => {
     if (!canConfirmSelectedCell || !selectedCell || !origin) return;
-    if (movingCopy) {
-      movePlacement(placementKey(movingCopy), selectedCell.col, selectedCell.row);
+    if (plannedCopy) {
+      placePlannedCopy(
+        plannedCopy.id,
+        map.id,
+        selectedCell.col,
+        selectedCell.row,
+      );
+    } else if (movingCopy) {
+      movePlacement(
+        placementKey(movingCopy),
+        selectedCell.col,
+        selectedCell.row,
+      );
     } else {
       placeTower(
         map.id,
@@ -1119,7 +1163,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         </LiveDialog>
       )}
 
-      {endStatePicks.length > 0 && (
+      {endStatePicks.length > 0 && !plannedCopy && (
         <div className="live-map-picks live-map-destinations">
           <span className="live-map-picks-label">
             Final form for{" "}
@@ -1297,11 +1341,14 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
               <span className="live-map-planning">
                 {" "}
                 · {/* "all copies placed" is only true if you own some. */}
-                {unplacedCopies > 0
-                  ? `${unplacedCopies} to place — preview a cell, then confirm`
-                  : ownedCopies > 0
-                    ? "all copies placed"
-                    : "not on your field yet — scouting the spot"}
+                {plannedCopy
+                  ? (plannedCopyBlock ??
+                    "planned copy — confirm to log and place")
+                  : unplacedCopies > 0
+                    ? `${unplacedCopies} to place — preview a cell, then confirm`
+                    : ownedCopies > 0
+                      ? "all copies placed"
+                      : "not on your field yet — scouting the spot"}
               </span>
             )}
           </span>
@@ -1310,7 +1357,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
             className="live-map-clear"
             onClick={() => selectTower(null)}
           >
-            Deselect tower
+            Clear selection
           </button>
         </p>
       )}
@@ -1429,7 +1476,7 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                             standing.level,
                           )} — select to inspect or move`
                         : isSelected && canConfirmSelectedCell
-                          ? `Tap again to confirm ${origin ? liveTowerName(origin.towerId) : selectedTower?.name ?? ""} at ${cellLabel(cell, labelOrigin)}`
+                          ? `Tap again to confirm ${origin ? liveTowerName(origin.towerId) : (selectedTower?.name ?? "")} at ${cellLabel(cell, labelOrigin)}`
                           : selectedTower && unplacedCopies > 0
                             ? `Preview ${origin ? liveTowerName(origin.towerId) : selectedTower.name} here`
                             : cellLabel(cell, labelOrigin)}
@@ -1651,6 +1698,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                 cx={selectedCell.col}
                 cy={selectedCell.row}
                 r={visibleRangeRadius}
+                fill="none"
+                stroke="#9acba3"
+                strokeOpacity={0.65}
                 className="live-map-range"
                 data-compressed={rangeDisplayCompressed || undefined}
               />
@@ -1659,7 +1709,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
         </div>
       )}
 
-      {!editMode && selectedCell && overlayRect &&
+      {!editMode &&
+        selectedCell &&
+        overlayRect &&
         createPortal(
           <div
             className="live-placement-confirm"
@@ -1678,7 +1730,9 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                   {selectedPlacement.finalForm && (
                     <>
                       {" "}
-                    → {liveTowerName(selectedPlacement.finalForm.towerId)}{" "}
+                      → {liveTowerName(
+                        selectedPlacement.finalForm.towerId,
+                      )}{" "}
                       {liveTowerLevelLabel(
                         selectedPlacement.finalForm.towerId,
                         selectedPlacement.finalForm.level,
@@ -1724,7 +1778,8 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                       {liveTowerName(origin.towerId)}{" "}
                       {liveTowerLevelLabel(origin.towerId, origin.level)}
                       {selectedTower &&
-                      (movingCopy?.finalForm ||
+                      (plannedCopy?.finalForm ||
+                        movingCopy?.finalForm ||
                         finalForms.current.has(
                           `${origin.towerId}@${origin.level}`,
                         )) ? (
@@ -1745,13 +1800,18 @@ export function MapPanel({ assets }: { assets: BuildLabAssets }) {
                   disabled={!canConfirmSelectedCell}
                   onClick={confirmSelectedCell}
                 >
-                  {movingCopy ? "Confirm move" : "Confirm placement"}
+                  {plannedCopy
+                    ? "Log and place copy"
+                    : movingCopy
+                      ? "Confirm move"
+                      : "Confirm placement"}
                 </button>
                 <small>
                   Tap {cellLabel(selectedCell, labelOrigin)} again to confirm,
                   or another open cell to change this preview.
                 </small>
-                {!movingCopy && unplacedCopies <= 0 && (
+                {plannedCopyBlock && <small>{plannedCopyBlock}</small>}
+                {!plannedCopy && !movingCopy && unplacedCopies <= 0 && (
                   <small>Log another copy or move a placed tower first.</small>
                 )}
               </>

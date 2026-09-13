@@ -4193,6 +4193,9 @@ button.mechanic-chip {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  background: color-mix(in srgb, var(--surface-internal) 70%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .live-plan-dock[data-mode="float"][data-collapsed] .live-plan-tab {
   width: auto;
@@ -4240,16 +4243,16 @@ button.mechanic-chip {
   border-radius: 0 0 var(--radius) var(--radius);
   border-top: 0;
   /* Translucent by default — see through it to the page beneath. */
-  background: color-mix(in srgb, var(--surface) 68%, transparent);
-  backdrop-filter: blur(14px) saturate(1.1);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  background: color-mix(in srgb, var(--surface) 56%, transparent);
+  backdrop-filter: blur(8px) saturate(0.9);
+  -webkit-backdrop-filter: blur(8px) saturate(0.9);
   transition: background 160ms var(--ease);
 }
 /* Firm up when it is being read or moved. */
 .live-plan-dock[data-mode="float"]:hover .live-build-rail,
 .live-plan-dock[data-mode="float"]:focus-within .live-build-rail,
 .live-plan-dock[data-mode="float"][data-dragging] .live-build-rail {
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
 }
 .live-plan-dock[data-mode="float"][data-dragging] {
   box-shadow: var(--shadow-2);
@@ -4546,6 +4549,10 @@ button.mechanic-chip {
   align-items: center;
   gap: 6px;
   color: var(--muted);
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-left: 2px solid var(--focus);
+  background: var(--surface-raised);
 }
 .live-strip-do {
   display: inline-flex;
@@ -4568,6 +4575,26 @@ button.mechanic-chip {
 }
 .live-strip-do:active {
   transform: translateY(1px);
+}
+.live-strip-next .live-strip-do {
+  padding: 9px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--focus) 65%, var(--line));
+  background: color-mix(in srgb, var(--focus) 17%, var(--surface));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--focus) 12%, transparent);
+}
+.live-strip-next .live-strip-do b {
+  color: var(--text);
+  font-weight: 750;
+}
+.live-strip-next .live-strip-do:hover {
+  background: color-mix(in srgb, var(--focus) 25%, var(--surface));
+}
+.live-strip-next .live-strip-do:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 /* Collapsed by default — the roadmap is reference, not a live control. */
 .live-roadmap > summary {
@@ -4709,7 +4736,23 @@ button.mechanic-chip {
   color: var(--muted);
 }
 .live-strip-gold {
+  display: grid;
+  gap: 2px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, #e6c15f 35%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, #e6c15f 7%, var(--surface));
+  color: #e6c15f;
+  font-variant-numeric: tabular-nums;
+}
+.live-strip-gold small {
+  font-family: inherit;
+  font-size: 11.5px;
   color: var(--text-2);
+}
+.live-strip-gold strong {
+  font-size: 20px;
+  line-height: 1.1;
 }
 .live-strip-plan {
   display: inline-flex;
@@ -4889,7 +4932,7 @@ button.mechanic-chip {
 }
 .live-queue-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(132px, auto) auto auto;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 10px;
@@ -4913,11 +4956,9 @@ button.mechanic-chip {
   display: block;
 }
 .live-queue-route strong {
-  overflow: hidden;
   color: var(--text-2);
   font-size: 13.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .live-queue-route small,
 .live-queue-action small {
@@ -4936,6 +4977,7 @@ button.mechanic-chip {
   font-size: 12.5px;
 }
 .live-queue-action {
+  grid-column: 2 / -1;
   min-width: 112px;
   color: var(--muted);
   font-size: 12.5px;
@@ -4966,22 +5008,71 @@ button.mechanic-chip {
   color: var(--text);
   text-decoration: underline;
 }
-@media (max-width: 700px) {
-  .live-queue-row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-  .live-queue-target,
-  .live-queue-action {
-    grid-column: 2 / -1;
-  }
-  .live-queue-target select {
-    max-width: 100%;
-    width: 100%;
-  }
-  .live-queue-clear {
-    grid-column: 1;
-    grid-row: 2;
-  }
+.live-queue-compose {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--focus);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.live-queue-compose label {
+  display: grid;
+  gap: 6px;
+}
+.live-queue-compose select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.live-queue-compose p,
+.live-queue-detail {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.live-queue-detail,
+.live-queue-tools,
+.live-queue-edit {
+  grid-column: 2 / -1;
+}
+.live-queue-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.live-queue-copy,
+.live-queue-tools .secondary-button {
+  padding: 7px 9px;
+  font-size: 12.5px;
+  min-height: 36px;
+}
+.live-queue-edit summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}
+.live-queue-edit[open] > label {
+  display: block;
+  margin: 8px 0;
+}
+.live-queue-target select {
+  max-width: 100%;
+  width: 100%;
+}
+.live-queue-row[data-planned] {
+  border-style: dashed;
+}
+.live-evolution-queue button:focus-visible,
+.live-evolution-queue summary:focus-visible,
+.live-evolution-queue select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 /* The left column is intentionally a decision stack, not three equal cards. */
 .live-col-main > .live-section:first-child .live-plan-panel {
@@ -6427,9 +6518,9 @@ button.mechanic-chip {
   stroke-width: 2;
 }
 .live-map-range {
-  fill: rgb(230 193 95 / 0.06);
-  stroke: rgb(230 193 95 / 0.52);
-  stroke-width: 1.25;
+  fill: none;
+  stroke: rgb(154 203 163 / 0.65);
+  stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
