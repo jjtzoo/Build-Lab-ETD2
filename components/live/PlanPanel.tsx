@@ -40,7 +40,10 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
   const { nextAction, blockedAction, nextPick, complete } = coaching;
   const coverageAdvice = useMemo(
     () =>
-      coverage.unanswered.map((armour) => {
+      // A missing 2× counter is normal in the opening and does not mean the
+      // player is losing the matchup. Escalate only when the whole field is
+      // actually taking a penalty on average, then keep the advice focused.
+      coverage.weakAgainst.slice(0, 2).map((armour) => {
         const counter = coaching.actions.find((action) => {
           try {
             const damage = getTower(action.towerId).damageElement;
@@ -54,7 +57,7 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
         });
         return { armour, counter };
       }),
-    [coaching.actions, coverage.unanswered],
+    [coaching.actions, coverage.weakAgainst],
   );
   return (
     <section id="live-plan" className="live-plan-panel" aria-label="Plan">
@@ -134,14 +137,14 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
                   <b>{armour} armour</b>
                   {counter ? (
                     <span>
-                      is uncovered. Build toward {counter.towerName}{" "}
+                      is a low-damage matchup. Build toward {counter.towerName}{" "}
                       {liveTowerLevelLabel(counter.towerId, counter.toLevel)};
                       its compatible precursors are promoted in Your field.
                     </span>
                   ) : (
                     <span>
-                      is uncovered. This plan has no remaining direct counter
-                      ready to recommend.
+                      is a low-damage matchup. This plan has no remaining
+                      direct counter ready to recommend.
                     </span>
                   )}
                 </li>
@@ -149,10 +152,8 @@ export function PlanPanel({ assets }: { assets: BuildLabAssets }) {
             </ul>
           ) : (
             <p className="live-plan-coverage-clear">
-              No direct coverage hole on your current field.
-              {plan.coverageWeaknesses?.length
-                ? ` The final plan still leaves ${plan.coverageWeaknesses.join(", ")} armour weaker.`
-                : ""}
+              No active coverage risk. This only calls out armour when your
+              field averages below 0.85× damage against it.
             </p>
           )}
         </section>

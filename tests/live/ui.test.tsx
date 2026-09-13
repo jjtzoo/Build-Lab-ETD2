@@ -637,6 +637,12 @@ describe("plan and import interactions", () => {
       { towerId: "haste", level: 2, quantity: 1 },
     ]);
   });
+  it("keeps coverage advice quiet until the field has a real damage penalty", () => {
+    useLiveGame.getState().setPlan(plan);
+    render(<PlanPanel assets={assets} />);
+    expect(screen.getByText(/No active coverage risk/)).toBeVisible();
+    expect(screen.queryByText(/is uncovered/)).toBeNull();
+  });
   it.each(["Keep current match", "Start fresh"])(
     "waits for %s before hydrating and consumes the handoff",
     (choice) => {
