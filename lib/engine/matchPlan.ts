@@ -965,6 +965,16 @@ export function generateMatchPlan(
   let actionOrder = 0;
   const phases: MatchPlanPhase[] = [];
   const violations: string[] = [];
+  const rescueOrdinalByTower = new Map<string, number>();
+  for (const purchase of queue) {
+    rescueOrdinalByTower.set(
+      purchase.towerId,
+      Math.max(
+        rescueOrdinalByTower.get(purchase.towerId) ?? 0,
+        purchase.copyOrdinal,
+      ),
+    );
+  }
   const earliestAffordableWave = (
     requiredGold: number,
     startWave: number,
@@ -1259,22 +1269,166 @@ export function generateMatchPlan(
         temporary: !!pending.temporaryCarry,
       });
     }
-    const coverage = coverageRows(field);
-    const survival = evaluatePhaseSurvival({
-      map,
-      mode,
-      difficulty,
-      startWave: definition.start,
-      endWave: definition.end,
-      towers: field,
-      availableFromWave: new Map(
-        actions.flatMap((action) =>
+    const availabilityFor = (
+      candidate?: { copyId: string; targetWave: number },
+    ) =>
+      new Map([
+        ...actions.flatMap((action) =>
           action.copyId && action.affordable
             ? [[action.copyId, action.targetWave ?? definition.start] as const]
             : [],
         ),
-      ),
-    });
+        ...(candidate
+          ? [[candidate.copyId, candidate.targetWave] as const]
+          : []),
+      ]);
+    const evaluate = (
+      towers: readonly PlannedTowerState[],
+      candidate?: { copyId: string; targetWave: number },
+    ) =>
+      evaluatePhaseSurvival({
+        map,
+        mode,
+        difficulty,
+        startWave: definition.start,
+        endWave: definition.end,
+        towers,
+        availableFromWave: availabilityFor(candidate),
+      });
+    const verifiedShortfall = (result: MatchPlanPhase["survival"]) =>
+      result.waves.reduce(
+        (sum, wave) =>
+          wave.status === "unverified"
+            ? sum
+            : sum + Math.max(0, 1 - (wave.margin ?? 0)),
+        0,
+      );
+    let survival = evaluate(field);
+
+    // A snapshot is not allowed to recommend a field that is known to leak.
+    // Spend the reserve when necessary, then add the most efficient legal copy
+    // that improves the verified five-wave damage floor. Unknown abilities stay
+    // explicitly unverified and never masquerade as a pass.
+    for (let rescueStep = 0; rescueStep < 8; rescueStep += 1) {
+      const currentShortfall = verifiedShortfall(survival);
+      if (currentShortfall <= 0) break;
+      const sourceTowers = [
+        ...new Map(
+          field
+            .filter(
+              (tower) =>
+                (tower.effect === "damage" || tower.effect === "hybrid") &&
+                !tower.globalBuff &&
+                combatFacts(tower.towerId, tower.level) != null &&
+                isLegal(tower.towerId, tower.level, allocation),
+            )
+            .map((tower) => [`${tower.towerId}@${tower.level}`, tower]),
+        ).values(),
+      ];
+      const candidates = sourceTowers.flatMap((source) => {
+        const cost = actionCost(source.towerId, 0, source.level);
+        if (cost <= 0 || cumulativeCost + cost > gross) return [];
+        const ordinal = (rescueOrdinalByTower.get(source.towerId) ?? 0) + 1;
+        const copyId = stableId(
+          planId,
+          "copy",
+          source.towerId,
+          ordinal,
+        );
+        const placement = chooseCell(
+          map,
+          mode,
+          camps,
+          source.towerId,
+          source.level,
+          field,
+        );
+        if (!placement) return [];
+        const targetWave = earliestAffordableWave(
+          cumulativeCost + cost,
+          definition.start,
+          definition.end,
+        );
+        const origin = originFor(map);
+        const tower: PlannedTowerState = {
+          ...source,
+          copyId,
+          quantity: 1,
+          purpose: "Zero-leak survival repair",
+          roles: source.roles.length ? source.roles : ["main-dps"],
+          status: "temporary",
+          cell: placement.cell,
+          cellLabel: cellLabel(placement.cell, origin),
+          campId: placement.campId,
+        };
+        const nextSurvival = evaluate([...field, tower], {
+          copyId,
+          targetWave,
+        });
+        const nextShortfall = verifiedShortfall(nextSurvival);
+        if (nextShortfall >= currentShortfall - 0.0001) return [];
+        return [
+          {
+            tower,
+            cost,
+            ordinal,
+            targetWave,
+            survival: nextSurvival,
+            shortfall: nextShortfall,
+            efficiency: (currentShortfall - nextShortfall) / cost,
+          },
+        ];
+      });
+      const best = candidates.sort(
+        (a, b) =>
+          a.shortfall - b.shortfall ||
+          b.efficiency - a.efficiency ||
+          a.cost - b.cost,
+      )[0];
+      if (!best) break;
+      field = [...field, best.tower];
+      cumulativeCost += best.cost;
+      phaseCost += best.cost;
+      rescueOrdinalByTower.set(best.tower.towerId, best.ordinal);
+      const repairedWaves = best.survival.waves
+        .filter(
+          (wave) =>
+            wave.status !== "unverified" &&
+            (survival.waves.find((before) => before.wave === wave.wave)
+              ?.margin ?? 1) < 1,
+        )
+        .map((wave) => `W${wave.wave}`)
+        .join(", ");
+      actions.push({
+        id: stableId(
+          planId,
+          definition.id,
+          "survival-repair",
+          best.tower.copyId,
+        ),
+        phaseId: definition.id,
+        order: actionOrder++,
+        type: "build",
+        summary: `Add ${best.tower.towerName} ${best.tower.level}`,
+        reason: `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. Survival spending takes priority over the reserve.`,
+        towerId: best.tower.towerId,
+        towerName: best.tower.towerName,
+        copyId: best.tower.copyId,
+        fromLevel: 0,
+        toLevel: best.tower.level,
+        cost: best.cost,
+        legal: true,
+        affordable: true,
+        targetWave: best.targetWave,
+        cell: best.tower.cell ?? undefined,
+        cellLabel: best.tower.cellLabel ?? undefined,
+        campId: best.tower.campId ?? undefined,
+        temporary: true,
+      });
+      survival = best.survival;
+    }
+
+    const coverage = coverageRows(field);
     const critical = coverage.filter(
       (row) => row.status === "critical" || row.status === "weak",
     );

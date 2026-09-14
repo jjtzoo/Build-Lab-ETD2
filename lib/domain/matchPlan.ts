@@ -122,6 +122,7 @@ export type MatchPlanWaveSurvival = {
   effectiveWaveHp: number;
   modeledDamage: number | null;
   margin: number | null;
+  estimatedLeaks: number | null;
   status: "survives" | "borderline" | "fails" | "unverified";
   limitingFactor: string | null;
 };

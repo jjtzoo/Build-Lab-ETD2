@@ -89,11 +89,13 @@ export function evaluatePhaseSurvival({
         effectiveWaveHp: 0,
         modeledDamage: null,
         margin: null,
+        estimatedLeaks: null,
         status: "unverified" as const,
         limitingFactor: "No benchmark row is available for this wave.",
       };
 
-    let incomplete = benchmark.modelConfidence === "ability-estimate";
+    const unknownAbility = benchmark.modelConfidence === "ability-estimate";
+    let missingTowerFacts = false;
     const modeledDamage = towers.reduce((sum, tower) => {
       if (wave < (availableFromWave?.get(tower.copyId) ?? startWave))
         return sum;
@@ -101,7 +103,7 @@ export function evaluatePhaseSurvival({
         return sum;
       const facts = combatFacts(tower.towerId, tower.level);
       if (!facts || !tower.cell) {
-        incomplete = true;
+        missingTowerFacts = true;
         return sum;
       }
       const coverage = coverageForMode(map, tower.cell, facts.range, mode);
@@ -118,15 +120,26 @@ export function evaluatePhaseSurvival({
       );
     }, 0);
     const effectiveWaveHp = benchmark.effectiveHpPerCreep * benchmark.count;
-    const margin = incomplete ? null : modeledDamage / effectiveWaveHp;
+    const margin = modeledDamage / effectiveWaveHp;
+    const estimatedLeaks =
+      unknownAbility || missingTowerFacts
+        ? null
+        : Math.max(
+            0,
+            Math.min(
+              benchmark.count,
+              Math.ceil(
+                (effectiveWaveHp - modeledDamage) /
+                  benchmark.effectiveHpPerCreep,
+              ),
+            ),
+          );
     const status =
-      margin == null
+      unknownAbility || missingTowerFacts
         ? ("unverified" as const)
-        : margin >= 1.15
+        : margin >= 1
           ? ("survives" as const)
-          : margin >= 1
-            ? ("borderline" as const)
-            : ("fails" as const);
+          : ("fails" as const);
     return {
       wave,
       element: benchmark.element,
@@ -134,32 +147,31 @@ export function evaluatePhaseSurvival({
       count: benchmark.count,
       hpPerCreep: benchmark.hpPerCreep,
       effectiveWaveHp,
-      modeledDamage: incomplete ? null : modeledDamage,
+      modeledDamage,
       margin,
+      estimatedLeaks,
       status,
       limitingFactor:
         status === "fails"
           ? `${benchmark.element} armour leaves the modeled field short of the wave HP.`
-          : status === "borderline"
-            ? "The modeled margin is under the 15% safety threshold."
-            : status === "unverified"
-              ? "A tower stat or placement is missing."
+          : status === "unverified"
+            ? unknownAbility
+              ? `${benchmark.ability} is not quantified yet; base HP, speed and tower damage are still shown.`
+              : "A tower stat or placement is missing."
               : null,
     };
   });
 
   const measured = waves.filter(
     (wave): wave is (typeof waves)[number] & { margin: number } =>
-      wave.margin != null,
+      wave.status !== "unverified" && wave.margin != null,
   );
   const worst = [...measured].sort((a, b) => a.margin - b.margin)[0];
   const status = waves.some((wave) => wave.status === "fails")
     ? "fails"
     : waves.some((wave) => wave.status === "unverified")
       ? "unverified"
-      : waves.some((wave) => wave.status === "borderline")
-        ? "borderline"
-        : "survives";
+      : "survives";
   return {
     status,
     worstWave: worst?.wave ?? null,
@@ -168,8 +180,8 @@ export function evaluatePhaseSurvival({
     assumptions: [
       `${difficulty} creep HP and per-wave unit counts are benchmark inputs.`,
       "Damage capacity uses each placed tower's traced seconds in range plus wave spawn duration.",
-      "Elemental armour multipliers are applied; interest, active abilities, buffs and overkill are not credited.",
-      "A 15% modeled margin is required for a clear verdict.",
+      "Elemental armour multipliers are applied. Interest, active abilities, buffs and overkill are not credited.",
+      "Every verified wave must reach 100% damage capacity. The planner never spends the 50-life pool as a buffer.",
     ],
   };
 }
