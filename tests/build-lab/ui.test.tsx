@@ -70,6 +70,7 @@ const assets = {
   towerForms: {},
   towerIcons: {},
   elementTowerIcons: {},
+  basicTowerIcons: {},
   endGameForms: {},
   towerHero: {},
 } as BuildLabAssets;

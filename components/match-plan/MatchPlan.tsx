@@ -7,6 +7,7 @@ import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { LabFooter, LabHeader } from "@/components/build-lab/LabChrome";
 import {
   getMonoTower,
+  isBasicTowerId,
   isMonoTowerId,
 } from "@/lib/domain/auxiliaryTowers";
 import { ELEMENTS, type ElementName } from "@/lib/domain/elements";
@@ -197,11 +198,14 @@ export function MatchPlanView({
   const towerIcons = assets?.towerIcons ?? {};
   const elementTowerIcons =
     assets?.elementTowerIcons ?? ({} as Record<ElementName, string | null>);
+  const basicTowerIcons =
+    assets?.basicTowerIcons ?? ({} as Record<string, string | null>);
   const iconForTower = (towerId: string): string | null | undefined => {
     const direct = towerIcons[towerId];
     if (direct) return direct;
     if (isMonoTowerId(towerId))
       return elementTowerIcons[getMonoTower(towerId).element] ?? null;
+    if (isBasicTowerId(towerId)) return basicTowerIcons[towerId] ?? null;
     return direct;
   };
   const hydrated = useRef(false);

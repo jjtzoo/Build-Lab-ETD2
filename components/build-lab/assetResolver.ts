@@ -3,6 +3,10 @@ import "server-only";
 import { existsSync, readdirSync } from "node:fs";
 import { extname, join } from "node:path";
 
+import {
+  BASIC_TOWERS,
+  type BasicTowerId,
+} from "@/lib/domain/auxiliaryTowers";
 import type { ElementName } from "@/lib/domain/elements";
 import type { EndGameTowerId } from "@/lib/domain/endGameTower";
 import type { TowerId } from "@/lib/domain/tower";
@@ -32,6 +36,12 @@ export type BuildLabAssets = {
    * `towerIcons`.
    */
   elementTowerIcons: Record<ElementName, string | null>;
+  /**
+   * Icon art for the non-elemental starter towers (Arrow, Cannon). These
+   * also live outside the recommendation catalog, so basic placements
+   * resolve their token art through here instead of `towerIcons`.
+   */
+  basicTowerIcons: Record<BasicTowerId, string | null>;
   towerHero: Record<TowerId, TowerHeroMedia>;
   endGameForms: Record<EndGameTowerId, string | null>;
   elements: Record<ElementName, string | null>;
@@ -156,6 +166,9 @@ export function resolveBuildLabAssets(): BuildLabAssets {
         iconLookup.get(element.toLowerCase()) ?? null,
       ]),
     ) as Record<ElementName, string | null>,
+    basicTowerIcons: Object.fromEntries(
+      BASIC_TOWERS.map((tower) => [tower.id, iconLookup.get(tower.id) ?? null]),
+    ) as Record<BasicTowerId, string | null>,
     towerHero: resolveHeroMedia(hero, towerForms),
     endGameForms: Object.fromEntries(
       END_GAME_TOWER_IDS.map((id) => [id, endGameLookup.get(id) ?? null]),
