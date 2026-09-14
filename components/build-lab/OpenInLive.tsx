@@ -56,7 +56,7 @@ export function planToPortableBuild(plan: PlanDto): PortableBuild {
 }
 
 /**
- * Hands this plan to Live Tracking. The build always goes through
+ * Hands this build to Match Plan. The build always goes through
  * localStorage so the handoff works regardless of size; the URL carries it
  * too when it is short enough to stay shareable.
  */
@@ -73,7 +73,7 @@ export function OpenInLive({ plan }: { plan: PlanDto }) {
     if (encoded.length > MAX_URL_PAYLOAD) return;
     try {
       await navigator.clipboard.writeText(
-        `${window.location.origin}/live?b=${encoded}`,
+        `${window.location.origin}/match-plan?b=${encoded}`,
       );
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
@@ -85,13 +85,13 @@ export function OpenInLive({ plan }: { plan: PlanDto }) {
   return (
     <div className="featured-handoff">
       <button type="button" className="primary-button" onClick={open}>
-        Open in Live Tracker →
+        Open in Match Plan →
       </button>
       <button type="button" className="secondary-button" onClick={copyLink}>
         {copied ? "Link copied" : "Copy plan link"}
       </button>
       <span className="featured-handoff-note">
-        Track this plan wave by wave while you play.
+        Plan camps, coverage and purchases before the match.
       </span>
     </div>
   );

@@ -271,7 +271,7 @@ describe("import resolution", () => {
         items.delete(k);
       },
     };
-    expect(liveImportUrl(plan, storage)).toContain("/live?b=");
+    expect(liveImportUrl(plan, storage)).toContain("/match-plan?b=");
     expect(items.has(PENDING_IMPORT_KEY)).toBe(true);
     expect(
       consumeLiveImport(storage, "https://lab.example/live?b=payload&edit=1"),
@@ -280,7 +280,7 @@ describe("import resolution", () => {
   });
   it("uses URL fallback when storage is unavailable, including oversized builds", () => {
     const longPlan = { ...plan, createdAt: "x".repeat(7000) };
-    expect(liveImportUrl(longPlan, null)).toContain("/live?b=");
+    expect(liveImportUrl(longPlan, null)).toContain("/match-plan?b=");
     expect(consumeLiveImport(null, "https://lab.example/live?b=x")).toBe(
       "/live",
     );

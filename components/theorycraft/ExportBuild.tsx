@@ -90,11 +90,11 @@ export function ExportBuild() {
       </div>
       <div className="tc-export-actions">
         <button type="button" className="primary-button" onClick={openInLive}>
-          Open in Live Tracker →
+          Open in Match Plan →
         </button>
         <span className="tc-export-note">
-          Live Tracking coaches a hand-built plan from your core roles — a Build
-          Lab plan also brings its staged roadmap.
+          Match Plan turns this lineup into phase snapshots, camps and a safe
+          purchase sequence.
         </span>
       </div>
     </section>

@@ -18,7 +18,7 @@ import { SupportLink } from "@/components/SupportRail";
 export const metadata: Metadata = {
   title: "Element TD 2 Build Lab",
   description:
-    "Three tools for planning an Element TD 2 game — a recommendation engine, a theory-craft sandbox, and live tracking.",
+    "Three tools for planning an Element TD 2 game — a recommendation engine, a theory-craft sandbox, and a pre-game Match Plan.",
   authors: [{ name: "JJ Toledo" }],
   creator: "JJ Toledo (jjtzoo)",
 };
@@ -53,9 +53,7 @@ export default function Home() {
         "Pick a main DPS anchor; the engine returns a full plan — package, keystone route, coverage, synergy, End Game.",
       href: "/build-lab",
       cta: "Open Build Lab",
-      preview: (
-        <BuildLabPreview data={buildLabData} assets={assets} />
-      ),
+      preview: <BuildLabPreview data={buildLabData} assets={assets} />,
     },
     {
       id: "theorycraft",
@@ -69,12 +67,12 @@ export default function Home() {
     },
     {
       id: "live",
-      eyebrow: "Track",
-      title: "Live Tracking",
+      eyebrow: "Prepare",
+      title: "Match Plan",
       blurb:
-        "Bring a plan into a real game. Tick your picks, see what unlocks, get the one move that matters next.",
-      href: "/live",
-      cta: "Open Live Tracking",
+        "Turn a build into phase snapshots, camp assignments, coverage repairs and a safe purchase sequence before loading in.",
+      href: "/match-plan",
+      cta: "Open Match Plan",
       preview: <LivePreview assets={assets} />,
     },
   ];
@@ -106,8 +104,8 @@ export default function Home() {
         <p className="eyebrow">Element TD 2</p>
         <h1>Plan the whole game, three ways.</h1>
         <p>
-          A recommendation engine, a theory-craft sandbox, and a live
-          tracker that walks your plan wave by wave.
+          A recommendation engine, a theory-craft sandbox, and a pre-game
+          strategy storyboard that plans the whole match.
         </p>
       </div>
 

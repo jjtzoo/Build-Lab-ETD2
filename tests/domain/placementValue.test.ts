@@ -245,7 +245,7 @@ describe("placementValue — support towers", () => {
     baseDps: 1000,
   };
 
-  it("ranks a tower buff by the damage standing in its radius", () => {
+  it("never scores a global tower buff by nearby allied damage", () => {
     const withDealer = placementValue({
       ...base,
       cell: { col: 30, row: 1 },
@@ -260,9 +260,10 @@ describe("placementValue — support towers", () => {
     });
 
     expect(withDealer.kind).toBe("tower-buff");
-    expect(withDealer.score).toBe(1000);
-    expect(away.score).toBe(0);
-    expect(away.note).toContain("No placed damage tower");
+    expect(withDealer.score).toBe(withDealer.damage);
+    expect(away.score).toBe(away.damage);
+    expect(withDealer.note).toContain("global");
+    expect(away.note).toContain("global");
   });
 
   it("explains itself rather than scoring every cell zero", () => {
@@ -271,8 +272,8 @@ describe("placementValue — support towers", () => {
       cell: FRONT,
       towerId: "blacksmith",
     });
-    expect(nothingPlaced.score).toBe(0);
-    expect(nothingPlaced.note).toContain("Nothing placed yet");
+    expect(nothingPlaced.score).toBe(nothingPlaced.damage);
+    expect(nothingPlaced.note).toContain("global");
   });
 
   it("ranks a short debuff by overlap with placed damage", () => {

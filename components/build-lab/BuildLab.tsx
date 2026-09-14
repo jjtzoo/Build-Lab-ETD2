@@ -29,37 +29,20 @@ export function BuildLab({
   names: Record<string, string>;
   assets: BuildLabAssets;
 }) {
-  const request = useRef<AbortController | null>(
-    null,
-  );
+  const request = useRef<AbortController | null>(null);
+  const resultRegion = useRef<HTMLDivElement | null>(null);
   const sequence = useRef(0);
 
   const anchorId = useBuildLab((s) => s.anchorId);
-  const requestState = useBuildLab(
-    (s) => s.requestState,
-  );
+  const requestState = useBuildLab((s) => s.requestState);
   const error = useBuildLab((s) => s.error);
-  const recommendationSet = useBuildLab(
-    (s) => s.recommendationSet,
-  );
-  const activePlanId = useBuildLab(
-    (s) => s.activePlanId,
-  );
-  const previewPlanId = useBuildLab(
-    (s) => s.previewPlanId,
-  );
-  const engineRecommendedPlanId = useBuildLab(
-    (s) => s.engineRecommendedPlanId,
-  );
-  const setAnchor = useBuildLab(
-    (s) => s.setAnchor,
-  );
-  const startRequest = useBuildLab(
-    (s) => s.startRequest,
-  );
-  const failRequest = useBuildLab(
-    (s) => s.failRequest,
-  );
+  const recommendationSet = useBuildLab((s) => s.recommendationSet);
+  const activePlanId = useBuildLab((s) => s.activePlanId);
+  const previewPlanId = useBuildLab((s) => s.previewPlanId);
+  const engineRecommendedPlanId = useBuildLab((s) => s.engineRecommendedPlanId);
+  const setAnchor = useBuildLab((s) => s.setAnchor);
+  const startRequest = useBuildLab((s) => s.startRequest);
+  const failRequest = useBuildLab((s) => s.failRequest);
   const receiveRecommendationSet = useBuildLab(
     (s) => s.receiveRecommendationSet,
   );
@@ -87,11 +70,7 @@ export function BuildLab({
         activePlanId,
         previewPlanId,
       }),
-    [
-      recommendationSet,
-      activePlanId,
-      previewPlanId,
-    ],
+    [recommendationSet, activePlanId, previewPlanId],
   );
 
   const alternatives = useMemo(
@@ -102,16 +81,12 @@ export function BuildLab({
     [recommendationSet, activePlanId],
   );
 
-  useEffect(
-    () => () => request.current?.abort(),
-    [],
-  );
+  useEffect(() => () => request.current?.abort(), []);
 
   function select(next: number) {
     request.current?.abort();
     sequence.current += 1;
-    const normalized =
-      (next + anchors.length) % anchors.length;
+    const normalized = (next + anchors.length) % anchors.length;
     setAnchor(anchors[normalized].id);
   }
 
@@ -122,33 +97,31 @@ export function BuildLab({
     const current = ++sequence.current;
     startRequest();
     try {
-      const response = await fetch(
-        "/api/optimize",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            anchorTowerId: anchor.id,
-          }),
-          signal: controller.signal,
+      const response = await fetch("/api/optimize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          anchorTowerId: anchor.id,
+        }),
+        signal: controller.signal,
+      });
       const data = await response.json();
       if (!response.ok)
         throw new Error(
-          data.error ||
-            "The planner could not complete this build.",
+          data.error || "The planner could not complete this build.",
         );
       if (current !== sequence.current) return;
       receiveRecommendationSet(data);
+      window.requestAnimationFrame(() => {
+        resultRegion.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
     } catch (err) {
-      if (
-        controller.signal.aborted ||
-        current !== sequence.current
-      )
-        return;
+      if (controller.signal.aborted || current !== sequence.current) return;
       failRequest(
         err instanceof Error
           ? err.message
@@ -158,25 +131,17 @@ export function BuildLab({
   }
 
   const engineRank =
-    recommendationSet?.plans.find(
-      (p) => p.id === engineRecommendedPlanId,
-    )?.rank ?? 1;
+    recommendationSet?.plans.find((p) => p.id === engineRecommendedPlanId)
+      ?.rank ?? 1;
   const activeRank =
-    recommendationSet?.plans.find(
-      (p) => p.id === activePlanId,
-    )?.rank ?? 1;
+    recommendationSet?.plans.find((p) => p.id === activePlanId)?.rank ?? 1;
 
   return (
     <main
       className="lab-shell"
-      data-previewing={
-        previewedPlan ? true : undefined
-      }
+      data-previewing={previewedPlan ? true : undefined}
     >
-      <span
-        className="lab-grain"
-        aria-hidden="true"
-      />
+      <span className="lab-grain" aria-hidden="true" />
       <a href="#build-result" className="skip-link">
         Skip to build result
       </a>
@@ -186,16 +151,11 @@ export function BuildLab({
       <div className="intro">
         <div>
           <p className="eyebrow">Build Lab</p>
-          <h1>
-            Plan the whole build around one
-            anchor.
-          </h1>
+          <h1>Plan the whole build around one anchor.</h1>
           <p>
-            Pick your main DPS tower. The engine
-            returns a complete, defensible plan —
-            support towers, keystone route,
-            coverage, synergy, and End Game
-            specialisation.
+            Pick your main DPS tower. The engine returns a complete, defensible
+            plan — support towers, keystone route, coverage, synergy, and End
+            Game specialisation.
           </p>
         </div>
       </div>
@@ -209,16 +169,23 @@ export function BuildLab({
         onBuild={build}
       />
 
+      <p className="build-request-feedback" role="status" aria-live="polite">
+        {requestState === "loading"
+          ? `Planning the ${anchor.name} build…`
+          : requestState === "ready"
+            ? `${anchor.name} build ready below.`
+            : requestState === "error"
+              ? error
+              : ""}
+      </p>
+
       <div
+        ref={resultRegion}
         id="build-result"
         className="result-region"
         aria-busy={requestState === "loading"}
       >
-        <div
-          role="status"
-          aria-live="polite"
-          className="sr-only"
-        >
+        <div role="status" aria-live="polite" className="sr-only">
           {requestState === "loading"
             ? "Planning your build."
             : requestState === "ready"
@@ -228,13 +195,10 @@ export function BuildLab({
 
         {requestState === "empty" && (
           <div className="empty-state lab-section">
-            <h3>
-              Your anchor sets the direction.
-            </h3>
+            <h3>Your anchor sets the direction.</h3>
             <p>
-              Build around {anchor.name} to see
-              its recommended package, keystone
-              route, and End Game options.
+              Build around {anchor.name} to see its recommended package,
+              keystone route, and End Game options.
             </p>
           </div>
         )}
@@ -244,114 +208,72 @@ export function BuildLab({
             className="tower-deck skeleton-deck lab-section"
             aria-hidden="true"
           >
-            {Array.from(
-              { length: 8 },
-              (_, i) => (
-                <div
-                  className="skeleton"
-                  key={i}
-                >
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              ),
-            )}
+            {Array.from({ length: 8 }, (_, i) => (
+              <div className="skeleton" key={i}>
+                <span />
+                <span />
+                <span />
+              </div>
+            ))}
           </div>
         )}
 
         {requestState === "error" && (
-          <div
-            className="empty-state lab-section"
-            role="alert"
-          >
+          <div className="empty-state lab-section" role="alert">
             <h3>Could not plan this build</h3>
             <p>{error}</p>
-            <button
-              className="secondary-button"
-              onClick={build}
-            >
+            <button className="secondary-button" onClick={build}>
               Try again
             </button>
           </div>
         )}
 
-        {requestState === "ready" &&
-          visiblePlan &&
-          recommendationSet && (
-            <>
-              <FeaturedBuild
-                plan={visiblePlan}
-                activeRank={activeRank}
-                engineRank={engineRank}
-                alternatives={alternatives}
-                assets={assets}
-              />
-              <BuildProgression
-                plan={visiblePlan}
-                assets={assets}
-              />
-              <EndGameSection
-                plan={visiblePlan}
-                assets={assets}
-              />
-              <TowerPackage
-                plan={visiblePlan}
-                previewPlan={previewedPlan}
-                assets={assets}
-              />
-              <CoverageAnalysis
-                plan={visiblePlan}
-                assets={assets}
-              />
-              <SynergyNetwork
-                plan={visiblePlan}
-                assets={assets}
-              />
+        {requestState === "ready" && visiblePlan && recommendationSet && (
+          <>
+            <FeaturedBuild
+              plan={visiblePlan}
+              activeRank={activeRank}
+              engineRank={engineRank}
+              alternatives={alternatives}
+              assets={assets}
+            />
+            <BuildProgression plan={visiblePlan} assets={assets} />
+            <EndGameSection plan={visiblePlan} assets={assets} />
+            <TowerPackage
+              plan={visiblePlan}
+              previewPlan={previewedPlan}
+              assets={assets}
+            />
+            <CoverageAnalysis plan={visiblePlan} assets={assets} />
+            <SynergyNetwork plan={visiblePlan} assets={assets} />
 
-              {visiblePlan.tensions.length >
-                0 && (
-                <section className="lab-section tensions-section">
-                  <div className="section-rail">
-                    <span className="section-index mono">
-                      08
-                    </span>
-                    <div>
-                      <h3>Tensions</h3>
-                      <p>
-                        Conditional mechanic
-                        conflicts to watch when
-                        placing this build.
-                      </p>
-                    </div>
+            {visiblePlan.tensions.length > 0 && (
+              <section className="lab-section tensions-section">
+                <div className="section-rail">
+                  <span className="section-index mono">08</span>
+                  <div>
+                    <h3>Tensions</h3>
+                    <p>
+                      Conditional mechanic conflicts to watch when placing this
+                      build.
+                    </p>
                   </div>
-                  <ul className="tensions-list">
-                    {visiblePlan.tensions.map(
-                      (tension, i) => (
-                        <li key={i}>
-                          <strong>
-                            {
-                              tension.providerName
-                            }{" "}
-                            /{" "}
-                            {
-                              tension.affectedName
-                            }
-                          </strong>
-                          <span>
-                            {tension.condition}
-                          </span>
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                </section>
-              )}
-              <RouteDetailModal
-                plans={recommendationSet.plans}
-              />
-            </>
-          )}
+                </div>
+                <ul className="tensions-list">
+                  {visiblePlan.tensions.map((tension, i) => (
+                    <li key={i}>
+                      <strong>
+                        {tension.providerName} / {tension.affectedName}
+                      </strong>
+                      <span>{tension.condition}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            <RouteDetailModal plans={recommendationSet.plans} />
+          </>
+        )}
       </div>
 
       <LabFooter />

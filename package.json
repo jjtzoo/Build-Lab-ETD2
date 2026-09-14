@@ -12,6 +12,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e:build-lab": "node scripts/testBuildLabPage.mjs",
+    "test:e2e:match-plan": "node scripts/testMatchPlanPage.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate:data",
     "validate:data": "npm run validate:towers && npm run validate:mechanic-facts && npm run validate:tower-economics",
     "validate:towers": "node scripts/validateTowersV2.mjs",
@@ -54,6 +56,7 @@
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "prisma": "^8.0.0-rc.12",
+    "puppeteer-core": "^25.10.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.2",
     "vitest": "^4.1.11"

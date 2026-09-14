@@ -47,7 +47,7 @@ export type PlacementKind =
   | "creep-debuff"
   /** A short creep effect, valued by overlap with placed damage. */
   | "debuff-overlap"
-  /** Buffs towers, valued by the damage standing inside its radius. */
+  /** Global buff: route position only values the tower's own attack. */
   | "tower-buff";
 
 export type PlacedTowerRef = {
@@ -323,25 +323,16 @@ export function placementValue(input: PlacementValueInput): PlacementValue {
 
     case "tower-buff": {
       /*
-       * Buffs land on towers, so the route is irrelevant: what matters is
-       * the damage standing inside the radius. This is the "camp" the
-       * map has been building toward — support co-located with the
-       * dealer it multiplies.
+       * Tower buffs are global. Nearby allies never enter the score. A
+       * buff tower that attacks is placed for its own uptime; a pure
+       * support ties everywhere and the camp allocator gives it a
+       * low-opportunity-cost cell.
        */
-      const buffed = placed.filter(
-        (p) =>
-          p.baseDps > 0 &&
-          Math.hypot(p.cell.col - cell.col, p.cell.row - cell.row) <=
-            rangeCells,
-      );
-      score = buffed.reduce((sum, p) => sum + p.baseDps, 0);
-      if (placed.length === 0) {
-        note =
-          "Nothing placed yet — a buff tower is ranked by the damage it " +
-          "can reach, so place your damage towers first.";
-      } else if (buffed.length === 0) {
-        note = "No placed damage tower is within this cell's radius.";
-      }
+      score = damage;
+      note =
+        baseDps > 0
+          ? "Its buff is global; this rank reflects only its own attack coverage."
+          : "Its buff is global, so ally proximity is irrelevant; use a low-opportunity-cost cell.";
       break;
     }
   }

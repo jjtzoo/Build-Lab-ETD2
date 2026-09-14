@@ -8,6 +8,7 @@ import type { LiveSnapshot } from "@/components/live/store";
 
 export const LIVE_STORAGE_KEY = "etd2:live:v1";
 export const LIVE_PLAN_KEY = "etd2:live:plan";
+export const MATCH_PLAN_PATH = "/match-plan";
 
 export function getLiveStorage(): Storage | null {
   try {
@@ -65,5 +66,7 @@ export function liveImportUrl(
   } catch {
     /* URL remains a fallback. */
   }
-  return stored && encoded.length > 6000 ? "/live" : `/live?b=${encoded}`;
+  return stored && encoded.length > 6000
+    ? MATCH_PLAN_PATH
+    : `${MATCH_PLAN_PATH}?b=${encoded}`;
 }

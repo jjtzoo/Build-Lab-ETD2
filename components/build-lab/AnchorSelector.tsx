@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-} from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import type { Tower } from "@/lib/domain/tower";
 import type {
@@ -95,20 +91,13 @@ export function AnchorSelector({
             support it.
           </p>
         </div>
-        <label
-          className="anchor-quick-pick"
-          htmlFor="anchor-picker"
-        >
+        <label className="anchor-quick-pick" htmlFor="anchor-picker">
           <span>Jump to</span>
           <select
             id="anchor-picker"
             value={anchor.id}
             onChange={(event) =>
-              onSelect(
-                anchors.findIndex(
-                  (a) => a.id === event.target.value,
-                ),
-              )
+              onSelect(anchors.findIndex((a) => a.id === event.target.value))
             }
           >
             {anchors.map((a) => (
@@ -239,12 +228,11 @@ export function AnchorSelector({
           </span>
         </div>
 
-        <motion.button
+        <button
           type="button"
           className="build-cta"
           onClick={onBuild}
           disabled={requestState === "loading"}
-          whileTap={reduce ? undefined : { scale: 0.985 }}
         >
           <span className="build-cta-label">
             {requestState === "loading"
@@ -254,7 +242,7 @@ export function AnchorSelector({
           <span className="build-cta-arrow" aria-hidden="true">
             →
           </span>
-        </motion.button>
+        </button>
       </div>
     </section>
   );

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Route } from "next";
 import { FeedbackDialog } from "@/components/build-lab/FeedbackDialog";
 import { SupportLink } from "@/components/SupportRail";
 
-type LabSurface = "build-lab" | "theorycraft" | "live";
+type LabSurface = "build-lab" | "theorycraft" | "live" | "match-plan";
 
 /** Shared header + primary navigation for every Build Lab surface. */
 export function LabHeader({ current }: { current: LabSurface }) {
@@ -22,13 +23,13 @@ export function LabHeader({ current }: { current: LabSurface }) {
         ELEMENT TD 2 <span>BUILD LAB</span>
       </Link>
       <nav className="lab-nav" aria-label="Sections">
-        <Link
+        <a
           href="/build-lab"
           className="lab-nav-link"
           aria-current={current === "build-lab" ? "page" : undefined}
         >
           Build Lab
-        </Link>
+        </a>
         <Link
           href="/theorycraft"
           className="lab-nav-link"
@@ -37,11 +38,13 @@ export function LabHeader({ current }: { current: LabSurface }) {
           Theory Craft
         </Link>
         <Link
-          href="/live"
+          href={"/match-plan" as Route}
           className="lab-nav-link"
-          aria-current={current === "live" ? "page" : undefined}
+          aria-current={
+            current === "live" || current === "match-plan" ? "page" : undefined
+          }
         >
-          Live Tracking
+          Match Plan
         </Link>
         <SupportLink className="lab-nav-support" />
       </nav>
@@ -53,9 +56,7 @@ export function LabHeader({ current }: { current: LabSurface }) {
 export function LabFooter() {
   return (
     <footer className="lab-footer">
-      <span className="footer-product">
-        Element TD 2 Build Lab
-      </span>
+      <span className="footer-product">Element TD 2 Build Lab</span>
       <span className="footer-signature">
         <Image
           src="/branding/jjtzoo-general-logo.png"
@@ -85,9 +86,9 @@ export function LabFooter() {
         <FeedbackDialog />
       </div>
       <span className="footer-disclaimer">
-        Recommendations explain a plan — placement and execution remain
-        yours. Element TD 2 and its tower art are property of their
-        respective owners; this is an unofficial fan tool.
+        Recommendations explain a plan — placement and execution remain yours.
+        Element TD 2 and its tower art are property of their respective owners;
+        this is an unofficial fan tool.
       </span>
     </footer>
   );

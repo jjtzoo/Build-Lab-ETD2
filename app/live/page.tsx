@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { LiveTracker } from "@/components/live/LiveTracker";
-import { resolveBuildLabAssets } from "@/components/build-lab/assetResolver";
+import { MatchPlanView } from "@/components/match-plan/MatchPlan";
 import { decodePortableBuild } from "@/lib/domain/portableBuild";
 
 export const metadata: Metadata = {
-  title: "Live Tracking — Element TD 2 Build Lab",
+  title: "Match Plan — Element TD 2 Build Lab",
   description:
-    "Mirror your live Element TD 2 game: log element picks and towers, see what just came into reach, and follow your plan wave by wave.",
+    "Compatibility route for Match Plan. Existing Live Tracker links and saved builds continue to open here.",
 };
 
 export default async function LivePage({
@@ -17,10 +16,5 @@ export default async function LivePage({
   const { b } = await searchParams;
   const initialPlan = b ? decodePortableBuild(b) : null;
 
-  return (
-    <LiveTracker
-      assets={resolveBuildLabAssets()}
-      initialPlan={initialPlan}
-    />
-  );
+  return <MatchPlanView initialPlan={initialPlan} />;
 }

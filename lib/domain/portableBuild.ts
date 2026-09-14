@@ -22,6 +22,9 @@ export type PortableTowerAction = {
   towerName: string;
   toLevel: number;
   roles: readonly string[];
+  reason?: string;
+  /** Early bridge damage that is not part of the final package. */
+  temporaryCarry?: boolean;
 };
 
 export type PortableKeystoneStep = {
