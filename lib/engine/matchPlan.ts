@@ -59,7 +59,7 @@ import earlyRanges from "@/data/earlyTowerRanges.v1.json";
 const EARLY_TOWER_RANGES = earlyRanges.ranges as Record<string, number>;
 
 // Distance from a cell to the nearest route point is fixed map geometry.
-const ROUTE_DISTANCE_MEMO = new Map<string, number>();
+const ROUTE_DISTANCE_MEMO = new WeakMap<MapConfig, Map<string, number>>();
 
 const PHASES: readonly {
   id: MatchPlanPhaseId;
@@ -856,8 +856,13 @@ function chooseCell(
       damageLoad.set(tower.campId, (damageLoad.get(tower.campId) ?? 0) + 1);
     }
     const distanceToRoute = (cell: GridPoint) => {
-      const key = `${map.id}|${mode}|${cell.col},${cell.row}`;
-      const hit = ROUTE_DISTANCE_MEMO.get(key);
+      let table = ROUTE_DISTANCE_MEMO.get(map);
+      if (!table) {
+        table = new Map();
+        ROUTE_DISTANCE_MEMO.set(map, table);
+      }
+      const key = `${mode}|${cell.col},${cell.row}`;
+      const hit = table.get(key);
       if (hit != null) return hit;
       const value = Math.min(
         ...map.paths
@@ -868,7 +873,7 @@ function chooseCell(
             ),
           ),
       );
-      ROUTE_DISTANCE_MEMO.set(key, value);
+      table.set(key, value);
       return value;
     };
     const longRange = facts.range >= 1_125;

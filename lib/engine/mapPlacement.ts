@@ -342,8 +342,18 @@ const EMPTY_MODE_COVERAGE: ModeCoverage = {
  * covering one lane fully and another not at all is worth knowing about.
  */
 // Pure geometry per map, mode, cell and range; the planners ask for the same
-// few hundred combinations many thousands of times.
-const modeCoverageMemo = new Map<string, ModeCoverage>();
+// few hundred combinations many thousands of times. Keyed on the map object
+// itself: catalog maps are singletons, and synthetic maps may share an id.
+const modeCoverageMemo = new WeakMap<MapConfig, Map<string, ModeCoverage>>();
+
+function memoFor<T>(store: WeakMap<MapConfig, Map<string, T>>, map: MapConfig) {
+  let table = store.get(map);
+  if (!table) {
+    table = new Map();
+    store.set(map, table);
+  }
+  return table;
+}
 
 export function coverageForMode(
   map: MapConfig,
@@ -351,11 +361,12 @@ export function coverageForMode(
   towerRangeUnits: number,
   mode: WaveMode,
 ): ModeCoverage {
-  const key = `${map.id}|${mode}|${cell.col},${cell.row}|${towerRangeUnits}`;
-  const hit = modeCoverageMemo.get(key);
+  const table = memoFor(modeCoverageMemo, map);
+  const key = `${mode}|${cell.col},${cell.row}|${towerRangeUnits}`;
+  const hit = table.get(key);
   if (hit) return hit;
   const value = coverageForModeUncached(map, cell, towerRangeUnits, mode);
-  modeCoverageMemo.set(key, value);
+  table.set(key, value);
   return value;
 }
 
@@ -461,10 +472,10 @@ export type RouteSample = {
  */
 // The sampled route for a map and mode is fixed geometry; every placement
 // ranking walks it, so it is built once per (map, mode, step).
-const routeSampleMemo = new Map<string, RouteSample[]>();
+const routeSampleMemo = new WeakMap<MapConfig, Map<string, RouteSample[]>>();
 // Which samples a cell reaches at a range is fixed too, and asked for every
 // buildable cell on every ranking.
-const sampleReachMemo = new Map<string, Uint8Array>();
+const sampleReachMemo = new WeakMap<MapConfig, Map<string, Uint8Array>>();
 
 /**
  * Per-sample reach flags for one cell at one range, aligned with the
@@ -476,8 +487,9 @@ export function sampleReach(
   cell: GridPoint,
   towerRangeUnits: number,
 ): Uint8Array {
-  const key = `${map.id}|${mode}|${cell.col},${cell.row}|${towerRangeUnits}`;
-  const hit = sampleReachMemo.get(key);
+  const table = memoFor(sampleReachMemo, map);
+  const key = `${mode}|${cell.col},${cell.row}|${towerRangeUnits}`;
+  const hit = table.get(key);
   if (hit) return hit;
   const samples = sampleRoute(map, mode);
   const flags = new Uint8Array(samples.length);
@@ -485,7 +497,7 @@ export function sampleReach(
     flags[index] = sampleInRange(map, samples[index], cell, towerRangeUnits)
       ? 1
       : 0;
-  sampleReachMemo.set(key, flags);
+  table.set(key, flags);
   return flags;
 }
 
@@ -494,11 +506,12 @@ export function sampleRoute(
   mode: WaveMode,
   stepCells = 0.25,
 ): RouteSample[] {
-  const key = `${map.id}|${mode}|${stepCells}`;
-  const hit = routeSampleMemo.get(key);
+  const table = memoFor(routeSampleMemo, map);
+  const key = `${mode}|${stepCells}`;
+  const hit = table.get(key);
   if (hit) return hit;
   const value = sampleRouteUncached(map, mode, stepCells);
-  routeSampleMemo.set(key, value);
+  table.set(key, value);
   return value;
 }
 
