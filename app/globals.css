@@ -8029,11 +8029,17 @@ button.mechanic-chip {
   stroke-width: 2;
   opacity: 0.8;
 }
+.match-tower {
+  cursor: pointer;
+}
 .match-tower circle {
   fill: #e3e8e5;
   stroke: #0a0d0c;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+  transition:
+    stroke 140ms ease,
+    stroke-width 140ms ease;
 }
 .match-tower-mark {
   fill: #111614;
@@ -8066,6 +8072,15 @@ button.mechanic-chip {
 .match-tower.is-carried .match-tower-mark {
   opacity: 0.55;
 }
+.match-tower.is-hovered circle {
+  stroke: #c0a476;
+  stroke-width: 2.5;
+}
+/* Bring a carried (dimmed) tower back to full clarity while it is inspected. */
+.match-tower.is-hovered .match-tower-icon,
+.match-tower.is-hovered .match-tower-mark {
+  opacity: 1;
+}
 .match-tower.is-selected circle {
   stroke: #fff;
   stroke-width: 2.5;
@@ -8089,6 +8104,19 @@ button.mechanic-chip {
   font-size: 0.18px;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+.match-tower-callout {
+  animation: match-callout-in 130ms ease-out both;
+}
+@keyframes match-callout-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-tower-callout {
+    animation: none;
+  }
 }
 .match-tower-callout rect {
   fill: #171c1a;
