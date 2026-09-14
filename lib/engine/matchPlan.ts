@@ -58,6 +58,9 @@ import earlyRanges from "@/data/earlyTowerRanges.v1.json";
 
 const EARLY_TOWER_RANGES = earlyRanges.ranges as Record<string, number>;
 
+// Distance from a cell to the nearest route point is fixed map geometry.
+const ROUTE_DISTANCE_MEMO = new Map<string, number>();
+
 const PHASES: readonly {
   id: MatchPlanPhaseId;
   label: string;
@@ -164,14 +167,32 @@ function allocationOrder(
       ]
     : openingRecipe;
   const coverageElement = earlyCoverageElement(build, openingTower);
+  // The anchor's own keystones come right after the opening: level 1 of
+  // each recipe element, then level 2, up to its planned level. Package
+  // unlocks follow. A Trio anchor whose second level waited on the tenth
+  // pick was reaching full damage twenty waves after it could have.
+  const anchorRecipe = (() => {
+    try {
+      const tower = getTower(build.anchorTowerId);
+      const planned =
+        build.towers.find((entry) => entry.towerId === build.anchorTowerId)
+          ?.level ?? 1;
+      return Array.from({ length: Math.max(1, planned) }, () => [
+        ...tower.recipe,
+      ]).flat();
+    } catch {
+      return [];
+    }
+  })();
   const proposed =
     manual?.kind === "allocation-order"
       ? serialized
       : [
           ...orderedOpeningRecipe,
+          ...anchorRecipe,
           ...(coverageElement ? [coverageElement] : []),
           ...serialized,
-          ...getTower(build.anchorTowerId).recipe,
+          ...anchorRecipe,
         ];
   const result: ElementName[] = [];
   const used = EMPTY_ALLOCATION();
@@ -337,14 +358,27 @@ function compatibleEarlyCarry(
   try {
     const anchor = getTower(build.anchorTowerId);
     if (anchor.combination === "Dual") return null;
+    // The bridge must sit inside the anchor's own recipe (the progression's
+    // rule): a carry on other elements spends the opening picks off the
+    // anchor's path and delays the anchor by whole windows. Only if no Dual
+    // in the recipe deals damage does any legal Dual qualify.
+    const legalDuals = TOWERS.filter(
+      (tower) =>
+        tower.combination === "Dual" &&
+        tower.recipe.every(
+          (element) => (build.allocation[element] ?? 0) >= 1,
+        ) &&
+        getTowerProfile(tower.id).coreRoles.includes("main-dps") &&
+        !getTowerPlacementFact(tower.id).targetsTowers,
+    );
+    const onPath = legalDuals.filter((tower) =>
+      tower.recipe.every((element) => anchor.recipe.includes(element)),
+    );
+    const pool = new Set(
+      (onPath.length ? onPath : legalDuals).map((t) => t.id),
+    );
     const candidates = TOWERS.flatMap((tower) => {
-      if (
-        tower.combination !== "Dual" ||
-        tower.recipe.some((element) => (build.allocation[element] ?? 0) < 1) ||
-        !getTowerProfile(tower.id).coreRoles.includes("main-dps") ||
-        getTowerPlacementFact(tower.id).targetsTowers
-      )
-        return [];
+      if (!pool.has(tower.id)) return [];
       const baseDps = tower.stats.damage[0] * tower.stats.attackSpeed;
       const routeCoverage = Math.max(
         0,
@@ -387,7 +421,7 @@ function compatibleEarlyCarry(
           towerId: candidate.tower.id,
           level: 1,
           temporary: !candidate.belongsToBuild,
-          reason: `${candidate.tower.name} I wins the legal early-bridge score for damage per gold, route coverage and its level-II mono pairing.`,
+          reason: `${candidate.tower.name} I wins the legal early-bridge score for damage per gold, route coverage and its level-II mono pairing${onPath.length ? ` inside ${anchor.name}'s own elements` : ""}.`,
         }
       : null;
   } catch {
@@ -800,14 +834,12 @@ function chooseCell(
       occupied,
       topN: map.buildableCells.length,
     });
-    const viable = camps.filter((camp) => camp.viable);
+    const campByCell = new Map<string, MatchPlanCamp>();
+    for (const camp of camps)
+      for (const candidate of camp.cells)
+        campByCell.set(`${candidate.col},${candidate.row}`, camp);
     const campFor = (cell: GridPoint) =>
-      camps.find((camp) =>
-        camp.cells.some(
-          (candidate) =>
-            candidate.col === cell.col && candidate.row === cell.row,
-        ),
-      );
+      campByCell.get(`${cell.col},${cell.row}`);
     const viableRanked = ranked.filter((entry) => campFor(entry.cell)?.viable);
     const bestScore =
       viableRanked[0]?.value.score ?? ranked[0]?.value.score ?? 0;
@@ -823,8 +855,11 @@ function chooseCell(
         continue;
       damageLoad.set(tower.campId, (damageLoad.get(tower.campId) ?? 0) + 1);
     }
-    const distanceToRoute = (cell: GridPoint) =>
-      Math.min(
+    const distanceToRoute = (cell: GridPoint) => {
+      const key = `${map.id}|${mode}|${cell.col},${cell.row}`;
+      const hit = ROUTE_DISTANCE_MEMO.get(key);
+      if (hit != null) return hit;
+      const value = Math.min(
         ...map.paths
           .filter((path) => path.modes.includes(mode))
           .flatMap((path) =>
@@ -833,6 +868,9 @@ function chooseCell(
             ),
           ),
       );
+      ROUTE_DISTANCE_MEMO.set(key, value);
+      return value;
+    };
     const longRange = facts.range >= 1_125;
     const chosen = fact.debuff
       ? (viableRanked[0] ?? ranked[0])
@@ -1307,12 +1345,23 @@ export function generateMatchPlan(
           combatFacts(tower.towerId, tower.level) != null &&
           isLegal(tower.towerId, tower.level, allocation),
       );
+      // A fielded tower can be copied at its current level or any lower
+      // one: a fresh level-1 copy of the anchor is often the best damage per
+      // gold on the field once the original has been upgraded.
       const sourceTowers = [
         ...new Map(
-          damageTowers.map((tower) => [
-            `${tower.towerId}@${tower.level}`,
-            tower,
-          ]),
+          damageTowers.flatMap((tower) =>
+            Array.from({ length: tower.level }, (_, index) => index + 1)
+              .filter(
+                (level) =>
+                  isLegal(tower.towerId, level, allocation) &&
+                  combatFacts(tower.towerId, level) != null,
+              )
+              .map((level): [string, PlannedTowerState] => [
+                `${tower.towerId}@${level}`,
+                { ...tower, level },
+              ]),
+          ),
         ).values(),
       ];
       const copies = sourceTowers.flatMap((source) => {
@@ -1358,16 +1407,18 @@ export function generateMatchPlan(
     // steps that land in time the doctrine cascade applies — a build-path
     // step before a fleet copy — then floor lift per gold, then the floor
     // reached, then gold.
+    type RescuePolicy = "timing-first" | "build-path-first";
     const rankRescue =
-      (firstLeak: number | null) =>
+      (firstLeak: number | null, policy: RescuePolicy) =>
       (a: RescueCandidate, b: RescueCandidate) => {
         const late = (c: RescueCandidate) =>
           firstLeak == null || c.targetWave <= firstLeak ? 0 : 1;
         const stage = (c: RescueCandidate) =>
           c.source === "build-path" ? 0 : 1;
         return (
-          late(a) - late(b) ||
-          stage(a) - stage(b) ||
+          (policy === "timing-first"
+            ? late(a) - late(b) || stage(a) - stage(b)
+            : stage(a) - stage(b) || late(a) - late(b)) ||
           b.efficiency - a.efficiency ||
           a.shortfall - b.shortfall ||
           a.cost - b.cost
@@ -1380,9 +1431,10 @@ export function generateMatchPlan(
     // explicitly unverified and never masquerade as a pass. Candidates cascade:
     // an in-build tower not yet fielded first; a fleet copy only once the build
     // is fully established or no build tower helps.
-    const applySurvivalRescue = (
+    const runRescuePolicy = (
       initial: MatchPlanPhase["survival"],
       timing: "before-package" | "after-package",
+      policy: RescuePolicy,
     ) => {
       let survival = initial;
       for (let rescueStep = 0; rescueStep < 24; rescueStep += 1) {
@@ -1391,7 +1443,7 @@ export function generateMatchPlan(
         const best = [
           ...buildPathCandidates(currentShortfall),
           ...fleetCopyCandidates(currentShortfall),
-        ].sort(rankRescue(firstFailingWave(survival)))[0];
+        ].sort(rankRescue(firstFailingWave(survival), policy))[0];
         if (!best) break;
         field = best.fromLevel
           ? field.map((tower) =>
@@ -1450,6 +1502,30 @@ export function generateMatchPlan(
         survival = best.survival;
       }
       return survival;
+    };
+    // Greedy timing-first spending can fill a window with cheap in-time
+    // copies and leave nothing for the build's own big step that would have
+    // fixed the later waves. Run both policies from the same state and keep
+    // the one that reaches the better floor; on a tie, the cheaper one.
+    const applySurvivalRescue = (
+      initial: MatchPlanPhase["survival"],
+      timing: "before-package" | "after-package",
+    ) => {
+      const start = snapshot();
+      const timingFirst = runRescuePolicy(initial, timing, "timing-first");
+      const timingState = { ...snapshot(), survival: timingFirst };
+      restore(start);
+      const buildFirst = runRescuePolicy(initial, timing, "build-path-first");
+      const buildShortfall = verifiedShortfall(buildFirst);
+      const timingShortfall = verifiedShortfall(timingFirst);
+      if (
+        buildShortfall < timingShortfall - 0.0001 ||
+        (Math.abs(buildShortfall - timingShortfall) <= 0.0001 &&
+          cumulativeCost <= timingState.cumulativeCost)
+      )
+        return buildFirst;
+      restore(timingState);
+      return timingFirst;
     };
 
     // Phase state that a replan must be able to roll back.

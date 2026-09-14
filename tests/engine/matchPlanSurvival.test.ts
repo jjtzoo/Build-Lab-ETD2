@@ -13,13 +13,13 @@ const laserBuild: PortableBuild = {
   createdAt: "2026-09-14T00:00:00.000Z",
 };
 
-/** A placed Infernal copy borrowed from a real plan so the cell is legal. */
-function placedInfernal() {
+/** A placed Atom copy (the Laser build's bridge) borrowed from a real plan so the cell is legal. */
+function placedAtom() {
   const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
   const tower = plan.phases
     .flatMap((phase) => phase.endTowers)
-    .find((t) => t.towerId === "infernal" && t.cell);
-  if (!tower) throw new Error("expected a placed Infernal copy");
+    .find((t) => t.towerId === "atom" && t.cell);
+  if (!tower) throw new Error("expected a placed Atom copy");
   return tower;
 }
 
@@ -34,21 +34,21 @@ describe("evaluatePhaseSurvival level timeline", () => {
   };
 
   it("keeps an upgraded copy at its old level until the upgrade wave", () => {
-    const infernal = placedInfernal();
+    const bridge = placedAtom();
     const asLevel1 = evaluatePhaseSurvival({
       ...base,
-      towers: [{ ...infernal, level: 1 }],
+      towers: [{ ...bridge, level: 1 }],
     });
     const asLevel2 = evaluatePhaseSurvival({
       ...base,
-      towers: [{ ...infernal, level: 2 }],
+      towers: [{ ...bridge, level: 2 }],
     });
     const upgradedAt14 = evaluatePhaseSurvival({
       ...base,
-      towers: [{ ...infernal, level: 2 }],
+      towers: [{ ...bridge, level: 2 }],
       levelTimeline: new Map([
         [
-          infernal.copyId,
+          bridge.copyId,
           [
             { fromWave: 11, level: 1 },
             { fromWave: 14, level: 2 },
@@ -71,12 +71,12 @@ describe("evaluatePhaseSurvival level timeline", () => {
   });
 
   it("credits nothing for a copy before the wave it is built", () => {
-    const infernal = placedInfernal();
+    const bridge = placedAtom();
     const builtAt13 = evaluatePhaseSurvival({
       ...base,
-      towers: [infernal],
+      towers: [bridge],
       levelTimeline: new Map([
-        [infernal.copyId, [{ fromWave: 13, level: infernal.level }]],
+        [bridge.copyId, [{ fromWave: 13, level: bridge.level }]],
       ]),
     });
     expect(builtAt13.waves[0]?.modeledDamage).toBe(0);

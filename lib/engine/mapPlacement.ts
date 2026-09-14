@@ -15,10 +15,7 @@ import type {
  * Everything here is pure: no store, no React.
  */
 
-export function gridToWorld(
-  map: MapConfig,
-  cell: GridPoint,
-): PixelPoint {
+export function gridToWorld(map: MapConfig, cell: GridPoint): PixelPoint {
   const { origin, colVector, rowVector } = map.grid;
   return {
     x: origin.x + cell.col * colVector.x + cell.row * rowVector.x,
@@ -27,15 +24,11 @@ export function gridToWorld(
 }
 
 /** Inverse of {@link gridToWorld} — a pixel position back to grid coords. */
-export function worldToGrid(
-  map: MapConfig,
-  point: PixelPoint,
-): GridPoint {
+export function worldToGrid(map: MapConfig, point: PixelPoint): GridPoint {
   const { origin, colVector, rowVector } = map.grid;
   const px = point.x - origin.x;
   const py = point.y - origin.y;
-  const det =
-    colVector.x * rowVector.y - rowVector.x * colVector.y;
+  const det = colVector.x * rowVector.y - rowVector.x * colVector.y;
   if (det === 0) return { col: 0, row: 0 };
 
   return {
@@ -58,19 +51,12 @@ function cellDistance(a: GridPoint, b: GridPoint): number {
   return Math.hypot(a.col - b.col, a.row - b.row);
 }
 
-
 /** Every path the given wave mode runs creeps down. */
-export function pathsForMode(
-  map: MapConfig,
-  mode: WaveMode,
-): MapPath[] {
+export function pathsForMode(map: MapConfig, mode: WaveMode): MapPath[] {
   return map.paths.filter((path) => path.modes.includes(mode));
 }
 
-export function pathLengthCells(
-  map: MapConfig,
-  path: MapPath,
-): number {
+export function pathLengthCells(map: MapConfig, path: MapPath): number {
   if (path.points.length < 2) return 0;
 
   let total = 0;
@@ -227,7 +213,8 @@ function accumulateRadialBands(
   let radiusWeightedCells = 0;
 
   for (let s = 0; s < samples; s++) {
-    const t = overlap.from + ((s + 0.5) / samples) * (overlap.to - overlap.from);
+    const t =
+      overlap.from + ((s + 0.5) / samples) * (overlap.to - overlap.from);
     const r = Math.hypot(
       a.col + dx * t - center.col,
       a.row + dy * t - center.row,
@@ -354,7 +341,25 @@ const EMPTY_MODE_COVERAGE: ModeCoverage = {
  * route it reaches — with the per-path split kept alongside, since a spot
  * covering one lane fully and another not at all is worth knowing about.
  */
+// Pure geometry per map, mode, cell and range; the planners ask for the same
+// few hundred combinations many thousands of times.
+const modeCoverageMemo = new Map<string, ModeCoverage>();
+
 export function coverageForMode(
+  map: MapConfig,
+  cell: GridPoint,
+  towerRangeUnits: number,
+  mode: WaveMode,
+): ModeCoverage {
+  const key = `${map.id}|${mode}|${cell.col},${cell.row}|${towerRangeUnits}`;
+  const hit = modeCoverageMemo.get(key);
+  if (hit) return hit;
+  const value = coverageForModeUncached(map, cell, towerRangeUnits, mode);
+  modeCoverageMemo.set(key, value);
+  return value;
+}
+
+function coverageForModeUncached(
   map: MapConfig,
   cell: GridPoint,
   towerRangeUnits: number,
@@ -395,10 +400,7 @@ export function coverageForMode(
       0,
     ),
     coveragePercent: (coveredLengthCells / totalLengthCells) * 100,
-    passes: perPath.reduce(
-      (sum, entry) => sum + entry.coverage.passes,
-      0,
-    ),
+    passes: perPath.reduce((sum, entry) => sum + entry.coverage.passes, 0),
     // Lanes run at once, so the best single stretch is the best any one
     // lane offers — not the sum, which no creep would ever sit through.
     longestRunSeconds: Math.max(
@@ -457,10 +459,53 @@ export type RouteSample = {
  * effect lands on the creeps something else is shooting. Sampling makes
  * that an intersection test instead of interval algebra over polylines.
  */
+// The sampled route for a map and mode is fixed geometry; every placement
+// ranking walks it, so it is built once per (map, mode, step).
+const routeSampleMemo = new Map<string, RouteSample[]>();
+// Which samples a cell reaches at a range is fixed too, and asked for every
+// buildable cell on every ranking.
+const sampleReachMemo = new Map<string, Uint8Array>();
+
+/**
+ * Per-sample reach flags for one cell at one range, aligned with the
+ * memoized default route sampling of `sampleRoute(map, mode)`.
+ */
+export function sampleReach(
+  map: MapConfig,
+  mode: WaveMode,
+  cell: GridPoint,
+  towerRangeUnits: number,
+): Uint8Array {
+  const key = `${map.id}|${mode}|${cell.col},${cell.row}|${towerRangeUnits}`;
+  const hit = sampleReachMemo.get(key);
+  if (hit) return hit;
+  const samples = sampleRoute(map, mode);
+  const flags = new Uint8Array(samples.length);
+  for (let index = 0; index < samples.length; index += 1)
+    flags[index] = sampleInRange(map, samples[index], cell, towerRangeUnits)
+      ? 1
+      : 0;
+  sampleReachMemo.set(key, flags);
+  return flags;
+}
+
 export function sampleRoute(
   map: MapConfig,
   mode: WaveMode,
   stepCells = 0.25,
+): RouteSample[] {
+  const key = `${map.id}|${mode}|${stepCells}`;
+  const hit = routeSampleMemo.get(key);
+  if (hit) return hit;
+  const value = sampleRouteUncached(map, mode, stepCells);
+  routeSampleMemo.set(key, value);
+  return value;
+}
+
+function sampleRouteUncached(
+  map: MapConfig,
+  mode: WaveMode,
+  stepCells: number,
 ): RouteSample[] {
   const speed = creepSpeedCellsPerSecond(map);
   if (speed <= 0 || stepCells <= 0) return [];
@@ -538,9 +583,7 @@ export function bestSpotsForTower(
    */
   occupied: readonly GridPoint[] = [],
 ): RankedSpot[] {
-  const taken = new Set(
-    occupied.map((cell) => `${cell.col},${cell.row}`),
-  );
+  const taken = new Set(occupied.map((cell) => `${cell.col},${cell.row}`));
   return map.buildableCells
     .filter((cell) => !taken.has(`${cell.col},${cell.row}`))
     .map((cell) => ({

@@ -4,6 +4,7 @@ import {
   islandIndexOf,
   islands,
   sampleInRange,
+  sampleReach,
   sampleRoute,
   type ModeCoverage,
   type RouteSample,
@@ -190,6 +191,12 @@ export type PlacementValueInput = {
   placed?: readonly PlacedTowerRef[];
   /** Reused across cells when ranking a whole map — see `rankPlacements`. */
   samples?: readonly RouteSample[];
+  /**
+   * Per-sample "some placed damage tower reaches this sample", aligned with
+   * `samples`. Shared across cells when ranking a whole map: the placed set
+   * is the same for every cell, so it is walked once, not once per cell.
+   */
+  dealerReach?: readonly boolean[];
 };
 
 export function placementValue(input: PlacementValueInput): PlacementValue {
@@ -228,18 +235,18 @@ export function placementValue(input: PlacementValueInput): PlacementValue {
   let lateSharePercent = 0;
   if (needsSamples && rangeCells > 0) {
     const samples = input.samples ?? sampleRoute(map, mode);
+    const dealerReach =
+      input.dealerReach ?? dealerReachBySample(map, mode, samples, dealers);
+    const reach = sampleReach(map, mode, cell, rangeUnits);
     const halfway = routeSeconds / 2;
     let covered = 0;
     let late = 0;
-    for (const sample of samples) {
-      if (!sampleInRange(map, sample, cell, rangeUnits)) continue;
+    for (let index = 0; index < samples.length; index += 1) {
+      if (!reach[index]) continue;
+      const sample = samples[index];
       covered += sample.weightSeconds;
       if (sample.seconds > halfway) late += sample.weightSeconds;
-      if (
-        dealers.some((p) => sampleInRange(map, sample, p.cell, p.rangeUnits))
-      ) {
-        overlapSeconds += sample.weightSeconds;
-      }
+      if (dealerReach[index]) overlapSeconds += sample.weightSeconds;
     }
     lateSharePercent = covered > 0 ? (100 * late) / covered : 0;
   }
@@ -422,6 +429,36 @@ function diversifyCamps(
  * The route is sampled once and shared across all cells — the overlap
  * test is the expensive part and it is the same route every time.
  */
+function dealerReachBySample(
+  map: MapConfig,
+  mode: WaveMode,
+  samples: readonly RouteSample[],
+  dealers: readonly PlacedTowerRef[],
+): boolean[] {
+  const flags = new Array<boolean>(samples.length).fill(false);
+  for (const dealer of dealers) {
+    const reach = sampleInRangeFlags(map, mode, samples, dealer);
+    for (let index = 0; index < samples.length; index += 1)
+      if (reach[index]) flags[index] = true;
+  }
+  return flags;
+}
+
+function sampleInRangeFlags(
+  map: MapConfig,
+  mode: WaveMode,
+  samples: readonly RouteSample[],
+  dealer: PlacedTowerRef,
+): ArrayLike<number | boolean> {
+  // The default sampling is memoized with its reach flags; any other
+  // sampling is walked directly.
+  return samples === sampleRoute(map, mode)
+    ? sampleReach(map, mode, dealer.cell, dealer.rangeUnits)
+    : samples.map((sample) =>
+        sampleInRange(map, sample, dealer.cell, dealer.rangeUnits),
+      );
+}
+
 export function rankPlacements(
   input: Omit<PlacementValueInput, "cell" | "samples"> & {
     topN?: number;
@@ -435,12 +472,20 @@ export function rankPlacements(
     (input.placed ?? []).some((p) => p.baseDps > 0) ||
     fact.routePreference === "late";
   const samples = needsSamples ? sampleRoute(map, mode) : undefined;
+  const dealerReach = samples
+    ? dealerReachBySample(
+        map,
+        mode,
+        samples,
+        (input.placed ?? []).filter((p) => p.baseDps > 0),
+      )
+    : undefined;
 
   const ranked = map.buildableCells
     .filter((cell) => !taken.has(`${cell.col},${cell.row}`))
     .map((cell) => ({
       cell,
-      value: placementValue({ ...input, cell, samples }),
+      value: placementValue({ ...input, cell, samples, dealerReach }),
     }))
     .sort((a, b) => {
       if (b.value.score !== a.value.score) return b.value.score - a.value.score;

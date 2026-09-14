@@ -170,11 +170,12 @@ describe("Match Plan", () => {
       ),
     ).toHaveLength(3);
     expect(opening.survival.status).not.toBe("fails");
+    // The bridge is a Dual inside Laser's own recipe (Light/Darkness/Earth).
     const bridge = generateMatchPlan(laserBuild, {
       mapId: "forest",
     })
       .phases.flatMap((phase) => phase.actions)
-      .find((action) => action.towerId === "infernal" && action.affordable);
+      .find((action) => action.towerId === "atom" && action.affordable);
     expect(bridge?.targetWave).toBeLessThanOrEqual(11);
   });
 
@@ -192,7 +193,7 @@ describe("Match Plan", () => {
     expect(repairs[0].reason).toContain("before the next package purchase");
     const bridge = plan.phases
       .flatMap((phase) => phase.actions)
-      .find((action) => action.towerId === "infernal" && action.affordable);
+      .find((action) => action.towerId === "atom" && action.affordable);
     expect(bridge?.targetWave).toBeLessThanOrEqual(11);
     expect(bridge!.order).toBeGreaterThan(repairs[0].order);
     const w7 = window.survival.waves.find((wave) => wave.wave === 7);
