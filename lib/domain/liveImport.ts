@@ -10,6 +10,20 @@ export const LIVE_STORAGE_KEY = "etd2:live:v1";
 export const LIVE_PLAN_KEY = "etd2:live:plan";
 export const MATCH_PLAN_PATH = "/match-plan";
 
+/**
+ * Above this, a URL is unsafe to hand to a clipboard/chat link (some clients
+ * truncate or choke on very long pasted URLs) — see `MAX_URL_PAYLOAD` in
+ * `OpenInLive.tsx`, which is about shareability, not correctness.
+ *
+ * This is a different, much larger cap: the ceiling for our own in-app
+ * navigation URL. Below it, the build travels in the `?b=` query param, so
+ * the match-plan page can decode and render it synchronously on first
+ * paint — no localStorage round-trip, no flash of the empty state. Only a
+ * build bigger than real packages ever produce falls back to the
+ * localStorage-only handoff.
+ */
+const MAX_NAVIGATION_URL_PAYLOAD = 32_000;
+
 export function getLiveStorage(): Storage | null {
   try {
     return window.localStorage;
@@ -66,7 +80,7 @@ export function liveImportUrl(
   } catch {
     /* URL remains a fallback. */
   }
-  return stored && encoded.length > 6000
+  return stored && encoded.length > MAX_NAVIGATION_URL_PAYLOAD
     ? MATCH_PLAN_PATH
     : `${MATCH_PLAN_PATH}?b=${encoded}`;
 }

@@ -188,6 +188,20 @@ function readSeed(initialPlan: PortableBuild | null): {
   return { build: initialPlan ?? pending ?? legacyBuild, saved, legacyRaw };
 }
 
+/**
+ * Synchronous, deterministic first plan for a build handed in via the URL.
+ * Pinned to the build's own `createdAt` (not "now") so the server-rendered
+ * HTML and the client's first hydrated paint compute byte-identical output —
+ * the effect after mount still runs once to layer in any saved settings.
+ */
+function generateInitialPlan(build: PortableBuild): MatchPlan | null {
+  try {
+    return generateMatchPlan(build, { now: build.createdAt });
+  } catch {
+    return null;
+  }
+}
+
 export function MatchPlanView({
   initialPlan,
   assets,
@@ -209,8 +223,20 @@ export function MatchPlanView({
     return direct;
   };
   const hydrated = useRef(false);
-  const [plan, setPlan] = useState<MatchPlan | null>(null);
+  // A build handed in via the URL (`?b=`) is already resolved before the
+  // first paint — server and client both have it, so the plan can be built
+  // synchronously here instead of waiting for a post-mount effect. That is
+  // what stops "Open in Match Plan" from flashing the empty landing hero
+  // before showing the real plan.
+  const [plan, setPlan] = useState<MatchPlan | null>(() =>
+    initialPlan ? generateInitialPlan(initialPlan) : null,
+  );
   const [source, setSource] = useState<PortableBuild | null>(initialPlan);
+  // True once we know for certain whether a build exists anywhere (URL,
+  // localStorage pending-import, saved plan, legacy tracker). Starts true
+  // whenever the URL already answered that question synchronously; only the
+  // localStorage-only path needs the post-mount effect to find out.
+  const [checkedForBuild, setCheckedForBuild] = useState(!!initialPlan);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<MatchPlan[]>([]);
@@ -222,6 +248,7 @@ export function MatchPlanView({
     if (hydrated.current) return;
     hydrated.current = true;
     const seed = readSeed(initialPlan);
+    setCheckedForBuild(true);
     if (seed.build) {
       const shouldMigrate = !initialPlan && !seed.saved && !!seed.legacyRaw;
       if (shouldMigrate) {
@@ -364,6 +391,22 @@ export function MatchPlanView({
   }
 
   if (!plan) {
+    // Still checking localStorage for a pending import, a saved plan or a
+    // legacy live-tracker snapshot — do not claim "you have no build yet"
+    // until that comes back empty.
+    if (!checkedForBuild) {
+      return (
+        <main className="lab-shell match-shell">
+          <span className="lab-grain" aria-hidden="true" />
+          <LabHeader current="match-plan" />
+          <section className="match-empty match-empty-loading">
+            <p className="eyebrow">PRE-GAME STRATEGY</p>
+            <h1>Loading your match plan…</h1>
+          </section>
+          <LabFooter />
+        </main>
+      );
+    }
     return (
       <main className="lab-shell match-shell">
         <span className="lab-grain" aria-hidden="true" />

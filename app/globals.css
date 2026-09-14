@@ -8596,6 +8596,11 @@ button.mechanic-chip {
 .match-empty-actions {
   margin-top: 24px;
 }
+/* Brief, content-free placeholder while a pending import is confirmed —
+   never shows the "no build" CTAs while that is still in doubt. */
+.match-empty-loading h1 {
+  color: var(--muted);
+}
 
 @media (max-width: 980px) {
   .match-controls {
