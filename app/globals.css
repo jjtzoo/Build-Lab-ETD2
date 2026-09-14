@@ -7327,6 +7327,9 @@ button.mechanic-chip {
   object-fit: cover;
   border-radius: 2px;
 }
+.snapshot-towers button.is-carried .snapshot-tower-icon {
+  opacity: 0.55;
+}
 .snapshot-towers button.is-new i {
   box-shadow: 0 0 14px color-mix(in srgb, var(--plan-cyan) 48%, transparent);
 }
@@ -8051,9 +8054,17 @@ button.mechanic-chip {
 .match-tower.has-debuff circle {
   fill: #b8c5bf;
 }
-.match-tower.is-new circle {
+.match-tower.is-new circle,
+.match-tower.is-upgraded circle {
   stroke: #c0a476;
   stroke-width: 2;
+}
+/* Urgency gradient: "needed now" (new / upgraded this phase) stays solid,
+   established carries recede, and later-phase previews are faintest
+   (see .match-tower.is-future below). */
+.match-tower.is-carried .match-tower-icon,
+.match-tower.is-carried .match-tower-mark {
+  opacity: 0.55;
 }
 .match-tower.is-selected circle {
   stroke: #fff;

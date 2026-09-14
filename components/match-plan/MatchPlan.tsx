@@ -1457,13 +1457,19 @@ function PlanMap({
             );
           })}
 
-          {phase.endTowers.flatMap((tower, index) =>
-            tower.cell
+          {phase.endTowers.flatMap((tower, index) => {
+            const before = prior.get(tower.copyId);
+            const changeState = !before
+              ? "is-new"
+              : before.level < tower.level
+                ? "is-upgraded"
+                : "is-carried";
+            return tower.cell
               ? [
                   <g
                     key={tower.copyId}
                     transform={`translate(${tower.cell.col} ${tower.cell.row})`}
-                    className={`match-tower ${prior.has(tower.copyId) ? "is-carried" : "is-new"} is-${tower.status} is-${tower.effect} ${tower.globalBuff ? "has-global-buff" : ""} ${tower.directHitDebuff ? "has-debuff" : ""} ${tower.copyId === selectedCopyId ? "is-selected" : ""}`}
+                    className={`match-tower ${changeState} is-${tower.status} is-${tower.effect} ${tower.globalBuff ? "has-global-buff" : ""} ${tower.directHitDebuff ? "has-debuff" : ""} ${tower.copyId === selectedCopyId ? "is-selected" : ""}`}
                   >
                     <circle r=".42" />
                     <TowerToken
@@ -1493,8 +1499,8 @@ function PlanMap({
                     </g>
                   </g>,
                 ]
-              : [],
-          )}
+              : [];
+          })}
 
           {futurePlacements.map(({ tower, phaseId }) => (
             <g
