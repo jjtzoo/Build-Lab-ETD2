@@ -45,6 +45,24 @@ function matchup(
   return ELEMENT_MATCHUPS[attacker][defender];
 }
 
+/** One step of a copy's life inside a window: from this wave it is at this level. */
+export type LevelStep = { fromWave: number; level: number };
+
+/**
+ * The level a copy is at during `wave`, or null if it is not on the field yet.
+ * A copy with no timeline is assumed present at its listed level all window.
+ */
+function levelDuringWave(
+  timeline: readonly LevelStep[] | undefined,
+  wave: number,
+  fallbackLevel: number,
+): number | null {
+  if (!timeline) return fallbackLevel;
+  let level: number | null = null;
+  for (const step of timeline) if (wave >= step.fromWave) level = step.level;
+  return level;
+}
+
 export function evaluatePhaseSurvival({
   map,
   mode,
@@ -52,7 +70,7 @@ export function evaluatePhaseSurvival({
   startWave,
   endWave,
   towers,
-  availableFromWave,
+  levelTimeline,
 }: {
   map: MapConfig;
   mode: WaveMode;
@@ -60,7 +78,12 @@ export function evaluatePhaseSurvival({
   startWave: number;
   endWave: number | null;
   towers: readonly PlannedTowerState[];
-  availableFromWave?: ReadonlyMap<string, number>;
+  /**
+   * Per-copy life inside the window, sorted by wave. A copy upgraded mid-window
+   * keeps dealing its previous level's damage until the upgrade wave; a copy
+   * built mid-window deals nothing before it lands.
+   */
+  levelTimeline?: ReadonlyMap<string, readonly LevelStep[]>;
 }): MatchPlanSurvival {
   if (endWave == null || map.pathDurationSeconds == null) {
     return {
@@ -97,11 +120,15 @@ export function evaluatePhaseSurvival({
     const unknownAbility = benchmark.modelConfidence === "ability-estimate";
     let missingTowerFacts = false;
     const modeledDamage = towers.reduce((sum, tower) => {
-      if (wave < (availableFromWave?.get(tower.copyId) ?? startWave))
-        return sum;
+      const level = levelDuringWave(
+        levelTimeline?.get(tower.copyId),
+        wave,
+        tower.level,
+      );
+      if (level == null) return sum;
       if (tower.effect === "global-buff" || tower.effect === "debuff")
         return sum;
-      const facts = combatFacts(tower.towerId, tower.level);
+      const facts = combatFacts(tower.towerId, level);
       if (!facts || !tower.cell) {
         missingTowerFacts = true;
         return sum;
@@ -158,7 +185,7 @@ export function evaluatePhaseSurvival({
             ? unknownAbility
               ? `${benchmark.ability} is not quantified yet; base HP, speed and tower damage are still shown.`
               : "A tower stat or placement is missing."
-              : null,
+            : null,
     };
   });
 

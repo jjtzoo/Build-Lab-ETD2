@@ -43,6 +43,7 @@ import {
 import {
   combatFacts,
   evaluatePhaseSurvival,
+  type LevelStep,
 } from "@/lib/engine/matchPlanSurvival";
 import {
   bountyThroughWave,
@@ -1040,248 +1041,40 @@ export function generateMatchPlan(
     const phaseStartGold = Math.max(0, grossAtStart - cumulativeCost);
     const lower = gross;
     let phaseCost = 0;
-    let madeProgress = true;
-    while (purchaseIndex < queue.length && madeProgress) {
-      madeProgress = false;
-      const entry = queue[purchaseIndex];
-      const copyId = stableId(planId, "copy", entry.towerId, entry.copyOrdinal);
-      const existing = field.find((tower) => tower.copyId === copyId);
-      const fromLevel = existing?.level ?? 0;
-      if (fromLevel >= entry.toLevel) {
-        purchaseIndex += 1;
-        madeProgress = true;
-        continue;
-      }
-      const legal = isLegal(entry.towerId, entry.toLevel, allocation);
-      if (!legal) break;
-      const cost = actionCost(entry.towerId, fromLevel, entry.toLevel);
-      const hasEstablishedDamage = field.some(
-        (tower) =>
-          !isBasicTowerId(tower.towerId) &&
-          (tower.effect === "damage" || tower.effect === "hybrid"),
-      );
-      const establishedElements = new Set(
-        field.flatMap((tower) => {
-          const element = towerFacts(tower.towerId, tower.level).damageElement;
-          return element ? [element] : [];
-        }),
-      );
-      const openingIsSafe =
-        hasEstablishedDamage &&
-        (!requiresEarlyCoverage || establishedElements.size >= 2);
-      const purchaseReserve = openingIsSafe ? reserveGold : 0;
-      const spendable = Math.max(0, lower - purchaseReserve);
-      if (cumulativeCost + cost > spendable) break;
-      const placement = existing?.cell
-        ? { cell: existing.cell, campId: existing.campId ?? "uncamped" }
-        : (overriddenPlacement(
-            overrides,
-            copyId,
-            map,
-            camps,
-            field.flatMap((tower) => (tower.cell ? [tower.cell] : [])),
-          ) ??
-          chooseCell(map, mode, camps, entry.towerId, entry.toLevel, field));
-      const origin = originFor(map);
-      const nextTower: PlannedTowerState = {
-        copyId,
-        towerId: entry.towerId,
-        towerName: entry.towerName,
-        level: entry.toLevel,
-        quantity: 1,
-        purpose: entry.temporaryCarry
-          ? "Temporary early carry"
-          : purposeFor(build, entry.towerId),
-        roles: entry.roles,
-        status:
-          entry.temporaryCarry && !retainTemporary(overrides, copyId)
-            ? "temporary"
-            : "permanent",
-        effect: effectFor(entry.towerId, entry.toLevel),
-        globalBuff: getTowerPlacementFact(entry.towerId).targetsTowers,
-        directHitDebuff: getTowerPlacementFact(entry.towerId).debuff !== null,
-        cell: placement?.cell ?? null,
-        cellLabel: placement ? cellLabel(placement.cell, origin) : null,
-        campId: placement?.campId ?? null,
-      };
-      field = existing
-        ? field.map((tower) => (tower.copyId === copyId ? nextTower : tower))
-        : [...field, nextTower];
-      cumulativeCost += cost;
-      phaseCost += cost;
-      actions.push({
-        id: stableId(
-          planId,
-          definition.id,
-          entry.kind,
-          entry.towerId,
-          entry.toLevel,
-          copyId,
-        ),
-        phaseId: definition.id,
-        order: actionOrder++,
-        type: entry.kind,
-        summary: `${entry.kind === "upgrade" || fromLevel ? "Upgrade" : "Build"} ${entry.towerName} ${entry.toLevel}`,
-        reason: entry.reason,
-        towerId: entry.towerId,
-        towerName: entry.towerName,
-        copyId,
-        fromLevel,
-        toLevel: entry.toLevel,
-        cost,
-        legal,
-        affordable: true,
-        targetWave: Math.max(
-          entry.targetWave ?? 0,
-          earliestAffordableWave(
-            cumulativeCost + purchaseReserve,
-            definition.start,
-            definition.end,
-          ),
-        ),
-        cell: placement?.cell,
-        cellLabel: placement ? cellLabel(placement.cell, origin) : undefined,
-        campId: placement?.campId,
-        temporary: !!entry.temporaryCarry,
-      });
-      purchaseIndex += 1;
-      madeProgress = true;
-    }
-    // If the factual matchup table exposes a catastrophic armour hole, a
-    // cheap legal mono repair outranks another package purchase. This is a
-    // real field action, so the snapshot and budget change with the advice.
-    const beforeRepair = coverageRows(field);
-    const criticalBeforeRepair = beforeRepair.filter(
-      (row) => row.status === "critical",
-    );
-    if (criticalBeforeRepair.length) {
-      const repair = ELEMENTS.flatMap((element) => {
-        const level = Math.min(2, allocation[element]);
-        if (level < 1) return [];
-        const mono = getMonoTowerForElement(element);
-        if (field.some((tower) => tower.towerId === mono.id)) return [];
-        const score = criticalBeforeRepair.reduce(
-          (sum, row) => sum + ELEMENT_MATCHUPS[element][row.defender],
-          0,
-        );
-        const cost = actionCost(mono.id, 0, level);
-        return [{ mono, level, score, cost }];
-      }).sort((a, b) => b.score - a.score || a.cost - b.cost)[0];
-      const spendable = Math.max(0, lower - reserveGold);
-      if (repair && cumulativeCost + repair.cost <= spendable) {
-        const copyId = stableId(planId, "copy", repair.mono.id, 1);
-        const placement = chooseCell(
-          map,
-          mode,
-          camps,
-          repair.mono.id,
-          repair.level,
-          field,
-        );
-        const origin = originFor(map);
-        field = [
-          ...field,
-          {
-            copyId,
-            towerId: repair.mono.id,
-            towerName: repair.mono.name,
-            level: repair.level,
-            quantity: 1,
-            purpose: "Emergency elemental coverage",
-            roles: ["coverage"],
-            status: "temporary",
-            effect: "damage",
-            globalBuff: false,
-            directHitDebuff: false,
-            cell: placement?.cell ?? null,
-            cellLabel: placement ? cellLabel(placement.cell, origin) : null,
-            campId: placement?.campId ?? null,
-          },
-        ];
-        cumulativeCost += repair.cost;
-        phaseCost += repair.cost;
-        actions.push({
-          id: stableId(
-            planId,
-            definition.id,
-            "coverage-repair",
-            repair.mono.id,
-            repair.level,
-          ),
-          phaseId: definition.id,
-          order: actionOrder++,
-          type: "build",
-          summary: `Build ${repair.mono.name} ${repair.level}`,
-          reason: `Affordable emergency repair for ${criticalBeforeRepair.map((row) => `${row.defender} armour`).join(" and ")}; do this before another package upgrade.`,
-          towerId: repair.mono.id,
-          towerName: repair.mono.name,
-          copyId,
-          fromLevel: 0,
-          toLevel: repair.level,
-          cost: repair.cost,
-          legal: true,
-          affordable: true,
-          targetWave: earliestAffordableWave(
-            cumulativeCost + reserveGold,
-            definition.start,
-            definition.end,
-          ),
-          cell: placement?.cell,
-          cellLabel: placement ? cellLabel(placement.cell, origin) : undefined,
-          campId: placement?.campId,
-          temporary: true,
-        });
-      }
-    }
-    const pending = queue[purchaseIndex];
-    if (pending && isLegal(pending.towerId, pending.toLevel, allocation)) {
-      const pendingCopyId = stableId(
-        planId,
-        "copy",
-        pending.towerId,
-        pending.copyOrdinal,
-      );
-      const fromLevel =
-        field.find((tower) => tower.copyId === pendingCopyId)?.level ?? 0;
-      const cost = actionCost(pending.towerId, fromLevel, pending.toLevel);
-      actions.push({
-        id: stableId(
-          planId,
-          definition.id,
-          "wait",
-          pending.towerId,
-          pending.toLevel,
-        ),
-        phaseId: definition.id,
-        order: actionOrder++,
-        type: pending.kind,
-        summary: `Wait on ${pending.towerName} ${pending.toLevel}`,
-        reason: `Legal now, but buying it would breach the ${reserveGold.toLocaleString()} gold emergency reserve.`,
-        towerId: pending.towerId,
-        towerName: pending.towerName,
-        fromLevel,
-        toLevel: pending.toLevel,
-        cost,
-        legal: true,
-        affordable: false,
-        waitForGold: Math.max(0, cumulativeCost + cost + reserveGold - lower),
-        targetWave: Math.max(definition.start, pending.targetWave ?? 0),
-        temporary: !!pending.temporaryCarry,
-      });
-    }
-    const availabilityFor = (
+    let survivalFirst = false;
+
+    // ---- Survival helpers (shared by both planning passes of this phase) ----
+    // Each copy's life inside this window: carried copies start at their
+    // opening level; every purchase this window steps the copy to its new
+    // level from the wave it lands, so an upgrade keeps its old damage until
+    // then rather than vanishing.
+    const timelineFor = (
+      towers: readonly PlannedTowerState[],
       candidate?: { copyId: string; targetWave: number },
-    ) =>
-      new Map([
-        ...actions.flatMap((action) =>
-          action.copyId && action.affordable
-            ? [[action.copyId, action.targetWave ?? definition.start] as const]
-            : [],
-        ),
-        ...(candidate
-          ? [[candidate.copyId, candidate.targetWave] as const]
-          : []),
-      ]);
+    ) => {
+      const timeline = new Map<string, LevelStep[]>();
+      const step = (copyId: string, fromWave: number, level: number) => {
+        const steps = timeline.get(copyId) ?? [];
+        steps.push({ fromWave, level });
+        timeline.set(copyId, steps);
+      };
+      for (const tower of startTowers)
+        step(tower.copyId, definition.start, tower.level);
+      for (const action of actions)
+        if (action.copyId && action.affordable && action.cost > 0)
+          step(
+            action.copyId,
+            action.targetWave ?? definition.start,
+            action.toLevel ?? 0,
+          );
+      if (candidate) {
+        const level = towers.find((t) => t.copyId === candidate.copyId)?.level;
+        if (level != null) step(candidate.copyId, candidate.targetWave, level);
+      }
+      for (const steps of timeline.values())
+        steps.sort((a, b) => a.fromWave - b.fromWave);
+      return timeline;
+    };
     const evaluate = (
       towers: readonly PlannedTowerState[],
       candidate?: { copyId: string; targetWave: number },
@@ -1293,7 +1086,7 @@ export function generateMatchPlan(
         startWave: definition.start,
         endWave: definition.end,
         towers,
-        availableFromWave: availabilityFor(candidate),
+        levelTimeline: timelineFor(towers, candidate),
       });
     const verifiedShortfall = (result: MatchPlanPhase["survival"]) =>
       result.waves.reduce(
@@ -1303,15 +1096,122 @@ export function generateMatchPlan(
             : sum + Math.max(0, 1 - (wave.margin ?? 0)),
         0,
       );
-    let survival = evaluate(field);
+    const firstFailingWave = (result: MatchPlanPhase["survival"]) =>
+      result.waves.find((wave) => wave.status === "fails")?.wave ?? null;
 
-    // A snapshot is not allowed to recommend a field that is known to leak.
-    // Spend the reserve when necessary, then add the most efficient legal copy
-    // that improves the verified five-wave damage floor. Unknown abilities stay
-    // explicitly unverified and never masquerade as a pass.
-    for (let rescueStep = 0; rescueStep < 8; rescueStep += 1) {
-      const currentShortfall = verifiedShortfall(survival);
-      if (currentShortfall <= 0) break;
+    type RescueCandidate = {
+      tower: PlannedTowerState;
+      cost: number;
+      ordinal: number | null;
+      targetWave: number;
+      survival: MatchPlanPhase["survival"];
+      shortfall: number;
+      efficiency: number;
+      source: "build-path" | "fleet-copy";
+    };
+    // Prices and places one prospective tower, keeping it only if it lifts the
+    // verified damage floor. Survival may spend the reserve, never beyond gross.
+    const rescueCandidate = (
+      source: PlannedTowerState,
+      cost: number,
+      ordinal: number | null,
+      kind: RescueCandidate["source"],
+      currentShortfall: number,
+    ): RescueCandidate[] => {
+      if (cost <= 0 || cumulativeCost + cost > gross) return [];
+      const placement = chooseCell(
+        map,
+        mode,
+        camps,
+        source.towerId,
+        source.level,
+        field,
+      );
+      if (!placement) return [];
+      const targetWave = earliestAffordableWave(
+        cumulativeCost + cost,
+        definition.start,
+        definition.end,
+      );
+      const tower: PlannedTowerState = {
+        ...source,
+        quantity: 1,
+        cell: placement.cell,
+        cellLabel: cellLabel(placement.cell, originFor(map)),
+        campId: placement.campId,
+      };
+      const nextSurvival = evaluate([...field, tower], {
+        copyId: tower.copyId,
+        targetWave,
+      });
+      const nextShortfall = verifiedShortfall(nextSurvival);
+      if (nextShortfall >= currentShortfall - 0.0001) return [];
+      return [
+        {
+          tower,
+          cost,
+          ordinal,
+          targetWave,
+          survival: nextSurvival,
+          shortfall: nextShortfall,
+          efficiency: (currentShortfall - nextShortfall) / cost,
+          source: kind,
+        },
+      ];
+    };
+    // Stage 1 — a build tower that is not on the field yet. Buying a copy the
+    // package already calls for (at its planned level, or level 1 as an early
+    // step toward it) keeps the spend on the build's own path.
+    const buildPathCandidates = (currentShortfall: number) =>
+      queue.slice(purchaseIndex).flatMap((entry) => {
+        const copyId = stableId(
+          planId,
+          "copy",
+          entry.towerId,
+          entry.copyOrdinal,
+        );
+        if (field.some((tower) => tower.copyId === copyId)) return [];
+        const levels = entry.toLevel > 1 ? [entry.toLevel, 1] : [entry.toLevel];
+        return levels.flatMap((level) => {
+          if (!isLegal(entry.towerId, level, allocation)) return [];
+          const effect = effectFor(entry.towerId, level);
+          if (effect !== "damage" && effect !== "hybrid") return [];
+          const placementFact = getTowerPlacementFact(entry.towerId);
+          if (placementFact.targetsTowers) return [];
+          if (!combatFacts(entry.towerId, level)) return [];
+          const source: PlannedTowerState = {
+            copyId,
+            towerId: entry.towerId,
+            towerName: entry.towerName,
+            level,
+            quantity: 1,
+            purpose: entry.temporaryCarry
+              ? "Temporary early carry"
+              : purposeFor(build, entry.towerId),
+            roles: entry.roles,
+            status:
+              entry.temporaryCarry && !retainTemporary(overrides, copyId)
+                ? "temporary"
+                : "permanent",
+            effect,
+            globalBuff: placementFact.targetsTowers,
+            directHitDebuff: placementFact.debuff !== null,
+            cell: null,
+            cellLabel: null,
+            campId: null,
+          };
+          return rescueCandidate(
+            source,
+            actionCost(entry.towerId, 0, level),
+            null,
+            "build-path",
+            currentShortfall,
+          );
+        });
+      });
+    // Stage 2 — another copy of a tower the fleet already runs, judged by how
+    // much it lifts the whole window's floor per gold.
+    const fleetCopyCandidates = (currentShortfall: number) => {
       const sourceTowers = [
         ...new Map(
           field
@@ -1325,107 +1225,409 @@ export function generateMatchPlan(
             .map((tower) => [`${tower.towerId}@${tower.level}`, tower]),
         ).values(),
       ];
-      const candidates = sourceTowers.flatMap((source) => {
-        const cost = actionCost(source.towerId, 0, source.level);
-        if (cost <= 0 || cumulativeCost + cost > gross) return [];
+      return sourceTowers.flatMap((source) => {
         const ordinal = (rescueOrdinalByTower.get(source.towerId) ?? 0) + 1;
+        return rescueCandidate(
+          {
+            ...source,
+            copyId: stableId(planId, "copy", source.towerId, ordinal),
+            purpose: "Zero-leak survival repair",
+            roles: source.roles.length ? source.roles : ["main-dps"],
+            status: "temporary",
+          },
+          actionCost(source.towerId, 0, source.level),
+          ordinal,
+          "fleet-copy",
+          currentShortfall,
+        );
+      });
+    };
+    const rankRescue = (a: RescueCandidate, b: RescueCandidate) =>
+      a.shortfall - b.shortfall ||
+      b.efficiency - a.efficiency ||
+      a.cost - b.cost;
+
+    // A snapshot is not allowed to recommend a field that is known to leak.
+    // Spend the reserve when necessary, then add the most efficient legal copy
+    // that improves the verified five-wave damage floor. Unknown abilities stay
+    // explicitly unverified and never masquerade as a pass. Candidates cascade:
+    // an in-build tower not yet fielded first; a fleet copy only once the build
+    // is fully established or no build tower helps.
+    const applySurvivalRescue = (
+      initial: MatchPlanPhase["survival"],
+      timing: "before-package" | "after-package",
+    ) => {
+      let survival = initial;
+      for (let rescueStep = 0; rescueStep < 8; rescueStep += 1) {
+        const currentShortfall = verifiedShortfall(survival);
+        if (currentShortfall <= 0) break;
+        const best =
+          buildPathCandidates(currentShortfall).sort(rankRescue)[0] ??
+          fleetCopyCandidates(currentShortfall).sort(rankRescue)[0];
+        if (!best) break;
+        field = [...field, best.tower];
+        cumulativeCost += best.cost;
+        phaseCost += best.cost;
+        if (best.ordinal != null)
+          rescueOrdinalByTower.set(best.tower.towerId, best.ordinal);
+        const repairedWaves = best.survival.waves
+          .filter(
+            (wave) =>
+              wave.status !== "unverified" &&
+              (survival.waves.find((before) => before.wave === wave.wave)
+                ?.margin ?? 1) < 1,
+          )
+          .map((wave) => `W${wave.wave}`)
+          .join(", ");
+        const priority =
+          timing === "before-package"
+            ? "Survival comes before the next package purchase in this window."
+            : "Survival spending takes priority over the reserve.";
+        actions.push({
+          id: stableId(
+            planId,
+            definition.id,
+            "survival-repair",
+            best.tower.copyId,
+          ),
+          phaseId: definition.id,
+          order: actionOrder++,
+          type: "build",
+          summary: `${best.source === "build-path" ? "Build" : "Add"} ${best.tower.towerName} ${best.tower.level}`,
+          reason:
+            best.source === "build-path"
+              ? `${repairedWaves || "This window"} is below the 100% damage floor. This copy is already part of the build, so it is bought early as damage instead of banking. ${priority}`
+              : `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. ${priority}`,
+          towerId: best.tower.towerId,
+          towerName: best.tower.towerName,
+          copyId: best.tower.copyId,
+          fromLevel: 0,
+          toLevel: best.tower.level,
+          cost: best.cost,
+          legal: true,
+          affordable: true,
+          targetWave: best.targetWave,
+          cell: best.tower.cell ?? undefined,
+          cellLabel: best.tower.cellLabel ?? undefined,
+          campId: best.tower.campId ?? undefined,
+          temporary: best.tower.status === "temporary",
+        });
+        survival = best.survival;
+      }
+      return survival;
+    };
+
+    // Phase state that a replan must be able to roll back.
+    const snapshot = () => ({
+      field: [...field],
+      cumulativeCost,
+      purchaseIndex,
+      actionsLength: actions.length,
+      actionOrder,
+      phaseCost,
+      rescueOrdinals: new Map(rescueOrdinalByTower),
+    });
+    const restore = (state: ReturnType<typeof snapshot>) => {
+      field = [...state.field];
+      cumulativeCost = state.cumulativeCost;
+      purchaseIndex = state.purchaseIndex;
+      actions.length = state.actionsLength;
+      actionOrder = state.actionOrder;
+      phaseCost = state.phaseCost;
+      rescueOrdinalByTower.clear();
+      for (const [towerId, ordinal] of state.rescueOrdinals)
+        rescueOrdinalByTower.set(towerId, ordinal);
+    };
+
+    // Buys the package queue in order while it stays legal and affordable,
+    // then the emergency coverage repair, then records what is being waited on.
+    const runPackagePurchases = () => {
+      let madeProgress = true;
+      while (purchaseIndex < queue.length && madeProgress) {
+        madeProgress = false;
+        const entry = queue[purchaseIndex];
         const copyId = stableId(
           planId,
           "copy",
-          source.towerId,
-          ordinal,
+          entry.towerId,
+          entry.copyOrdinal,
         );
-        const placement = chooseCell(
-          map,
-          mode,
-          camps,
-          source.towerId,
-          source.level,
-          field,
+        const existing = field.find((tower) => tower.copyId === copyId);
+        const fromLevel = existing?.level ?? 0;
+        if (fromLevel >= entry.toLevel) {
+          purchaseIndex += 1;
+          madeProgress = true;
+          continue;
+        }
+        const legal = isLegal(entry.towerId, entry.toLevel, allocation);
+        if (!legal) break;
+        const cost = actionCost(entry.towerId, fromLevel, entry.toLevel);
+        const hasEstablishedDamage = field.some(
+          (tower) =>
+            !isBasicTowerId(tower.towerId) &&
+            (tower.effect === "damage" || tower.effect === "hybrid"),
         );
-        if (!placement) return [];
-        const targetWave = earliestAffordableWave(
-          cumulativeCost + cost,
-          definition.start,
-          definition.end,
+        const establishedElements = new Set(
+          field.flatMap((tower) => {
+            const element = towerFacts(
+              tower.towerId,
+              tower.level,
+            ).damageElement;
+            return element ? [element] : [];
+          }),
         );
+        const openingIsSafe =
+          hasEstablishedDamage &&
+          (!requiresEarlyCoverage || establishedElements.size >= 2);
+        const purchaseReserve = openingIsSafe ? reserveGold : 0;
+        const spendable = Math.max(0, lower - purchaseReserve);
+        if (cumulativeCost + cost > spendable) break;
+        const placement = existing?.cell
+          ? { cell: existing.cell, campId: existing.campId ?? "uncamped" }
+          : (overriddenPlacement(
+              overrides,
+              copyId,
+              map,
+              camps,
+              field.flatMap((tower) => (tower.cell ? [tower.cell] : [])),
+            ) ??
+            chooseCell(map, mode, camps, entry.towerId, entry.toLevel, field));
         const origin = originFor(map);
-        const tower: PlannedTowerState = {
-          ...source,
+        const nextTower: PlannedTowerState = {
           copyId,
+          towerId: entry.towerId,
+          towerName: entry.towerName,
+          level: entry.toLevel,
           quantity: 1,
-          purpose: "Zero-leak survival repair",
-          roles: source.roles.length ? source.roles : ["main-dps"],
-          status: "temporary",
-          cell: placement.cell,
-          cellLabel: cellLabel(placement.cell, origin),
-          campId: placement.campId,
+          purpose: entry.temporaryCarry
+            ? "Temporary early carry"
+            : purposeFor(build, entry.towerId),
+          roles: entry.roles,
+          status:
+            entry.temporaryCarry && !retainTemporary(overrides, copyId)
+              ? "temporary"
+              : "permanent",
+          effect: effectFor(entry.towerId, entry.toLevel),
+          globalBuff: getTowerPlacementFact(entry.towerId).targetsTowers,
+          directHitDebuff: getTowerPlacementFact(entry.towerId).debuff !== null,
+          cell: placement?.cell ?? null,
+          cellLabel: placement ? cellLabel(placement.cell, origin) : null,
+          campId: placement?.campId ?? null,
         };
-        const nextSurvival = evaluate([...field, tower], {
+        field = existing
+          ? field.map((tower) => (tower.copyId === copyId ? nextTower : tower))
+          : [...field, nextTower];
+        cumulativeCost += cost;
+        phaseCost += cost;
+        actions.push({
+          id: stableId(
+            planId,
+            definition.id,
+            entry.kind,
+            entry.towerId,
+            entry.toLevel,
+            copyId,
+          ),
+          phaseId: definition.id,
+          order: actionOrder++,
+          type: entry.kind,
+          summary: `${entry.kind === "upgrade" || fromLevel ? "Upgrade" : "Build"} ${entry.towerName} ${entry.toLevel}`,
+          reason: entry.reason,
+          towerId: entry.towerId,
+          towerName: entry.towerName,
           copyId,
-          targetWave,
+          fromLevel,
+          toLevel: entry.toLevel,
+          cost,
+          legal,
+          affordable: true,
+          targetWave: Math.max(
+            entry.targetWave ?? 0,
+            earliestAffordableWave(
+              cumulativeCost + purchaseReserve,
+              definition.start,
+              definition.end,
+            ),
+          ),
+          cell: placement?.cell,
+          cellLabel: placement ? cellLabel(placement.cell, origin) : undefined,
+          campId: placement?.campId,
+          temporary: !!entry.temporaryCarry,
         });
-        const nextShortfall = verifiedShortfall(nextSurvival);
-        if (nextShortfall >= currentShortfall - 0.0001) return [];
-        return [
-          {
-            tower,
-            cost,
-            ordinal,
-            targetWave,
-            survival: nextSurvival,
-            shortfall: nextShortfall,
-            efficiency: (currentShortfall - nextShortfall) / cost,
-          },
-        ];
-      });
-      const best = candidates.sort(
-        (a, b) =>
-          a.shortfall - b.shortfall ||
-          b.efficiency - a.efficiency ||
-          a.cost - b.cost,
-      )[0];
-      if (!best) break;
-      field = [...field, best.tower];
-      cumulativeCost += best.cost;
-      phaseCost += best.cost;
-      rescueOrdinalByTower.set(best.tower.towerId, best.ordinal);
-      const repairedWaves = best.survival.waves
-        .filter(
-          (wave) =>
-            wave.status !== "unverified" &&
-            (survival.waves.find((before) => before.wave === wave.wave)
-              ?.margin ?? 1) < 1,
-        )
-        .map((wave) => `W${wave.wave}`)
-        .join(", ");
-      actions.push({
-        id: stableId(
+        purchaseIndex += 1;
+        madeProgress = true;
+      }
+      // If the factual matchup table exposes a catastrophic armour hole, a
+      // cheap legal mono repair outranks another package purchase. This is a
+      // real field action, so the snapshot and budget change with the advice.
+      const beforeRepair = coverageRows(field);
+      const criticalBeforeRepair = beforeRepair.filter(
+        (row) => row.status === "critical",
+      );
+      if (criticalBeforeRepair.length) {
+        const repair = ELEMENTS.flatMap((element) => {
+          const level = Math.min(2, allocation[element]);
+          if (level < 1) return [];
+          const mono = getMonoTowerForElement(element);
+          if (field.some((tower) => tower.towerId === mono.id)) return [];
+          const score = criticalBeforeRepair.reduce(
+            (sum, row) => sum + ELEMENT_MATCHUPS[element][row.defender],
+            0,
+          );
+          const cost = actionCost(mono.id, 0, level);
+          return [{ mono, level, score, cost }];
+        }).sort((a, b) => b.score - a.score || a.cost - b.cost)[0];
+        const spendable = Math.max(0, lower - reserveGold);
+        if (repair && cumulativeCost + repair.cost <= spendable) {
+          const copyId = stableId(planId, "copy", repair.mono.id, 1);
+          const placement = chooseCell(
+            map,
+            mode,
+            camps,
+            repair.mono.id,
+            repair.level,
+            field,
+          );
+          const origin = originFor(map);
+          field = [
+            ...field,
+            {
+              copyId,
+              towerId: repair.mono.id,
+              towerName: repair.mono.name,
+              level: repair.level,
+              quantity: 1,
+              purpose: "Emergency elemental coverage",
+              roles: ["coverage"],
+              status: "temporary",
+              effect: "damage",
+              globalBuff: false,
+              directHitDebuff: false,
+              cell: placement?.cell ?? null,
+              cellLabel: placement ? cellLabel(placement.cell, origin) : null,
+              campId: placement?.campId ?? null,
+            },
+          ];
+          cumulativeCost += repair.cost;
+          phaseCost += repair.cost;
+          actions.push({
+            id: stableId(
+              planId,
+              definition.id,
+              "coverage-repair",
+              repair.mono.id,
+              repair.level,
+            ),
+            phaseId: definition.id,
+            order: actionOrder++,
+            type: "build",
+            summary: `Build ${repair.mono.name} ${repair.level}`,
+            reason: `Affordable emergency repair for ${criticalBeforeRepair.map((row) => `${row.defender} armour`).join(" and ")}; do this before another package upgrade.`,
+            towerId: repair.mono.id,
+            towerName: repair.mono.name,
+            copyId,
+            fromLevel: 0,
+            toLevel: repair.level,
+            cost: repair.cost,
+            legal: true,
+            affordable: true,
+            targetWave: earliestAffordableWave(
+              cumulativeCost + reserveGold,
+              definition.start,
+              definition.end,
+            ),
+            cell: placement?.cell,
+            cellLabel: placement
+              ? cellLabel(placement.cell, origin)
+              : undefined,
+            campId: placement?.campId,
+            temporary: true,
+          });
+        }
+      }
+      const pending = queue[purchaseIndex];
+      if (pending && isLegal(pending.towerId, pending.toLevel, allocation)) {
+        const pendingCopyId = stableId(
           planId,
-          definition.id,
-          "survival-repair",
-          best.tower.copyId,
-        ),
-        phaseId: definition.id,
-        order: actionOrder++,
-        type: "build",
-        summary: `Add ${best.tower.towerName} ${best.tower.level}`,
-        reason: `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. Survival spending takes priority over the reserve.`,
-        towerId: best.tower.towerId,
-        towerName: best.tower.towerName,
-        copyId: best.tower.copyId,
-        fromLevel: 0,
-        toLevel: best.tower.level,
-        cost: best.cost,
-        legal: true,
-        affordable: true,
-        targetWave: best.targetWave,
-        cell: best.tower.cell ?? undefined,
-        cellLabel: best.tower.cellLabel ?? undefined,
-        campId: best.tower.campId ?? undefined,
-        temporary: true,
-      });
-      survival = best.survival;
+          "copy",
+          pending.towerId,
+          pending.copyOrdinal,
+        );
+        const fromLevel =
+          field.find((tower) => tower.copyId === pendingCopyId)?.level ?? 0;
+        const cost = actionCost(pending.towerId, fromLevel, pending.toLevel);
+        actions.push({
+          id: stableId(
+            planId,
+            definition.id,
+            "wait",
+            pending.towerId,
+            pending.toLevel,
+          ),
+          phaseId: definition.id,
+          order: actionOrder++,
+          type: pending.kind,
+          summary: `Wait on ${pending.towerName} ${pending.toLevel}`,
+          reason: survivalFirst
+            ? `Legal now, but it could not be bought before this window's failing wave. Survival purchases come first; this waits for the gold they used.`
+            : `Legal now, but buying it would breach the ${reserveGold.toLocaleString()} gold emergency reserve.`,
+          towerId: pending.towerId,
+          towerName: pending.towerName,
+          fromLevel,
+          toLevel: pending.toLevel,
+          cost,
+          legal: true,
+          affordable: false,
+          waitForGold: Math.max(0, cumulativeCost + cost + reserveGold - lower),
+          targetWave: Math.max(definition.start, pending.targetWave ?? 0),
+          temporary: !!pending.temporaryCarry,
+        });
+      }
+    };
+
+    // Pass A — economy first: the package queue in order, then any rescue.
+    const phaseStart = snapshot();
+    runPackagePurchases();
+    let survival = applySurvivalRescue(evaluate(field), "after-package");
+
+    // Survival over economy. If the window still leaks and a package purchase
+    // in this window only lands at or after the first failing wave, that
+    // purchase could not be committed in time to matter. Replan the window
+    // survival-first: buy in-build damage that lands before the failing wave,
+    // then let the package queue take what is left (the big purchase waits).
+    // The replan is kept only when it strictly improves the verified floor.
+    const failingWave = firstFailingWave(survival);
+    const lateCommit =
+      failingWave != null &&
+      actions
+        .slice(phaseStart.actionsLength)
+        .some(
+          (action) =>
+            action.affordable &&
+            action.cost > 0 &&
+            !action.id.includes(":survival-repair:") &&
+            (action.targetWave ?? definition.start) >= failingWave,
+        );
+    if (lateCommit) {
+      const economyFirst = { ...snapshot(), survival };
+      restore(phaseStart);
+      survivalFirst = true;
+      const rescued = applySurvivalRescue(evaluate(field), "before-package");
+      runPackagePurchases();
+      const replanned =
+        verifiedShortfall(rescued) < verifiedShortfall(economyFirst.survival)
+          ? applySurvivalRescue(evaluate(field), "after-package")
+          : rescued;
+      if (
+        verifiedShortfall(replanned) <
+        verifiedShortfall(economyFirst.survival) - 0.0001
+      ) {
+        survival = replanned;
+      } else {
+        restore(economyFirst);
+        survivalFirst = false;
+        survival = economyFirst.survival;
+      }
     }
 
     const coverage = coverageRows(field);

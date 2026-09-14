@@ -172,6 +172,39 @@ describe("Match Plan", () => {
     expect(bridge?.targetWave).toBe(11);
   });
 
+  it("buys survival before a package purchase that cannot land in time", () => {
+    // Waves 6–10 for a Trio anchor: the 500g bridge only lands at W11, so
+    // banking for it would leave W7 leaking. Survival over economy — a cheap
+    // in-build copy is bought first, and the bridge still lands this window.
+    const window = generateMatchPlan(laserBuild, { mapId: "forest" }).phases[1];
+    const repair = window.actions.find((action) =>
+      action.id.includes(":survival-repair:"),
+    );
+    const bridge = window.actions.find(
+      (action) => action.towerId === "infernal" && action.affordable,
+    );
+    expect(repair).toBeDefined();
+    expect(bridge).toBeDefined();
+    expect(repair!.order).toBeLessThan(bridge!.order);
+    expect(repair!.targetWave).toBeLessThanOrEqual(7);
+    expect(repair!.reason).toContain("before the next package purchase");
+    expect(bridge!.targetWave).toBe(11);
+    const w7 = window.survival.waves.find((wave) => wave.wave === 7);
+    expect(w7?.status).toBe("survives");
+    expect(window.survival.status).not.toBe("fails");
+  });
+
+  it("does not replan a window whose economy plan already survives", () => {
+    const opening = generateMatchPlan(laserBuild, { mapId: "forest" })
+      .phases[0];
+    expect(opening.survival.status).not.toBe("fails");
+    expect(
+      opening.actions.some((action) =>
+        action.reason.includes("before the next package purchase"),
+      ),
+    ).toBe(false);
+  });
+
   it("separates legal purchases from conservative affordability", () => {
     const plan = generateMatchPlan(laserBuild, {
       mapId: "forest",
