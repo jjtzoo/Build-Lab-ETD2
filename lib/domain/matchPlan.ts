@@ -44,7 +44,8 @@ export type MatchPlanActionType =
   | "upgrade"
   | "reserve-cell"
   | "release-cell"
-  | "remove-temporary";
+  | "remove-temporary"
+  | "sell";
 
 export type MatchPlanAction = {
   id: string;
@@ -61,6 +62,8 @@ export type MatchPlanAction = {
   fromLevel?: number;
   toLevel?: number;
   cost: number;
+  /** Gold returned by a sell action, at the verified refund rate. */
+  refund?: number;
   legal: boolean;
   affordable: boolean;
   waitForGold?: number;
@@ -100,8 +103,11 @@ export type MatchPlanCamp = {
 };
 
 export type MatchPlanEconomy = {
+  /** Net gold committed so far: purchases minus sell refunds. */
   cumulativeCost: number;
   phaseCost: number;
+  /** Gold recovered by selling temporary copies in this window. */
+  phaseRefund: number;
   phaseStartGold: number;
   incomeThisPhase: number;
   phaseEndGold: number;
@@ -219,6 +225,7 @@ export type CopilotAction = {
   };
   economy: {
     cost: number;
+    refund?: number;
     legal: boolean;
     affordableAtLowerBound: boolean;
     waitForGold?: number;

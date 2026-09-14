@@ -868,14 +868,24 @@ function PhaseSnapshot({
           : "carried";
     return { tower, kind };
   });
+  const unmodeledAbilityWaves = phase.survival.waves
+    .filter((wave) => wave.status === "unverified" && wave.ability)
+    .map((wave) => `W${wave.wave}`);
+  const missingStatWaves = phase.survival.waves.filter(
+    (wave) =>
+      wave.status === "unverified" &&
+      wave.limitingFactor?.includes("no combat stat"),
+  );
   const verdict =
     phase.survival.status === "survives"
-      ? `Modeled clear · ${Math.round((phase.survival.margin ?? 1) * 100 - 100)}% worst-wave margin`
+      ? `Clears every wave · +${Math.round((phase.survival.margin ?? 1) * 100 - 100)}% on the tightest`
       : phase.survival.status === "borderline"
         ? `Thin margin · wave ${phase.survival.worstWave}`
         : phase.survival.status === "fails"
-          ? `Unsafe · fails wave ${phase.survival.worstWave}`
-          : "Not verified";
+          ? `Leaks at wave ${phase.survival.worstWave} · ${Math.round((phase.survival.margin ?? 0) * 100)}% of its HP`
+          : missingStatWaves.length
+            ? "Cannot verify · a placed tower has no combat stat at this level"
+            : `Clears base HP · ${unmodeledAbilityWaves.join(", ")} abilit${unmodeledAbilityWaves.length === 1 ? "y" : "ies"} not modeled`;
 
   return (
     <section
@@ -928,8 +938,17 @@ function PhaseSnapshot({
               <b>{phase.economy.phaseCost.toLocaleString()}g</b>
             </span>
             <i>=</i>
+            {phase.economy.phaseRefund > 0 && (
+              <>
+                <i>+</i>
+                <span>
+                  <small>Sell refunds</small>
+                  <b>{phase.economy.phaseRefund.toLocaleString()}g</b>
+                </span>
+              </>
+            )}
             <span>
-              <small>End bank</small>
+              <small>Left after wave {phase.endWave ?? "56"}</small>
               <b>{phase.economy.phaseEndGold.toLocaleString()}g</b>
             </span>
           </div>
@@ -939,7 +958,13 @@ function PhaseSnapshot({
               phase.actions.map((action) => (
                 <li
                   key={action.id}
-                  className={!action.affordable ? "is-wait" : ""}
+                  className={
+                    action.type === "sell"
+                      ? "is-sell"
+                      : !action.affordable
+                        ? "is-wait"
+                        : ""
+                  }
                 >
                   <button
                     type="button"
@@ -948,12 +973,20 @@ function PhaseSnapshot({
                       action.copyId && onSelectTower(action.copyId)
                     }
                   >
-                    <b>{action.affordable ? "Do" : "Wait"}</b>
+                    <b>
+                      {action.type === "sell"
+                        ? "Sell"
+                        : action.affordable
+                          ? "Do"
+                          : "Wait"}
+                    </b>
                     {action.summary}
                     <small>
-                      {action.cost
-                        ? `${action.cost.toLocaleString()}g`
-                        : "keystone"}
+                      {action.type === "sell"
+                        ? `+${(action.refund ?? 0).toLocaleString()}g back`
+                        : action.cost
+                          ? `${action.cost.toLocaleString()}g`
+                          : "keystone"}
                       {action.targetWave
                         ? ` · before W${action.targetWave}`
                         : ""}
@@ -963,7 +996,7 @@ function PhaseSnapshot({
               ))
             ) : (
               <li>
-                <span>Hold the reserve</span>
+                <span>Nothing to buy or sell in this window</span>
               </li>
             )}
           </ol>
@@ -1018,10 +1051,12 @@ function PhaseSnapshot({
             <p>Survival check</p>
             <strong>
               {phase.survival.status === "fails"
-                ? "This field is not safe yet"
+                ? "This field leaks: modeled damage is short of the wave HP"
                 : phase.survival.status === "unverified"
-                  ? "The engine needs more data"
-                  : "Available field damage versus each wave"}
+                  ? missingStatWaves.length
+                    ? "A placed tower has no combat stat at this level, so the damage shown is only a floor"
+                    : "Base HP clears; wave abilities are not modeled yet, so these waves are not proven safe"
+                  : "Modeled field damage against each wave's HP"}
             </strong>
           </div>
           <small>
@@ -1056,9 +1091,16 @@ function PhaseSnapshot({
                 </dl>
                 <strong>
                   {wave.margin == null
-                    ? "Unverified"
-                    : `${Math.round(wave.margin * 100)}% capacity`}
+                    ? "No benchmark"
+                    : `${Math.round(wave.margin * 100)}% of wave HP`}
                 </strong>
+                {wave.status === "unverified" && (
+                  <small>
+                    {wave.limitingFactor?.includes("no combat stat")
+                      ? "stat missing"
+                      : `${wave.ability} not modeled`}
+                  </small>
+                )}
               </article>
             ))}
           </div>
@@ -1116,12 +1158,19 @@ function CopilotDecision({ phase }: { phase: MatchPlan["phases"][number] }) {
             "Do not advance the long-term package until the five-wave survival check passes.",
         }
       : blocked
-        ? {
-            state: "delay",
-            title: "Bank gold; do not force the next purchase",
-            command: `${blocked.summary} needs ${blocked.waitForGold?.toLocaleString() ?? 0}g more above the safety floor.`,
-            reason: blocked.reason,
-          }
+        ? blocked.legal
+          ? {
+              state: "delay",
+              title: "Bank gold; do not force the next purchase",
+              command: `${blocked.summary} needs ${blocked.waitForGold?.toLocaleString() ?? 0}g more above the safety floor.`,
+              reason: blocked.reason,
+            }
+          : {
+              state: "delay",
+              title: "Nothing on the build path is legal yet",
+              command: `${blocked.summary}. Bank until that keystone lands; every wave here already clears its base HP.`,
+              reason: blocked.reason,
+            }
         : affordable.length
           ? {
               state: "on-plan",
@@ -1161,13 +1210,21 @@ function CopilotDecision({ phase }: { phase: MatchPlan["phases"][number] }) {
             {phase.actions.map((action) => (
               <li
                 key={action.id}
-                className={!action.affordable ? "is-wait" : ""}
+                className={
+                  action.type === "sell"
+                    ? "is-sell"
+                    : !action.affordable
+                      ? "is-wait"
+                      : ""
+                }
               >
                 <span>{action.summary}</span>
                 <small>
-                  {action.cost
-                    ? `${action.cost.toLocaleString()}g`
-                    : "keystone"}
+                  {action.type === "sell"
+                    ? `+${(action.refund ?? 0).toLocaleString()}g back`
+                    : action.cost
+                      ? `${action.cost.toLocaleString()}g`
+                      : "keystone"}
                   {action.targetWave ? ` · before W${action.targetWave}` : ""}
                 </small>
               </li>

@@ -7445,6 +7445,18 @@ button.mechanic-chip {
 .snapshot-wave-grid article[data-state="fails"] > strong {
   color: var(--danger);
 }
+.snapshot-wave-grid article[data-state="unverified"] > strong {
+  color: var(--plan-amber);
+}
+.snapshot-wave-grid article > small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font: 8px var(--font-mono, monospace);
+}
+.snapshot-commitments ol li.is-sell button b {
+  color: var(--plan-amber);
+}
 .snapshot-survival details {
   margin-top: 10px;
   color: var(--muted);

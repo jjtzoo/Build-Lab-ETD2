@@ -32,6 +32,11 @@ export type TowerEconomicsCatalog = {
       CombinationClass,
       readonly number[]
     >>;
+  /** Null until the owner supplies the verified in-game sell rate. */
+  sellRefund?: {
+    fraction: number | null;
+    note: string;
+  };
   sources: readonly {
     label: string;
     url: string;
@@ -100,4 +105,20 @@ export function resolveNormalTowerCost(
       NORMAL_TOWER_COST_SEMANTICS,
     minimumFieldCost,
   };
+}
+
+/**
+ * Fraction of a tower's cumulative gold cost returned on sale, or null when
+ * the catalog does not carry a verified value. Callers must treat null as
+ * "selling is not modeled", never as zero.
+ */
+export function sellRefundFraction(): number | null {
+  const fraction =
+    TOWER_ECONOMICS_CATALOG.sellRefund?.fraction ?? null;
+  return fraction != null &&
+    Number.isFinite(fraction) &&
+    fraction > 0 &&
+    fraction <= 1
+    ? fraction
+    : null;
 }

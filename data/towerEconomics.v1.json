@@ -9,9 +9,22 @@
     "note": "The official announcement history through this date contains no later Dual, Trio, or Quad normal-tower cost change. The 2024-06-28 total-cost change applies only to Level 4 Single Element and Periodic towers."
   },
   "costsByCombination": {
-    "Dual": [500, 1300, 3300],
-    "Trio": [1500, 5000],
-    "Quad": [4250]
+    "Dual": [
+      500,
+      1300,
+      3300
+    ],
+    "Trio": [
+      1500,
+      5000
+    ],
+    "Quad": [
+      4250
+    ]
+  },
+  "sellRefund": {
+    "fraction": null,
+    "note": "PENDING OWNER. Fraction of the gold paid for a tower (its cumulative field cost) returned when it is sold. Match Plan retirement of temporary towers stays disabled while this is null; do not estimate it."
   },
   "sources": [
     {

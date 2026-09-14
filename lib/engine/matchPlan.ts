@@ -50,6 +50,7 @@ import {
   type MatchPlanDifficulty,
   waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
+import { sellRefundFraction } from "@/lib/domain/towerEconomics";
 import { liveTowerName, resolveLiveTowerCost } from "@/lib/engine/liveGame";
 import { coverageForMode, islands } from "@/lib/engine/mapPlacement";
 import { rankPlacements } from "@/lib/engine/placementValue";
@@ -95,6 +96,12 @@ export type MatchPlanSettings = {
   overrides?: readonly MatchPlanOverride[];
   now?: string;
   id?: string;
+  /**
+   * Fraction of a tower's gold returned on sale. Defaults to the verified
+   * catalog value; null (the catalog default until the owner supplies it)
+   * disables retirement entirely rather than assuming a rate.
+   */
+  sellRefundFraction?: number | null;
 };
 
 type Purchase = Omit<PortableTowerAction, "towerId"> & {
@@ -980,6 +987,10 @@ export function generateMatchPlan(
     overrideReserve?.kind === "reserve"
       ? overrideReserve.value
       : (settings.reserveGold ?? 300);
+  const sellRefund =
+    settings.sellRefundFraction === undefined
+      ? sellRefundFraction()
+      : settings.sellRefundFraction;
   const order = allocationOrder(build, overrides, map, mode);
   const queue = purchases(build, order, map, mode);
   const requiresEarlyCoverage = queue.some(
@@ -1074,6 +1085,7 @@ export function generateMatchPlan(
     const phaseStartGold = Math.max(0, grossAtStart - cumulativeCost);
     const lower = gross;
     let phaseCost = 0;
+    let phaseRefund = 0;
     let survivalFirst = false;
 
     // ---- Survival helpers (shared by both planning passes of this phase) ----
@@ -1440,6 +1452,7 @@ export function generateMatchPlan(
       actions: [...actions],
       actionOrder,
       phaseCost,
+      phaseRefund,
       rescueOrdinals: new Map(rescueOrdinalByTower),
     });
     const restore = (state: ReturnType<typeof snapshot>) => {
@@ -1450,6 +1463,7 @@ export function generateMatchPlan(
       actions.splice(0, actions.length, ...state.actions);
       actionOrder = state.actionOrder;
       phaseCost = state.phaseCost;
+      phaseRefund = state.phaseRefund;
       rescueOrdinalByTower.clear();
       for (const [towerId, ordinal] of state.rescueOrdinals)
         rescueOrdinalByTower.set(towerId, ordinal);
@@ -1771,6 +1785,134 @@ export function generateMatchPlan(
       }
     }
 
+    // ---- Retirement. A temporary copy carried into this window is sold
+    // when the window no longer needs its damage: outright if it no longer
+    // moves any wave, otherwise only when its refund (with the others') lets
+    // a build-path step that is waiting on gold be bought now. Needs the
+    // verified sell rate; without it nothing is sold and the plan says so.
+    const retireTemporaries = (): boolean => {
+      if (sellRefund == null) return false;
+      const baseline = verifiedShortfall(survival);
+      const carried = new Set(startTowers.map((tower) => tower.copyId));
+      const candidates = field
+        .flatMap((tower) => {
+          if (
+            tower.status !== "temporary" ||
+            !carried.has(tower.copyId) ||
+            retainTemporary(overrides, tower.copyId) ||
+            (tower.effect !== "damage" && tower.effect !== "hybrid")
+          )
+            return [];
+          const without = field.filter((t) => t.copyId !== tower.copyId);
+          const result = evaluate(without);
+          if (verifiedShortfall(result) > baseline + 0.0001) return [];
+          const contribution = Math.max(
+            0,
+            ...survival.waves.map((wave, index) => {
+              const after = result.waves[index]?.modeledDamage ?? 0;
+              return wave.effectiveWaveHp > 0
+                ? ((wave.modeledDamage ?? 0) - after) / wave.effectiveWaveHp
+                : 0;
+            }),
+          );
+          const paid = resolveLiveTowerCost(tower.towerId, tower.level);
+          return [
+            { tower, contribution, refund: Math.round(paid * sellRefund) },
+          ];
+        })
+        .sort((a, b) => a.contribution - b.contribution || b.refund - a.refund);
+      if (!candidates.length) return false;
+      const blocked = actions.find(
+        (action) =>
+          action.id.includes(":wait:") && action.legal && !action.affordable,
+      );
+      const needed = blocked?.waitForGold ?? 0;
+      const negligible = candidates.filter((c) => c.contribution < 0.01);
+      const toSell = [...negligible];
+      if (blocked && needed > 0) {
+        let pool = negligible.reduce((sum, c) => sum + c.refund, 0);
+        for (const candidate of candidates) {
+          if (pool >= needed) break;
+          if (toSell.includes(candidate)) continue;
+          toSell.push(candidate);
+          pool += candidate.refund;
+        }
+        // The refunds cannot reach the step: keep the useful copies.
+        if (pool < needed) toSell.length = negligible.length;
+      }
+      if (!toSell.length) return false;
+      const funding = toSell.some((c) => !negligible.includes(c));
+      for (const { tower, refund, contribution } of toSell) {
+        field = field.filter((t) => t.copyId !== tower.copyId);
+        cumulativeCost -= refund;
+        phaseRefund += refund;
+        actions.push({
+          id: stableId(planId, definition.id, "sell", tower.copyId),
+          phaseId: definition.id,
+          order: actionOrder++,
+          type: "sell",
+          summary: `Sell ${tower.towerName} ${tower.level}`,
+          reason:
+            contribution < 0.01
+              ? `This temporary copy no longer moves any wave in this window (under 1% of a wave). Sell it at the start of the window and recover ${refund.toLocaleString()}g.`
+              : `This temporary copy is not needed for this window's 100% damage floor, and its ${refund.toLocaleString()}g refund helps fund ${blocked?.summary.replace(/^Wait on /, "") ?? "the next build-path step"}.`,
+          towerId: tower.towerId,
+          towerName: tower.towerName,
+          copyId: tower.copyId,
+          fromLevel: tower.level,
+          toLevel: 0,
+          cost: 0,
+          refund,
+          legal: true,
+          affordable: true,
+          targetWave: definition.start,
+          cell: tower.cell ?? undefined,
+          cellLabel: tower.cellLabel ?? undefined,
+          campId: tower.campId ?? undefined,
+          temporary: true,
+        });
+      }
+      if (funding && blocked) {
+        const index = actions.findIndex((action) => action.id === blocked.id);
+        if (index >= 0) actions.splice(index, 1);
+        runPackagePurchases();
+      }
+      return true;
+    };
+    if (retireTemporaries())
+      survival = applySurvivalRescue(evaluate(field), "after-package");
+
+    // Present the window the way it is played: keystone, then sells (they
+    // happen first and free the gold), then purchases in landing order — a
+    // survival repair keeps its place ahead of the package step it displaced
+    // because it lands earlier — then what is being waited on.
+    const rank = (action: MatchPlanAction) =>
+      action.type === "allocate-element"
+        ? 0
+        : action.type === "sell"
+          ? 1
+          : action.affordable
+            ? 2
+            : 3;
+    const played = [...actions]
+      .map((action, index) => ({ action, index }))
+      .sort(
+        (a, b) =>
+          rank(a.action) - rank(b.action) ||
+          (rank(a.action) === 2
+            ? (a.action.targetWave ?? definition.start) -
+              (b.action.targetWave ?? definition.start)
+            : 0) ||
+          a.index - b.index,
+      )
+      .map(({ action }) => action);
+    const firstOrder = actions[0]?.order ?? actionOrder;
+    actions.splice(
+      0,
+      actions.length,
+      ...played.map((action, index) => ({ ...action, order: firstOrder + index })),
+    );
+
     const coverage = coverageRows(field);
     const critical = coverage.filter(
       (row) => row.status === "critical" || row.status === "weak",
@@ -1828,6 +1970,7 @@ export function generateMatchPlan(
       economy: {
         cumulativeCost,
         phaseCost,
+        phaseRefund,
         phaseStartGold,
         incomeThisPhase,
         phaseEndGold: Math.max(0, gross - cumulativeCost),
@@ -1838,7 +1981,10 @@ export function generateMatchPlan(
         affordable: cumulativeCost <= spendableLowerBound,
         assumptions: [
           "Starting gold and per-wave bounty are benchmark inputs.",
-          "No interest income or sale value is assumed.",
+          "No interest income is assumed.",
+          sellRefund == null
+            ? "No sale value is assumed: the sell refund rate is not in the data, so temporary copies are never sold."
+            : `Sell refunds are credited at ${Math.round(sellRefund * 100)}% of the gold paid.`,
         ],
       },
       survival,
@@ -1941,6 +2087,7 @@ export function serializeCopilotActions(
           : {}),
         economy: {
           cost: action.cost,
+          ...(action.refund != null ? { refund: action.refund } : {}),
           legal: action.legal,
           affordableAtLowerBound: action.affordable,
           waitForGold: action.waitForGold,
