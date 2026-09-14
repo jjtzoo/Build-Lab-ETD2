@@ -329,6 +329,21 @@ function missingKeystones(
     .map((element) => `${element} ${entry.toLevel}`);
 }
 
+/**
+ * The next level a fielded copy could legally step to, or null once it is
+ * maxed. A basic (Arrow/Cannon) has no next level — its own upgrade path is
+ * replacing it with a real tower, already handled by the package queue.
+ */
+function nextTowerLevel(towerId: string, currentLevel: number): number | null {
+  if (isBasicTowerId(towerId)) return null;
+  if (isMonoTowerId(towerId)) return currentLevel < 3 ? currentLevel + 1 : null;
+  try {
+    return currentLevel < getTower(towerId).maxLevel ? currentLevel + 1 : null;
+  } catch {
+    return null;
+  }
+}
+
 function actionCost(
   towerId: string,
   fromLevel: number,
@@ -1040,6 +1055,14 @@ export function generateMatchPlan(
     (entry) => entry.priority === 115 && isMonoTowerId(entry.towerId),
   );
   const camps = deriveMatchPlanCamps(map, mode);
+  // How many copies of any one non-anchor tower the rescue cascade will ever
+  // add: one per viable camp, floor 2. A real player does not fill every
+  // buildable cell with the cheapest legal tower to nibble a failing wave's
+  // margin by another percent — they place a few strong copies and stop.
+  const fleetCopySaturation = Math.max(
+    2,
+    camps.filter((camp) => camp.viable).length,
+  );
   const now = settings.now ?? new Date().toISOString();
   const planId =
     settings.id ??
@@ -1341,32 +1364,51 @@ export function generateMatchPlan(
         });
       });
     // Stage 2 — another copy of a tower the fleet already runs, judged by how
-    // much it lifts the whole window's floor per gold.
+    // much it lifts the whole window's floor per gold. A starter (Arrow /
+    // Cannon) stops being offered once the anchor is up: it is wave-one
+    // survival shell, not a tower a real player keeps re-buying at 75g once
+    // real damage exists.
+    const anchorEstablished = field.some(
+      (tower) => tower.towerId === build.anchorTowerId,
+    );
     const fleetCopyCandidates = (currentShortfall: number) => {
       const damageTowers = field.filter(
         (tower) =>
           (tower.effect === "damage" || tower.effect === "hybrid") &&
           !tower.globalBuff &&
           combatFacts(tower.towerId, tower.level) != null &&
-          isLegal(tower.towerId, tower.level, allocation),
+          isLegal(tower.towerId, tower.level, allocation) &&
+          !(anchorEstablished && isBasicTowerId(tower.towerId)),
       );
+      // A tower already at the plan's saturation cap for this build may
+      // still be upgraded (no new cell), but never copied again.
+      const copyCountByTower = new Map<string, number>();
+      for (const tower of field)
+        copyCountByTower.set(
+          tower.towerId,
+          (copyCountByTower.get(tower.towerId) ?? 0) + 1,
+        );
+      const belowSaturation = (towerId: string) =>
+        (copyCountByTower.get(towerId) ?? 0) < fleetCopySaturation;
       // A fielded tower can be copied at its current level or any lower
       // one: a fresh level-1 copy of the anchor is often the best damage per
       // gold on the field once the original has been upgraded.
       const sourceTowers = [
         ...new Map(
-          damageTowers.flatMap((tower) =>
-            Array.from({ length: tower.level }, (_, index) => index + 1)
-              .filter(
-                (level) =>
-                  isLegal(tower.towerId, level, allocation) &&
-                  combatFacts(tower.towerId, level) != null,
-              )
-              .map((level): [string, PlannedTowerState] => [
-                `${tower.towerId}@${level}`,
-                { ...tower, level },
-              ]),
-          ),
+          damageTowers
+            .filter((tower) => belowSaturation(tower.towerId))
+            .flatMap((tower) =>
+              Array.from({ length: tower.level }, (_, index) => index + 1)
+                .filter(
+                  (level) =>
+                    isLegal(tower.towerId, level, allocation) &&
+                    combatFacts(tower.towerId, level) != null,
+                )
+                .map((level): [string, PlannedTowerState] => [
+                  `${tower.towerId}@${level}`,
+                  { ...tower, level },
+                ]),
+            ),
         ).values(),
       ];
       const copies = sourceTowers.flatMap((source) => {
@@ -1385,13 +1427,14 @@ export function generateMatchPlan(
           currentShortfall,
         );
       });
-      // A fielded mono's next level is often the strongest legal damage step
-      // on the build's own element path (the package never lists it).
+      // A fielded copy's next level is often the strongest legal damage step
+      // once it has hit the copy-saturation cap above — no new cell, no new
+      // saturation, just more damage. This is how a saturated build spends a
+      // growing bank instead of stalling once every camp is full of copies.
       const upgrades = damageTowers.flatMap((source) => {
-        if (!isMonoTowerId(source.towerId)) return [];
-        const level = source.level + 1;
+        const level = nextTowerLevel(source.towerId, source.level);
         if (
-          level > 3 ||
+          level == null ||
           !isLegal(source.towerId, level, allocation) ||
           !combatFacts(source.towerId, level)
         )
@@ -1420,12 +1463,14 @@ export function generateMatchPlan(
           firstLeak == null || c.targetWave <= firstLeak ? 0 : 1;
         const stage = (c: RescueCandidate) =>
           c.source === "build-path" ? 0 : 1;
+        const upgradeFirst = (c: RescueCandidate) => (c.fromLevel ? 0 : 1);
         return (
           (policy === "timing-first"
             ? late(a) - late(b) || stage(a) - stage(b)
             : stage(a) - stage(b) || late(a) - late(b)) ||
           b.efficiency - a.efficiency ||
           a.shortfall - b.shortfall ||
+          upgradeFirst(a) - upgradeFirst(b) ||
           a.cost - b.cost
         );
       };
