@@ -103,7 +103,15 @@ type Purchase = Omit<PortableTowerAction, "towerId"> & {
   priority: number;
   copyOrdinal: number;
   targetWave?: number;
+  /** Insertion order: the progression's own sequencing breaks priority ties. */
+  sequence: number;
 };
+
+function purchaseKey(
+  entry: Pick<Purchase, "towerId" | "toLevel" | "copyOrdinal">,
+): string {
+  return `${entry.towerId}@${entry.toLevel}#${entry.copyOrdinal}`;
+}
 
 function stableId(...parts: readonly (string | number)[]): string {
   return parts
@@ -273,6 +281,26 @@ function isLegal(
   }
 }
 
+function missingKeystones(
+  entry: { towerId: string; toLevel: number },
+  allocation: ElementAllocation,
+): string[] {
+  const recipe: ElementName[] = isMonoTowerId(entry.towerId)
+    ? ELEMENTS.filter(
+        (element) => entry.towerId === `mono-${element.toLowerCase()}`,
+      )
+    : (() => {
+        try {
+          return [...getTower(entry.towerId).recipe];
+        } catch {
+          return [];
+        }
+      })();
+  return recipe
+    .filter((element) => allocation[element] < entry.toLevel)
+    .map((element) => `${element} ${entry.toLevel}`);
+}
+
 function actionCost(
   towerId: string,
   fromLevel: number,
@@ -398,7 +426,7 @@ function purchases(
   map: MapConfig,
   mode: WaveMode,
 ): Purchase[] {
-  const list: Purchase[] = [];
+  const list: Omit<Purchase, "sequence">[] = [];
   const anchor = (() => {
     try {
       return getTower(build.anchorTowerId);
@@ -564,20 +592,23 @@ function purchases(
     }
   }
 
-  const seen = new Set<string>();
-  return list
-    .filter((entry) => {
-      const key = `${entry.towerId}@${entry.toLevel}#${entry.copyOrdinal}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .sort(
-      (a, b) =>
-        b.priority - a.priority ||
-        a.towerId.localeCompare(b.towerId) ||
-        a.toLevel - b.toLevel,
-    );
+  // The same step can be listed twice (the progression's unlock and the
+  // package's own row). Keep the highest-priority listing so the anchor and
+  // main damage never fall behind alphabetical order, and let the
+  // progression's sequencing break ties instead of the tower id.
+  const best = new Map<string, Purchase>();
+  list.forEach((entry, sequence) => {
+    const keyed = { ...entry, sequence };
+    const key = purchaseKey(keyed);
+    const current = best.get(key);
+    if (!current || keyed.priority > current.priority) best.set(key, keyed);
+  });
+  return [...best.values()].sort(
+    (a, b) =>
+      b.priority - a.priority ||
+      a.sequence - b.sequence ||
+      a.toLevel - b.toLevel,
+  );
 }
 
 function originFor(map: MapConfig): GridPoint {
@@ -962,7 +993,9 @@ export function generateMatchPlan(
   const allocation = EMPTY_ALLOCATION();
   let field: PlannedTowerState[] = [];
   let cumulativeCost = 0;
-  let purchaseIndex = 0;
+  const purchased = new Set<string>();
+  const remainingQueue = () =>
+    queue.filter((entry) => !purchased.has(purchaseKey(entry)));
   let actionOrder = 0;
   const phases: MatchPlanPhase[] = [];
   const violations: string[] = [];
@@ -1108,25 +1141,30 @@ export function generateMatchPlan(
       shortfall: number;
       efficiency: number;
       source: "build-path" | "fleet-copy";
+      /** Level the copy is at before this step; > 0 means an upgrade in place. */
+      fromLevel: number;
+      /** The package's own reason for the step, when it has one. */
+      entryReason?: string;
     };
-    // Prices and places one prospective tower, keeping it only if it lifts the
-    // verified damage floor. Survival may spend the reserve, never beyond gross.
+    // Prices and places one prospective step — a new copy, or an upgrade of a
+    // copy already on the field — keeping it only if it lifts the verified
+    // damage floor. Survival may spend the reserve, never beyond gross.
     const rescueCandidate = (
       source: PlannedTowerState,
       cost: number,
       ordinal: number | null,
       kind: RescueCandidate["source"],
       currentShortfall: number,
+      fromLevel = 0,
+      entryReason?: string,
     ): RescueCandidate[] => {
       if (cost <= 0 || cumulativeCost + cost > gross) return [];
-      const placement = chooseCell(
-        map,
-        mode,
-        camps,
-        source.towerId,
-        source.level,
-        field,
-      );
+      const upgrade = fromLevel > 0;
+      const placement = upgrade
+        ? source.cell
+          ? { cell: source.cell, campId: source.campId ?? "uncamped" }
+          : null
+        : chooseCell(map, mode, camps, source.towerId, source.level, field);
       if (!placement) return [];
       const targetWave = earliestAffordableWave(
         cumulativeCost + cost,
@@ -1140,12 +1178,19 @@ export function generateMatchPlan(
         cellLabel: cellLabel(placement.cell, originFor(map)),
         campId: placement.campId,
       };
-      const nextSurvival = evaluate([...field, tower], {
+      const nextField = upgrade
+        ? field.map((entry) => (entry.copyId === tower.copyId ? tower : entry))
+        : [...field, tower];
+      const nextSurvival = evaluate(nextField, {
         copyId: tower.copyId,
         targetWave,
       });
       const nextShortfall = verifiedShortfall(nextSurvival);
-      if (nextShortfall >= currentShortfall - 0.0001) return [];
+      // A step must close the gap or move the floor by at least one percent
+      // of a wave: a 75g Arrow against a two-million HP wave is not a rescue,
+      // however early it lands.
+      const lift = currentShortfall - nextShortfall;
+      if (lift < Math.min(0.01, currentShortfall - 0.0001)) return [];
       return [
         {
           tower,
@@ -1154,24 +1199,43 @@ export function generateMatchPlan(
           targetWave,
           survival: nextSurvival,
           shortfall: nextShortfall,
-          efficiency: (currentShortfall - nextShortfall) / cost,
+          efficiency: lift / cost,
           source: kind,
+          fromLevel,
+          entryReason,
         },
       ];
     };
     // Stage 1 — a build tower that is not on the field yet. Buying a copy the
     // package already calls for (at its planned level, or level 1 as an early
     // step toward it) keeps the spend on the build's own path.
+    // A planned step for a copy already on the field is an upgrade in place;
+    // a step for a copy not yet fielded may be bought at its planned level or
+    // at level 1 as an early step toward it.
     const buildPathCandidates = (currentShortfall: number) =>
-      queue.slice(purchaseIndex).flatMap((entry) => {
+      remainingQueue().flatMap((entry) => {
         const copyId = stableId(
           planId,
           "copy",
           entry.towerId,
           entry.copyOrdinal,
         );
-        if (field.some((tower) => tower.copyId === copyId)) return [];
-        const levels = entry.toLevel > 1 ? [entry.toLevel, 1] : [entry.toLevel];
+        const existing = field.find((tower) => tower.copyId === copyId);
+        const fromLevel = existing?.level ?? 0;
+        if (fromLevel >= entry.toLevel) return [];
+        // A bridge is only "in the build" until the anchor is up; after that
+        // it is throwaway damage and competes with nothing.
+        if (
+          entry.temporaryCarry &&
+          !existing &&
+          field.some((tower) => tower.towerId === build.anchorTowerId)
+        )
+          return [];
+        const levels = existing
+          ? [entry.toLevel]
+          : entry.toLevel > 1
+            ? [entry.toLevel, 1]
+            : [entry.toLevel];
         return levels.flatMap((level) => {
           if (!isLegal(entry.towerId, level, allocation)) return [];
           const effect = effectFor(entry.towerId, level);
@@ -1179,53 +1243,59 @@ export function generateMatchPlan(
           const placementFact = getTowerPlacementFact(entry.towerId);
           if (placementFact.targetsTowers) return [];
           if (!combatFacts(entry.towerId, level)) return [];
-          const source: PlannedTowerState = {
-            copyId,
-            towerId: entry.towerId,
-            towerName: entry.towerName,
-            level,
-            quantity: 1,
-            purpose: entry.temporaryCarry
-              ? "Temporary early carry"
-              : purposeFor(build, entry.towerId),
-            roles: entry.roles,
-            status:
-              entry.temporaryCarry && !retainTemporary(overrides, copyId)
-                ? "temporary"
-                : "permanent",
-            effect,
-            globalBuff: placementFact.targetsTowers,
-            directHitDebuff: placementFact.debuff !== null,
-            cell: null,
-            cellLabel: null,
-            campId: null,
-          };
+          const source: PlannedTowerState = existing
+            ? { ...existing, level, effect }
+            : {
+                copyId,
+                towerId: entry.towerId,
+                towerName: entry.towerName,
+                level,
+                quantity: 1,
+                purpose: entry.temporaryCarry
+                  ? "Temporary early carry"
+                  : purposeFor(build, entry.towerId),
+                roles: entry.roles,
+                status:
+                  entry.temporaryCarry && !retainTemporary(overrides, copyId)
+                    ? "temporary"
+                    : "permanent",
+                effect,
+                globalBuff: placementFact.targetsTowers,
+                directHitDebuff: placementFact.debuff !== null,
+                cell: null,
+                cellLabel: null,
+                campId: null,
+              };
           return rescueCandidate(
             source,
-            actionCost(entry.towerId, 0, level),
+            actionCost(entry.towerId, fromLevel, level),
             null,
             "build-path",
             currentShortfall,
+            fromLevel,
+            entry.reason,
           );
         });
       });
     // Stage 2 — another copy of a tower the fleet already runs, judged by how
     // much it lifts the whole window's floor per gold.
     const fleetCopyCandidates = (currentShortfall: number) => {
+      const damageTowers = field.filter(
+        (tower) =>
+          (tower.effect === "damage" || tower.effect === "hybrid") &&
+          !tower.globalBuff &&
+          combatFacts(tower.towerId, tower.level) != null &&
+          isLegal(tower.towerId, tower.level, allocation),
+      );
       const sourceTowers = [
         ...new Map(
-          field
-            .filter(
-              (tower) =>
-                (tower.effect === "damage" || tower.effect === "hybrid") &&
-                !tower.globalBuff &&
-                combatFacts(tower.towerId, tower.level) != null &&
-                isLegal(tower.towerId, tower.level, allocation),
-            )
-            .map((tower) => [`${tower.towerId}@${tower.level}`, tower]),
+          damageTowers.map((tower) => [
+            `${tower.towerId}@${tower.level}`,
+            tower,
+          ]),
         ).values(),
       ];
-      return sourceTowers.flatMap((source) => {
+      const copies = sourceTowers.flatMap((source) => {
         const ordinal = (rescueOrdinalByTower.get(source.towerId) ?? 0) + 1;
         return rescueCandidate(
           {
@@ -1241,11 +1311,48 @@ export function generateMatchPlan(
           currentShortfall,
         );
       });
+      // A fielded mono's next level is often the strongest legal damage step
+      // on the build's own element path (the package never lists it).
+      const upgrades = damageTowers.flatMap((source) => {
+        if (!isMonoTowerId(source.towerId)) return [];
+        const level = source.level + 1;
+        if (
+          level > 3 ||
+          !isLegal(source.towerId, level, allocation) ||
+          !combatFacts(source.towerId, level)
+        )
+          return [];
+        return rescueCandidate(
+          { ...source, level },
+          actionCost(source.towerId, source.level, level),
+          null,
+          "fleet-copy",
+          currentShortfall,
+          source.level,
+        );
+      });
+      return [...copies, ...upgrades];
     };
-    const rankRescue = (a: RescueCandidate, b: RescueCandidate) =>
-      a.shortfall - b.shortfall ||
-      b.efficiency - a.efficiency ||
-      a.cost - b.cost;
+    // Earliest leak first: a step that lands after the first failing wave
+    // cannot stop that leak, so any step that lands in time outranks it. Among
+    // steps that land in time the doctrine cascade applies — a build-path
+    // step before a fleet copy — then floor lift per gold, then the floor
+    // reached, then gold.
+    const rankRescue =
+      (firstLeak: number | null) =>
+      (a: RescueCandidate, b: RescueCandidate) => {
+        const late = (c: RescueCandidate) =>
+          firstLeak == null || c.targetWave <= firstLeak ? 0 : 1;
+        const stage = (c: RescueCandidate) =>
+          c.source === "build-path" ? 0 : 1;
+        return (
+          late(a) - late(b) ||
+          stage(a) - stage(b) ||
+          b.efficiency - a.efficiency ||
+          a.shortfall - b.shortfall ||
+          a.cost - b.cost
+        );
+      };
 
     // A snapshot is not allowed to recommend a field that is known to leak.
     // Spend the reserve when necessary, then add the most efficient legal copy
@@ -1258,14 +1365,19 @@ export function generateMatchPlan(
       timing: "before-package" | "after-package",
     ) => {
       let survival = initial;
-      for (let rescueStep = 0; rescueStep < 8; rescueStep += 1) {
+      for (let rescueStep = 0; rescueStep < 24; rescueStep += 1) {
         const currentShortfall = verifiedShortfall(survival);
         if (currentShortfall <= 0) break;
-        const best =
-          buildPathCandidates(currentShortfall).sort(rankRescue)[0] ??
-          fleetCopyCandidates(currentShortfall).sort(rankRescue)[0];
+        const best = [
+          ...buildPathCandidates(currentShortfall),
+          ...fleetCopyCandidates(currentShortfall),
+        ].sort(rankRescue(firstFailingWave(survival)))[0];
         if (!best) break;
-        field = [...field, best.tower];
+        field = best.fromLevel
+          ? field.map((tower) =>
+              tower.copyId === best.tower.copyId ? best.tower : tower,
+            )
+          : [...field, best.tower];
         cumulativeCost += best.cost;
         phaseCost += best.cost;
         if (best.ordinal != null)
@@ -1289,19 +1401,22 @@ export function generateMatchPlan(
             definition.id,
             "survival-repair",
             best.tower.copyId,
+            best.tower.level,
           ),
           phaseId: definition.id,
           order: actionOrder++,
-          type: "build",
-          summary: `${best.source === "build-path" ? "Build" : "Add"} ${best.tower.towerName} ${best.tower.level}`,
+          type: best.fromLevel ? "upgrade" : "build",
+          summary: `${best.fromLevel ? "Upgrade" : best.source === "build-path" ? "Build" : "Add"} ${best.tower.towerName} ${best.tower.level}`,
           reason:
             best.source === "build-path"
-              ? `${repairedWaves || "This window"} is below the 100% damage floor. This copy is already part of the build, so it is bought early as damage instead of banking. ${priority}`
-              : `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. ${priority}`,
+              ? `${best.entryReason ? `${best.entryReason} ` : ""}${repairedWaves || "This window"} is below the 100% damage floor. This step is already part of the build, so it is bought now as damage instead of banking. ${priority}`
+              : best.fromLevel
+                ? `${repairedWaves || "This window"} is below the 100% damage floor. Upgrading this fielded copy is the strongest legal damage step on the build's own elements. ${priority}`
+                : `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. ${priority}`,
           towerId: best.tower.towerId,
           towerName: best.tower.towerName,
           copyId: best.tower.copyId,
-          fromLevel: 0,
+          fromLevel: best.fromLevel,
           toLevel: best.tower.level,
           cost: best.cost,
           legal: true,
@@ -1321,8 +1436,8 @@ export function generateMatchPlan(
     const snapshot = () => ({
       field: [...field],
       cumulativeCost,
-      purchaseIndex,
-      actionsLength: actions.length,
+      purchased: new Set(purchased),
+      actions: [...actions],
       actionOrder,
       phaseCost,
       rescueOrdinals: new Map(rescueOrdinalByTower),
@@ -1330,8 +1445,9 @@ export function generateMatchPlan(
     const restore = (state: ReturnType<typeof snapshot>) => {
       field = [...state.field];
       cumulativeCost = state.cumulativeCost;
-      purchaseIndex = state.purchaseIndex;
-      actions.length = state.actionsLength;
+      purchased.clear();
+      for (const key of state.purchased) purchased.add(key);
+      actions.splice(0, actions.length, ...state.actions);
       actionOrder = state.actionOrder;
       phaseCost = state.phaseCost;
       rescueOrdinalByTower.clear();
@@ -1339,13 +1455,18 @@ export function generateMatchPlan(
         rescueOrdinalByTower.set(towerId, ordinal);
     };
 
-    // Buys the package queue in order while it stays legal and affordable,
-    // then the emergency coverage repair, then records what is being waited on.
+    // Buys the package queue in priority order. A step whose keystones are
+    // not held yet is skipped, not a wall: gold flows to the next legal step
+    // instead of banking for something no window can buy. A step that is
+    // legal but not yet affordable ends the pass — banking for it is the
+    // economy plan, and the survival passes decide whether that is allowed.
+    // Then the emergency coverage repair, then what is being waited on.
     const runPackagePurchases = () => {
-      let madeProgress = true;
-      while (purchaseIndex < queue.length && madeProgress) {
-        madeProgress = false;
-        const entry = queue[purchaseIndex];
+      let blocked: { entry: Purchase; why: "keystone" | "gold" } | null = null;
+      const anchorFielded = () =>
+        field.some((tower) => tower.towerId === build.anchorTowerId);
+      for (const entry of remainingQueue()) {
+        const key = purchaseKey(entry);
         const copyId = stableId(
           planId,
           "copy",
@@ -1355,12 +1476,20 @@ export function generateMatchPlan(
         const existing = field.find((tower) => tower.copyId === copyId);
         const fromLevel = existing?.level ?? 0;
         if (fromLevel >= entry.toLevel) {
-          purchaseIndex += 1;
-          madeProgress = true;
+          purchased.add(key);
           continue;
         }
+        // A bridge is throwaway damage for the waves before the anchor. Once
+        // the anchor is fielded the economy pass stops buying bridges; the
+        // survival passes may still use one when a wave needs it.
+        if (entry.temporaryCarry && anchorFielded() && !existing) continue;
+        // The lower level of this same copy is still pending.
+        if (fromLevel < entry.toLevel - 1) continue;
         const legal = isLegal(entry.towerId, entry.toLevel, allocation);
-        if (!legal) break;
+        if (!legal) {
+          blocked ??= { entry, why: "keystone" };
+          continue;
+        }
         const cost = actionCost(entry.towerId, fromLevel, entry.toLevel);
         const hasEstablishedDamage = field.some(
           (tower) =>
@@ -1381,7 +1510,10 @@ export function generateMatchPlan(
           (!requiresEarlyCoverage || establishedElements.size >= 2);
         const purchaseReserve = openingIsSafe ? reserveGold : 0;
         const spendable = Math.max(0, lower - purchaseReserve);
-        if (cumulativeCost + cost > spendable) break;
+        if (cumulativeCost + cost > spendable) {
+          blocked = { entry, why: "gold" };
+          break;
+        }
         const placement = existing?.cell
           ? { cell: existing.cell, campId: existing.campId ?? "uncamped" }
           : (overriddenPlacement(
@@ -1454,8 +1586,7 @@ export function generateMatchPlan(
           campId: placement?.campId,
           temporary: !!entry.temporaryCarry,
         });
-        purchaseIndex += 1;
-        madeProgress = true;
+        purchased.add(key);
       }
       // If the factual matchup table exposes a catastrophic armour hole, a
       // cheap legal mono repair outranks another package purchase. This is a
@@ -1545,8 +1676,11 @@ export function generateMatchPlan(
           });
         }
       }
-      const pending = queue[purchaseIndex];
-      if (pending && isLegal(pending.towerId, pending.toLevel, allocation)) {
+      // The first step this pass could not take is always shown, so a window
+      // that banks gold says what it is banking for — and a window with no
+      // legal step says which keystone it is waiting on.
+      if (blocked) {
+        const pending = blocked.entry;
         const pendingCopyId = stableId(
           planId,
           "copy",
@@ -1556,6 +1690,8 @@ export function generateMatchPlan(
         const fromLevel =
           field.find((tower) => tower.copyId === pendingCopyId)?.level ?? 0;
         const cost = actionCost(pending.towerId, fromLevel, pending.toLevel);
+        const legal = blocked.why === "gold";
+        const missing = legal ? [] : missingKeystones(pending, allocation);
         actions.push({
           id: stableId(
             planId,
@@ -1567,18 +1703,24 @@ export function generateMatchPlan(
           phaseId: definition.id,
           order: actionOrder++,
           type: pending.kind,
-          summary: `Wait on ${pending.towerName} ${pending.toLevel}`,
-          reason: survivalFirst
-            ? `Legal now, but it could not be bought before this window's failing wave. Survival purchases come first; this waits for the gold they used.`
-            : `Legal now, but buying it would breach the ${reserveGold.toLocaleString()} gold emergency reserve.`,
+          summary: legal
+            ? `Wait on ${pending.towerName} ${pending.toLevel}`
+            : `Wait on ${pending.towerName} ${pending.toLevel} · needs ${missing.join(" + ")} keystone${missing.length > 1 ? "s" : ""}`,
+          reason: !legal
+            ? `Not legal yet: it needs the ${missing.join(" and ")} keystone${missing.length > 1 ? "s" : ""}. Nothing earlier in the build order can be bought in this window either.`
+            : survivalFirst
+              ? `Legal now, but it could not be bought before this window's failing wave. Survival purchases come first; this waits for the gold they used.`
+              : `Legal now, but buying it would breach the ${reserveGold.toLocaleString()} gold emergency reserve.`,
           towerId: pending.towerId,
           towerName: pending.towerName,
           fromLevel,
           toLevel: pending.toLevel,
           cost,
-          legal: true,
+          legal,
           affordable: false,
-          waitForGold: Math.max(0, cumulativeCost + cost + reserveGold - lower),
+          waitForGold: legal
+            ? Math.max(0, cumulativeCost + cost + reserveGold - lower)
+            : undefined,
           targetWave: Math.max(definition.start, pending.targetWave ?? 0),
           temporary: !!pending.temporaryCarry,
         });
@@ -1597,18 +1739,17 @@ export function generateMatchPlan(
     // then let the package queue take what is left (the big purchase waits).
     // The replan is kept only when it strictly improves the verified floor.
     const failingWave = firstFailingWave(survival);
-    const lateCommit =
+    const packageSpendWhileLeaking =
       failingWave != null &&
       actions
-        .slice(phaseStart.actionsLength)
+        .slice(phaseStart.actions.length)
         .some(
           (action) =>
             action.affordable &&
             action.cost > 0 &&
-            !action.id.includes(":survival-repair:") &&
-            (action.targetWave ?? definition.start) >= failingWave,
+            !action.id.includes(":survival-repair:"),
         );
-    if (lateCommit) {
+    if (packageSpendWhileLeaking) {
       const economyFirst = { ...snapshot(), survival };
       restore(phaseStart);
       survivalFirst = true;
@@ -1724,9 +1865,14 @@ export function generateMatchPlan(
             : "high",
     });
   }
-  if (queue.slice(purchaseIndex).length)
+  const unbought = remainingQueue().filter(
+    (entry) =>
+      !entry.temporaryCarry ||
+      !field.some((tower) => tower.towerId === build.anchorTowerId),
+  );
+  if (unbought.length)
     violations.push(
-      `${queue.length - purchaseIndex} planned tower step(s) remain outside the conservative 56+ budget.`,
+      `${unbought.length} planned tower step(s) remain outside the conservative 56+ budget.`,
     );
   if (!camps.some((camp) => camp.viable))
     violations.push(

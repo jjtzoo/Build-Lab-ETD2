@@ -69,7 +69,9 @@ describe("Match Plan", () => {
     expect(
       plan.phases
         .flatMap((phase) => phase.actions)
-        .find((action) => action.towerId === carry?.towerId)?.reason,
+        .find(
+          (action) => action.towerId === carry?.towerId && action.affordable,
+        )?.reason,
     ).toContain("early-bridge score");
     expect(
       towers.some(
@@ -139,17 +141,19 @@ describe("Match Plan", () => {
     expect(
       opening.actions.some((action) => action.reason.includes("wave 1")),
     ).toBe(true);
-    expect(
-      secondWindow.endTowers.some((tower) => {
+    // The dual carry is on the field by wave 11 — bought in this window or
+    // as the first purchase of the next one, whichever the gold allows.
+    const carry = [secondWindow, plan.phases[2]]
+      .flatMap((phase) => phase.actions)
+      .find((action) => {
+        if (!action.affordable || action.toLevel !== 1) return false;
         try {
-          return (
-            getTower(tower.towerId).combination === "Dual" && tower.level === 1
-          );
+          return getTower(action.towerId ?? "").combination === "Dual";
         } catch {
           return false;
         }
-      }),
-    ).toBe(true);
+      });
+    expect(carry?.targetWave).toBeLessThanOrEqual(11);
     expect(plan.phases[2].startTowers.length).toBeGreaterThan(0);
   });
 
@@ -168,30 +172,36 @@ describe("Match Plan", () => {
     expect(opening.survival.status).not.toBe("fails");
     const bridge = generateMatchPlan(laserBuild, {
       mapId: "forest",
-    }).phases[1].actions.find((action) => action.towerId === "infernal");
+    })
+      .phases.flatMap((phase) => phase.actions)
+      .find((action) => action.towerId === "infernal" && action.affordable);
     expect(bridge?.targetWave).toBe(11);
   });
 
   it("buys survival before a package purchase that cannot land in time", () => {
     // Waves 6–10 for a Trio anchor: the 500g bridge only lands at W11, so
-    // banking for it would leave W7 leaking. Survival over economy — a cheap
-    // in-build copy is bought first, and the bridge still lands this window.
-    const window = generateMatchPlan(laserBuild, { mapId: "forest" }).phases[1];
-    const repair = window.actions.find((action) =>
+    // banking for it would leave W7 leaking. Survival over economy — cheap
+    // copies that land before W7 are bought first; the bridge follows at W11.
+    const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
+    const window = plan.phases[1];
+    const repairs = window.actions.filter((action) =>
       action.id.includes(":survival-repair:"),
     );
-    const bridge = window.actions.find(
-      (action) => action.towerId === "infernal" && action.affordable,
-    );
-    expect(repair).toBeDefined();
-    expect(bridge).toBeDefined();
-    expect(repair!.order).toBeLessThan(bridge!.order);
-    expect(repair!.targetWave).toBeLessThanOrEqual(7);
-    expect(repair!.reason).toContain("before the next package purchase");
-    expect(bridge!.targetWave).toBe(11);
+    expect(repairs.length).toBeGreaterThan(0);
+    expect(repairs[0].targetWave).toBeLessThanOrEqual(7);
+    expect(repairs[0].reason).toContain("before the next package purchase");
+    const bridge = plan.phases
+      .flatMap((phase) => phase.actions)
+      .find((action) => action.towerId === "infernal" && action.affordable);
+    expect(bridge?.targetWave).toBe(11);
+    expect(bridge!.order).toBeGreaterThan(repairs[0].order);
     const w7 = window.survival.waves.find((wave) => wave.wave === 7);
     expect(w7?.status).toBe("survives");
     expect(window.survival.status).not.toBe("fails");
+    // Nothing is banked while a wave in the window is short.
+    expect(window.survival.waves.every((wave) => (wave.margin ?? 0) >= 1)).toBe(
+      true,
+    );
   });
 
   it("does not replan a window whose economy plan already survives", () => {

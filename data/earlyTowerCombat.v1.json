@@ -1,67 +1,164 @@
 {
-  "schemaVersion": 1,
-  "verifiedThrough": "2026-09-14",
-  "note": "Opening-field combat facts used by Match Plan survival checks. Damage and attack rates come from the developer-linked Element TD 2 DPS/Gold workbook; Arrow damage and range include the official Version 1.9.4 change. Average DPS is conservative for abilities and splash.",
+  "schemaVersion": 2,
+  "verifiedThrough": "2026-09-15",
+  "note": "Opening-field combat facts used by Match Plan survival checks. Damage and attack rates come from the developer-linked Element TD 2 DPS/Gold workbook; Arrow damage and range include the official Version 1.9.4 change. Average DPS is the workbook's DPS column (the mean of its single-target and max-AoE figures), conservative for abilities and splash. Range is constant across levels. Level 1 rows were verified 2026-09-14. Level 2 and 3 rows for the six single-element towers were transcribed 2026-09-15 from the same workbook tabs (700 / 900 / 1150 / 1500 Range Towers) and are PENDING OWNER CONFIRMATION against the in-game values; every element scales ×6 damage per level in the workbook.",
   "sources": [
     "https://docs.google.com/spreadsheets/d/1GdfCqVeudiNHhxHF1XYSUMqkyNRRkCx-loXJiNQqv4s/edit?usp=sharing",
     "https://store.steampowered.com/news/app/1018830/view/4226147001091211135"
   ],
   "towers": {
     "arrow": {
-      "damage": 62,
-      "attacksPerSecond": 1.5,
-      "averageDps": 93,
       "range": 1150,
-      "damageElement": "Composite"
+      "damageElement": "Composite",
+      "levels": [
+        { "level": 1, "damage": 62, "attacksPerSecond": 1.5, "averageDps": 93 }
+      ]
     },
     "cannon": {
-      "damage": 77,
-      "attacksPerSecond": 0.67,
-      "averageDps": 103,
       "range": 700,
-      "damageElement": "Composite"
+      "damageElement": "Composite",
+      "levels": [
+        {
+          "level": 1,
+          "damage": 77,
+          "attacksPerSecond": 0.67,
+          "averageDps": 103
+        }
+      ]
     },
     "mono-light": {
-      "damage": 130,
-      "attacksPerSecond": 1.5,
-      "averageDps": 195,
       "range": 1750,
-      "damageElement": "Light"
+      "damageElement": "Light",
+      "levels": [
+        {
+          "level": 1,
+          "damage": 130,
+          "attacksPerSecond": 1.5,
+          "averageDps": 195
+        },
+        {
+          "level": 2,
+          "damage": 780,
+          "attacksPerSecond": 1.5,
+          "averageDps": 1170
+        },
+        {
+          "level": 3,
+          "damage": 4680,
+          "attacksPerSecond": 1.5,
+          "averageDps": 7020
+        }
+      ]
     },
     "mono-darkness": {
-      "damage": 300,
-      "attacksPerSecond": 0.66,
-      "averageDps": 198,
       "range": 1450,
-      "damageElement": "Darkness"
+      "damageElement": "Darkness",
+      "levels": [
+        {
+          "level": 1,
+          "damage": 300,
+          "attacksPerSecond": 0.66,
+          "averageDps": 198
+        },
+        {
+          "level": 2,
+          "damage": 1800,
+          "attacksPerSecond": 0.66,
+          "averageDps": 1188
+        },
+        {
+          "level": 3,
+          "damage": 10800,
+          "attacksPerSecond": 0.66,
+          "averageDps": 7128
+        }
+      ]
     },
     "mono-water": {
-      "damage": 90,
-      "attacksPerSecond": 1.5,
-      "averageDps": 202.5,
       "range": 1000,
-      "damageElement": "Water"
+      "damageElement": "Water",
+      "levels": [
+        {
+          "level": 1,
+          "damage": 90,
+          "attacksPerSecond": 1.5,
+          "averageDps": 202.5
+        },
+        {
+          "level": 2,
+          "damage": 540,
+          "attacksPerSecond": 1.5,
+          "averageDps": 1215
+        },
+        {
+          "level": 3,
+          "damage": 3240,
+          "attacksPerSecond": 1.5,
+          "averageDps": 7290
+        }
+      ]
     },
     "mono-fire": {
-      "damage": 30,
-      "attacksPerSecond": 3,
-      "averageDps": 180,
       "range": 875,
-      "damageElement": "Fire"
+      "damageElement": "Fire",
+      "levels": [
+        { "level": 1, "damage": 30, "attacksPerSecond": 3, "averageDps": 180 },
+        {
+          "level": 2,
+          "damage": 180,
+          "attacksPerSecond": 3,
+          "averageDps": 1080
+        },
+        {
+          "level": 3,
+          "damage": 1080,
+          "attacksPerSecond": 3,
+          "averageDps": 6480
+        }
+      ]
     },
     "mono-nature": {
-      "damage": 95,
-      "attacksPerSecond": 3,
-      "averageDps": 285,
       "range": 875,
-      "damageElement": "Nature"
+      "damageElement": "Nature",
+      "levels": [
+        { "level": 1, "damage": 95, "attacksPerSecond": 3, "averageDps": 285 },
+        {
+          "level": 2,
+          "damage": 570,
+          "attacksPerSecond": 3,
+          "averageDps": 1710
+        },
+        {
+          "level": 3,
+          "damage": 3420,
+          "attacksPerSecond": 3,
+          "averageDps": 10260
+        }
+      ]
     },
     "mono-earth": {
-      "damage": 125,
-      "attacksPerSecond": 0.66,
-      "averageDps": 165,
       "range": 1000,
-      "damageElement": "Earth"
+      "damageElement": "Earth",
+      "levels": [
+        {
+          "level": 1,
+          "damage": 125,
+          "attacksPerSecond": 0.66,
+          "averageDps": 165
+        },
+        {
+          "level": 2,
+          "damage": 750,
+          "attacksPerSecond": 0.66,
+          "averageDps": 990
+        },
+        {
+          "level": 3,
+          "damage": 4500,
+          "attacksPerSecond": 0.66,
+          "averageDps": 5940
+        }
+      ]
     }
   }
 }

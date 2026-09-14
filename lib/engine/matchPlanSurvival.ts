@@ -19,11 +19,37 @@ type CombatFact = {
   damageElement: ElementName | "Composite";
 };
 
-const OPENING_FACTS = combatData.towers as Record<string, CombatFact>;
+type OpeningTowerFacts = {
+  range: number;
+  damageElement: ElementName | "Composite";
+  levels: readonly {
+    level: number;
+    damage: number;
+    attacksPerSecond: number;
+    averageDps: number;
+  }[];
+};
 
+const OPENING_FACTS = combatData.towers as Record<string, OpeningTowerFacts>;
+
+/**
+ * Damage facts for one copy at one level, or null when the level is not in
+ * the data. Basic and single-element towers come from the opening-field file;
+ * every normal tower from the catalog. A null here makes the wave unverified —
+ * it must never be filled with a guess.
+ */
 export function combatFacts(towerId: string, level: number): CombatFact | null {
-  const opening = level === 1 ? OPENING_FACTS[towerId] : null;
-  if (opening) return opening;
+  const opening = OPENING_FACTS[towerId];
+  if (opening) {
+    const row = opening.levels.find((entry) => entry.level === level);
+    return row
+      ? {
+          averageDps: row.averageDps,
+          range: opening.range,
+          damageElement: opening.damageElement,
+        }
+      : null;
+  }
   try {
     const tower = getTower(towerId);
     return {
@@ -148,8 +174,22 @@ export function evaluatePhaseSurvival({
     }, 0);
     const effectiveWaveHp = benchmark.effectiveHpPerCreep * benchmark.count;
     const margin = modeledDamage / effectiveWaveHp;
+    // The modeled damage is a floor: a copy whose stat is missing adds nothing
+    // to it, and an unquantified ability only ever makes the wave harder. So a
+    // shortfall on base HP with every copy modeled is a real failure even when
+    // the ability is unknown, and a clear on the modeled copies alone is a real
+    // clear even when another copy is unmodeled. Only "short, but a copy is
+    // unmodeled" and "clear, but the ability is unknown" stay unverified.
+    const status =
+      margin >= 1
+        ? unknownAbility
+          ? ("unverified" as const)
+          : ("survives" as const)
+        : missingTowerFacts
+          ? ("unverified" as const)
+          : ("fails" as const);
     const estimatedLeaks =
-      unknownAbility || missingTowerFacts
+      status === "unverified"
         ? null
         : Math.max(
             0,
@@ -161,12 +201,6 @@ export function evaluatePhaseSurvival({
               ),
             ),
           );
-    const status =
-      unknownAbility || missingTowerFacts
-        ? ("unverified" as const)
-        : margin >= 1
-          ? ("survives" as const)
-          : ("fails" as const);
     return {
       wave,
       element: benchmark.element,
@@ -180,12 +214,16 @@ export function evaluatePhaseSurvival({
       status,
       limitingFactor:
         status === "fails"
-          ? `${benchmark.element} armour leaves the modeled field short of the wave HP.`
+          ? unknownAbility
+            ? `Short of the base wave HP before ${benchmark.ability} is even counted; ${benchmark.element} armour leaves the modeled field short.`
+            : `${benchmark.element} armour leaves the modeled field short of the wave HP.`
           : status === "unverified"
-            ? unknownAbility
-              ? `${benchmark.ability} is not quantified yet; base HP, speed and tower damage are still shown.`
-              : "A tower stat or placement is missing."
-            : null,
+            ? unknownAbility && !missingTowerFacts
+              ? `Clears the base HP, but ${benchmark.ability} is not quantified yet.`
+              : "A placed copy has no combat stat at this level, so the modeled damage is only a floor."
+            : missingTowerFacts
+              ? "Clears the wave on the modeled copies alone; one copy has no combat stat at this level."
+              : null,
     };
   });
 
