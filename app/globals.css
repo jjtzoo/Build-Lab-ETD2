@@ -7915,6 +7915,9 @@ button.mechanic-chip {
   gap: 12px;
   margin-top: 18px;
 }
+.match-map-column {
+  min-width: 0;
+}
 .match-map-wrap {
   position: relative;
   min-height: 480px;
@@ -8053,6 +8056,12 @@ button.mechanic-chip {
     stroke 140ms ease,
     stroke-width 140ms ease;
 }
+/* Every tower on the field this window is "active": it reads at full
+   strength with a soft halo so it separates from the faint later-phase
+   previews at a glance. */
+.match-tower:not(.is-future) {
+  filter: drop-shadow(0 0 3px rgb(240 243 241 / 0.55));
+}
 .match-tower-mark {
   fill: #111614;
   font-size: 0.24px;
@@ -8082,7 +8091,7 @@ button.mechanic-chip {
    (see .match-tower.is-future below). */
 .match-tower.is-carried .match-tower-icon,
 .match-tower.is-carried .match-tower-mark {
-  opacity: 0.55;
+  opacity: 0.85;
 }
 .match-tower.is-hovered circle {
   stroke: #c0a476;
@@ -8099,13 +8108,17 @@ button.mechanic-chip {
 }
 .match-tower.is-future {
   pointer-events: none;
-  opacity: 0.34;
+  opacity: 0.22;
+  filter: grayscale(1);
 }
 .match-tower.is-future circle,
 .match-tower.is-future .match-tower-callout rect {
   fill: #121816;
   stroke: #829089;
   stroke-dasharray: 4 3;
+}
+.match-tower.is-future circle {
+  r: 0.36;
 }
 .match-tower.is-future .match-tower-mark,
 .match-tower.is-future .match-tower-callout text {
@@ -8146,21 +8159,28 @@ button.mechanic-chip {
   font-size: 0.15px;
   font-weight: 520;
 }
+/* Field readout sits under the board, never over the route. */
 .match-map-readout {
-  position: absolute;
-  right: 11px;
-  bottom: 10px;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px 12px;
-  max-width: calc(100% - 22px);
-  padding: 6px 8px;
-  border: 1px solid rgb(255 255 255 / 0.07);
-  background: rgb(10 13 12 / 0.82);
+  gap: 6px 22px;
+  margin-top: 8px;
+  padding: 7px 2px 0;
+  border-top: 1px solid rgb(255 255 255 / 0.07);
   color: #89958f;
-  font: 9px var(--font-mono, monospace);
-  backdrop-filter: blur(8px);
+  font: 10px var(--font-mono, monospace);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.match-map-readout span::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #4e5b56;
+  vertical-align: 1px;
 }
 .match-camp-rail {
   min-width: 0;

@@ -1370,6 +1370,7 @@ function PlanMap({
 
   return (
     <div className="match-map-board">
+      <div className="match-map-column">
       <div className="match-map-wrap">
         <svg
           viewBox={`${minCol} ${minRow} ${maxCol - minCol} ${maxRow - minRow}`}
@@ -1615,12 +1616,15 @@ function PlanMap({
             );
           })()}
         </svg>
-        <div className="match-map-readout">
-          <span>{activePaths.length} active route</span>
-          <span>{viableCamps.length} viable camps</span>
-          <span>{phase.endTowers.length} active towers</span>
-          <span>{futurePlacements.length} queued placements</span>
-        </div>
+      </div>
+      <div className="match-map-readout">
+        <span>
+          {activePaths.length} active route{activePaths.length === 1 ? "" : "s"}
+        </span>
+        <span>{viableCamps.length} viable camps</span>
+        <span>{phase.endTowers.length} towers on the field</span>
+        <span>{futurePlacements.length} queued for later</span>
+      </div>
       </div>
 
       <aside className="match-camp-rail" aria-label="Camp allocation">
