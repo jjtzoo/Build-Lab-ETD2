@@ -108,3 +108,17 @@ export function calibratedEconomy(
     availableGold: Math.max(0, grossGold - goldSpent),
   };
 }
+
+/** Exact no-interest bounty ledger for a five-wave Match Plan window. */
+export function benchmarkGoldAtEndWave(
+  endWave: number,
+  length: LiveMatchLength,
+  bountyThroughWave: (startWave: number, endWave: number) => number,
+): number {
+  const checkpoint = economyCheckpoint(length);
+  if (endWave < checkpoint.startWave) return checkpoint.startingGold;
+  return (
+    checkpoint.startingGold +
+    bountyThroughWave(checkpoint.startWave, Math.min(55, endWave))
+  );
+}

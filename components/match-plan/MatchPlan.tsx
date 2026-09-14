@@ -34,6 +34,11 @@ import {
   LIVE_ECONOMY_CHECKPOINTS,
   type LiveMatchLength,
 } from "@/lib/engine/liveEconomy";
+import {
+  MATCH_PLAN_DIFFICULTIES,
+  MATCH_PLAN_DIFFICULTY_LABELS,
+  type MatchPlanDifficulty,
+} from "@/lib/engine/waveBenchmarks";
 
 const LEGACY_MIGRATION_BACKUP_KEY = "etd2:live:migration-backup";
 
@@ -184,6 +189,7 @@ export function MatchPlanView({
             mapId: seed.saved?.settings.mapId,
             mode: seed.saved?.settings.mode,
             matchLength: seed.saved?.settings.matchLength,
+            difficulty: seed.saved?.settings.difficulty,
             reserveGold: seed.saved?.settings.reserveGold,
             overrides: seed.saved?.overrides,
             id: seed.saved?.id,
@@ -196,6 +202,7 @@ export function MatchPlanView({
           mapId: seed.saved?.settings.mapId,
           mode: seed.saved?.settings.mode,
           matchLength: seed.saved?.settings.matchLength,
+          difficulty: seed.saved?.settings.difficulty,
           reserveGold: seed.saved?.settings.reserveGold,
           overrides: seed.saved?.overrides,
           id: seed.saved?.id,
@@ -217,8 +224,21 @@ export function MatchPlanView({
         /* storage and history may be unavailable */
       }
     } else if (seed.saved) {
-      setPlan(seed.saved);
-      setSource(seed.saved.sourceBuild as PortableBuild);
+      const savedSource = parseStoredPlan(
+        JSON.stringify(seed.saved.sourceBuild),
+      );
+      if (savedSource) {
+        const refreshed = generateMatchPlan(savedSource, {
+          ...seed.saved.settings,
+          overrides: seed.saved.overrides,
+          id: seed.saved.id,
+          now: seed.saved.createdAt,
+        });
+        setPlan(refreshed);
+        setSource(savedSource);
+      } else {
+        setPlan(seed.saved);
+      }
     }
   }, [initialPlan]);
 
@@ -409,8 +429,9 @@ export function MatchPlanView({
           <p className="eyebrow">MATCH PLAN · PRE-GAME</p>
           <h1>{plan.name}</h1>
           <p>
-            Lock the strategy now. During the match, follow the short action
-            list for the active phase.
+            This is the strategy skeleton. The Co-pilot follows these field,
+            coverage and budget targets, then intervenes only when the match
+            moves off plan.
           </p>
         </div>
         <div className="match-export-actions">
@@ -473,19 +494,27 @@ export function MatchPlanView({
           </select>
         </label>
         <label>
-          Emergency reserve
-          <input
-            type="number"
-            min="0"
-            step="50"
-            value={plan.settings.reserveGold}
+          Difficulty baseline
+          <select
+            value={plan.settings.difficulty ?? "veryHard"}
             onChange={(event) =>
               regenerate({
-                reserveGold: Math.max(0, Number(event.target.value) || 0),
+                difficulty: event.target.value as MatchPlanDifficulty,
               })
             }
-          />
+          >
+            {MATCH_PLAN_DIFFICULTIES.map((difficulty) => (
+              <option key={difficulty} value={difficulty}>
+                {MATCH_PLAN_DIFFICULTY_LABELS[difficulty]}
+              </option>
+            ))}
+          </select>
         </label>
+        <div className="match-auto-budget" aria-label="Automatic budget model">
+          <span>Budget model</span>
+          <strong>Automatic allocation</strong>
+          <small>Checkpoint floor + safety bank</small>
+        </div>
         <button
           className="match-undo"
           type="button"
@@ -496,8 +525,22 @@ export function MatchPlanView({
         </button>
       </section>
       <details className="match-overrides">
-        <summary>Manual overrides</summary>
+        <summary>Adjust generated plan</summary>
         <div>
+          <label>
+            Emergency reserve
+            <input
+              type="number"
+              min="0"
+              step="50"
+              value={plan.settings.reserveGold}
+              onChange={(event) =>
+                regenerate({
+                  reserveGold: Math.max(0, Number(event.target.value) || 0),
+                })
+              }
+            />
+          </label>
           <label>
             Allocation order
             <input
@@ -517,7 +560,7 @@ export function MatchPlanView({
           <span>
             {selectedTower
               ? `Selected: ${selectedTower.towerName} ${selectedTower.level}. Choose a map cell to reserve it.`
-              : "Select a lineup tower, then choose a map cell to reserve it."}
+              : "Optional: select a lineup tower only when you want to replace the engine's placement."}
           </span>
           {selectedTower?.status === "temporary" && (
             <button
@@ -531,11 +574,35 @@ export function MatchPlanView({
         </div>
       </details>
 
+      <section className="match-decision-model" aria-label="Planner workflow">
+        <div>
+          <span>Plan skeleton</span>
+          <strong>Five-wave field target</strong>
+          <small>
+            Towers, camps, elements and spend are generated together.
+          </small>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div>
+          <span>Co-pilot check</span>
+          <strong>Compare the match to plan</strong>
+          <small>Gold, coverage and field state are the decision inputs.</small>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div>
+          <span>Decision</span>
+          <strong>Stay, delay, repair or reposition</strong>
+          <small>No alert means keep following the active snapshot.</small>
+        </div>
+      </section>
+
       <nav className="match-timeline" aria-label="Match phases">
         {plan.phases.map((entry, index) => {
-          const danger = entry.coverage.some(
-            (row) => row.status === "critical" || row.status === "weak",
-          );
+          const danger =
+            entry.survival.status === "fails" ||
+            entry.coverage.some(
+              (row) => row.status === "critical" || row.status === "weak",
+            );
           return (
             <button
               key={entry.id}
@@ -546,9 +613,11 @@ export function MatchPlanView({
             >
               <span>{entry.id}</span>
               <small>
-                {danger
-                  ? "coverage risk"
-                  : `${entry.endTowers.length} tower field`}
+                {entry.survival.status === "fails"
+                  ? `fails W${entry.survival.worstWave ?? entry.startWave}`
+                  : danger
+                    ? "coverage risk"
+                    : `${entry.endTowers.length} tower field`}
               </small>
             </button>
           );
@@ -596,7 +665,7 @@ export function MatchPlanView({
             {notice ??
               (selectedTower
                 ? `Placement mode: choose an open cell for ${selectedTower.towerName} ${selectedTower.level}.`
-                : "Select a tower in the strategy snapshot to place or reserve it on the map.")}
+                : "The engine assigned every tower shown. Select a lineup tower only to override its placement.")}
           </output>
           <div className="match-map-legend" aria-label="Map legend">
             <span>
@@ -609,55 +678,16 @@ export function MatchPlanView({
               <i className="is-tower" /> planned tower
             </span>
             <span>
+              <i className="is-future" /> later placement
+            </span>
+            <span>
               <i className="is-temp" /> temporary carry
             </span>
           </div>
         </section>
 
         <aside className="match-brief" aria-label={`${phase.label} brief`}>
-          <section>
-            <p className="eyebrow">DO THIS</p>
-            <ol className="match-action-list">
-              {phase.actions.length ? (
-                phase.actions.map((action) => (
-                  <li
-                    key={action.id}
-                    className={!action.affordable ? "is-wait" : ""}
-                  >
-                    <span>{action.summary}</span>
-                    <small>
-                      {action.reason}
-                      {action.cost ? ` · ${action.cost.toLocaleString()}g` : ""}
-                    </small>
-                  </li>
-                ))
-              ) : (
-                <li>
-                  <span>Hold the line</span>
-                  <small>
-                    No forced purchase in this window. Keep the reserve intact.
-                  </small>
-                </li>
-              )}
-            </ol>
-          </section>
-          <section className="match-economy-strip">
-            <div>
-              <small>Conservative gold</small>
-              <strong>
-                {phase.economy.goldLowerBound.toLocaleString()}–
-                {phase.economy.goldUpperBound.toLocaleString()}
-              </strong>
-            </div>
-            <div>
-              <small>Plan spent</small>
-              <strong>{phase.economy.cumulativeCost.toLocaleString()}</strong>
-            </div>
-            <div>
-              <small>Reserve</small>
-              <strong>{phase.economy.emergencyReserve.toLocaleString()}</strong>
-            </div>
-          </section>
+          <CopilotDecision phase={phase} />
           <details open>
             <summary>Lineup snapshot</summary>
             <ul className="match-lineup">
@@ -784,6 +814,14 @@ function PhaseSnapshot({
           : "carried";
     return { tower, kind };
   });
+  const verdict =
+    phase.survival.status === "survives"
+      ? `Modeled clear · ${Math.round((phase.survival.margin ?? 1) * 100 - 100)}% worst-wave margin`
+      : phase.survival.status === "borderline"
+        ? `Thin margin · wave ${phase.survival.worstWave}`
+        : phase.survival.status === "fails"
+          ? `Unsafe · fails wave ${phase.survival.worstWave}`
+          : "Not verified";
 
   return (
     <section
@@ -793,19 +831,19 @@ function PhaseSnapshot({
       <header>
         <div>
           <p className="eyebrow">STRATEGY SNAPSHOT</p>
-          <h3>
-            What the field should look like by wave {phase.endWave ?? "56+"}
-          </h3>
+          <h3>Start here. Spend this. Reach this field.</h3>
         </div>
-        <p>
-          {phase.startTowers.length} → {phase.endTowers.length} placed copies ·{" "}
-          {phase.actions.filter((action) => action.affordable).length} planned
-          actions
-        </p>
+        <strong className="snapshot-verdict" data-state={phase.survival.status}>
+          {verdict}
+        </strong>
       </header>
       <div className="snapshot-flow">
         <section className="snapshot-start">
-          <p>Start of phase</p>
+          <p>01 · Starting state</p>
+          <strong className="snapshot-gold">
+            {phase.economy.phaseStartGold.toLocaleString()}g
+          </strong>
+          <small>bank at wave {phase.startWave}</small>
           {phase.startTowers.length ? (
             <ul>
               {phase.startTowers.map((tower) => (
@@ -819,7 +857,29 @@ function PhaseSnapshot({
           )}
         </section>
         <section className="snapshot-commitments">
-          <p>Commit in this window</p>
+          <p>02 · Gold allocation</p>
+          <div className="snapshot-ledger" aria-label="Gold allocation">
+            <span>
+              <small>Start</small>
+              <b>{phase.economy.phaseStartGold.toLocaleString()}g</b>
+            </span>
+            <i>+</i>
+            <span>
+              <small>Wave income</small>
+              <b>{phase.economy.incomeThisPhase.toLocaleString()}g</b>
+            </span>
+            <i>−</i>
+            <span>
+              <small>Plan spend</small>
+              <b>{phase.economy.phaseCost.toLocaleString()}g</b>
+            </span>
+            <i>=</i>
+            <span>
+              <small>End bank</small>
+              <b>{phase.economy.phaseEndGold.toLocaleString()}g</b>
+            </span>
+          </div>
+          <p className="snapshot-action-label">Do in this window</p>
           <ol>
             {phase.actions.length ? (
               phase.actions.map((action) => (
@@ -840,6 +900,9 @@ function PhaseSnapshot({
                       {action.cost
                         ? `${action.cost.toLocaleString()}g`
                         : "keystone"}
+                      {action.targetWave
+                        ? ` · before W${action.targetWave}`
+                        : ""}
                     </small>
                   </button>
                 </li>
@@ -852,7 +915,7 @@ function PhaseSnapshot({
           </ol>
         </section>
         <section className="snapshot-end">
-          <p>End-of-phase field</p>
+          <p>03 · End target · after wave {phase.endWave ?? "56+"}</p>
           <div className="snapshot-towers">
             {changes.length ? (
               changes.map(({ tower, kind }) => (
@@ -880,6 +943,70 @@ function PhaseSnapshot({
           </div>
         </section>
       </div>
+      <section className="snapshot-survival" aria-label="Survival check">
+        <div className="snapshot-survival-title">
+          <div>
+            <p>Survival check</p>
+            <strong>
+              {phase.survival.status === "fails"
+                ? "This field is not safe yet"
+                : phase.survival.status === "unverified"
+                  ? "The engine needs more data"
+                  : "Available field damage versus each wave"}
+            </strong>
+          </div>
+          <small>
+            HP × count · armour · speed · spawn spacing · traced time in range
+          </small>
+        </div>
+        {phase.survival.waves.length ? (
+          <div className="snapshot-wave-grid">
+            {phase.survival.waves.map((wave) => (
+              <article key={wave.wave} data-state={wave.status}>
+                <header>
+                  <b>W{wave.wave}</b>
+                  <span>{wave.element}</span>
+                </header>
+                <dl>
+                  <div>
+                    <dt>Wave HP</dt>
+                    <dd>{Math.round(wave.effectiveWaveHp).toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt>Units</dt>
+                    <dd>{wave.count}</dd>
+                  </div>
+                  <div>
+                    <dt>Damage</dt>
+                    <dd>
+                      {wave.modeledDamage == null
+                        ? "—"
+                        : Math.round(wave.modeledDamage).toLocaleString()}
+                    </dd>
+                  </div>
+                </dl>
+                <strong>
+                  {wave.margin == null
+                    ? "Unverified"
+                    : `${Math.round(wave.margin * 100)}% capacity`}
+                </strong>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="snapshot-unverified">
+            No bounded wave benchmark is available for this phase.
+          </p>
+        )}
+        <details>
+          <summary>How the verdict is calculated</summary>
+          <ul>
+            {phase.survival.assumptions.map((assumption) => (
+              <li key={assumption}>{assumption}</li>
+            ))}
+          </ul>
+        </details>
+      </section>
       <footer>
         <span>
           <b>Keystones</b>{" "}
@@ -889,8 +1016,8 @@ function PhaseSnapshot({
           ).join(" · ")}
         </span>
         <span>
-          <b>Safe spend</b> {phase.economy.spendableLowerBound.toLocaleString()}
-          g after reserve
+          <b>Safety bank</b> {phase.economy.emergencyReserve.toLocaleString()}g
+          protected
         </span>
         <span>
           <b>Coverage</b>{" "}
@@ -900,6 +1027,85 @@ function PhaseSnapshot({
             .join(", ") || "no critical gap"}
         </span>
       </footer>
+    </section>
+  );
+}
+
+function CopilotDecision({ phase }: { phase: MatchPlan["phases"][number] }) {
+  const affordable = phase.actions.filter((action) => action.affordable);
+  const blocked = phase.actions.find((action) => !action.affordable);
+  const decision =
+    phase.survival.status === "fails"
+      ? {
+          state: "repair",
+          title: `Repair before wave ${phase.survival.worstWave ?? phase.startWave}`,
+          command:
+            phase.survival.waves.find((wave) => wave.status === "fails")
+              ?.limitingFactor ??
+            "The modeled field does not clear this window.",
+          reason:
+            "Do not advance the long-term package until the five-wave survival check passes.",
+        }
+      : blocked
+        ? {
+            state: "delay",
+            title: "Bank gold; do not force the next purchase",
+            command: `${blocked.summary} needs ${blocked.waitForGold?.toLocaleString() ?? 0}g more above the safety floor.`,
+            reason: blocked.reason,
+          }
+        : affordable.length
+          ? {
+              state: "on-plan",
+              title: "Follow the planned window",
+              command: affordable.map((action) => action.summary).join(" → "),
+              reason:
+                affordable.at(-1)?.reason ??
+                "These commitments reach the phase target within the benchmark budget.",
+            }
+          : {
+              state: "hold",
+              title: "Hold this field and preserve the bank",
+              command: "No purchase is required in this five-wave window.",
+              reason:
+                "The current field already matches the plan skeleton for this phase.",
+            };
+
+  return (
+    <section className="match-copilot-decision" data-state={decision.state}>
+      <div className="match-decision-kicker">
+        <p className="eyebrow">COPILOT DECISION</p>
+        <span>{decision.state.replace("-", " ")}</span>
+      </div>
+      <h3>{decision.title}</h3>
+      <p className="match-decision-command">{decision.command}</p>
+      <small>{decision.reason}</small>
+      <p className="match-decision-trigger">
+        <b>Decision gate</b>{" "}
+        {phase.survival.status === "survives"
+          ? "Proceed while live gold and the field match this snapshot."
+          : "Resolve the survival or data warning before proceeding."}
+      </p>
+      {phase.actions.length > 0 && (
+        <details>
+          <summary>Exact action sequence</summary>
+          <ol className="match-action-list">
+            {phase.actions.map((action) => (
+              <li
+                key={action.id}
+                className={!action.affordable ? "is-wait" : ""}
+              >
+                <span>{action.summary}</span>
+                <small>
+                  {action.cost
+                    ? `${action.cost.toLocaleString()}g`
+                    : "keystone"}
+                  {action.targetWave ? ` · before W${action.targetWave}` : ""}
+                </small>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
     </section>
   );
 }
@@ -931,6 +1137,26 @@ function PlanMap({
   const prior = new Map(
     phase.startTowers.map((tower) => [tower.copyId, tower]),
   );
+  const currentCopyIds = new Set(phase.endTowers.map((tower) => tower.copyId));
+  const futureByCopy = new Map<
+    string,
+    { tower: PlannedTowerState; phaseId: string }
+  >();
+  for (const laterPhase of plan.phases.slice(phase.index + 1)) {
+    for (const tower of laterPhase.endTowers) {
+      if (
+        tower.cell &&
+        !currentCopyIds.has(tower.copyId) &&
+        !futureByCopy.has(tower.copyId)
+      ) {
+        futureByCopy.set(tower.copyId, {
+          tower,
+          phaseId: laterPhase.id,
+        });
+      }
+    }
+  }
+  const futurePlacements = [...futureByCopy.values()];
   const selectedTower =
     phase.endTowers.find((tower) => tower.copyId === selectedCopyId) ?? null;
   const focusTower = selectedTower ?? phase.endTowers.at(-1) ?? null;
@@ -1198,11 +1424,35 @@ function PlanMap({
                 ]
               : [],
           )}
+
+          {futurePlacements.map(({ tower, phaseId }) => (
+            <g
+              key={`future-${tower.copyId}`}
+              transform={`translate(${tower.cell!.col} ${tower.cell!.row})`}
+              className="match-tower is-future"
+              data-future-placement={tower.copyId}
+            >
+              <title>
+                {tower.towerName} {tower.level} · waves {phaseId} ·{" "}
+                {tower.campId
+                  ? (campLabelById.get(tower.campId) ?? tower.campId)
+                  : "planned"}
+              </title>
+              <circle r=".42" />
+              <text className="match-tower-mark" y=".1" textAnchor="middle">
+                {towerMark(tower.towerName)}
+              </text>
+              <text className="match-future-wave" y=".76" textAnchor="middle">
+                {phaseId}
+              </text>
+            </g>
+          ))}
         </svg>
         <div className="match-map-readout">
           <span>{activePaths.length} active route</span>
           <span>{viableCamps.length} viable camps</span>
-          <span>{phase.endTowers.length} planned towers</span>
+          <span>{phase.endTowers.length} active towers</span>
+          <span>{futurePlacements.length} queued placements</span>
         </div>
       </div>
 
@@ -1217,6 +1467,9 @@ function PlanMap({
             const openCell = openCellForCamp(camp);
             const assigned = phase.endTowers.filter(
               (tower) => tower.campId === camp.id,
+            ).length;
+            const queued = futurePlacements.filter(
+              ({ tower }) => tower.campId === camp.id,
             ).length;
             const isPreferred = preferredCamp?.id === camp.id;
             return (
@@ -1246,23 +1499,26 @@ function PlanMap({
                     </dd>
                   </div>
                   <div>
-                    <dt>field</dt>
-                    <dd>
-                      {assigned}/{camp.capacity}
-                    </dd>
+                    <dt>plan</dt>
+                    <dd>{assigned + queued}</dd>
                   </div>
                 </dl>
-                <button
-                  type="button"
-                  disabled={!selectedTower || !openCell}
-                  onClick={() => openCell && onAssignCell(openCell, camp.id)}
-                >
-                  {selectedTower
-                    ? openCell
+                {selectedTower ? (
+                  <button
+                    type="button"
+                    disabled={!openCell}
+                    onClick={() => openCell && onAssignCell(openCell, camp.id)}
+                  >
+                    {openCell
                       ? `Assign ${selectedTower.towerName}`
-                      : "Camp full"
-                    : "Select a tower"}
-                </button>
+                      : "Camp full"}
+                  </button>
+                ) : (
+                  <p className="match-camp-auto">
+                    Engine assigned · {assigned} now
+                    {queued ? ` · ${queued} later` : ""}
+                  </p>
+                )}
               </article>
             );
           })}

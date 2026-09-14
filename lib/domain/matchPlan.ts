@@ -1,6 +1,7 @@
 import type { ElementAllocation, ElementName } from "./elements";
 import type { GridPoint, WaveMode } from "./mapConfig";
 import type { LiveMatchLength } from "@/lib/engine/liveEconomy";
+import type { MatchPlanDifficulty } from "@/lib/engine/waveBenchmarks";
 
 export const MATCH_PLAN_SCHEMA = "etd2-match-plan/1" as const;
 export const MATCH_PLAN_STORAGE_KEY = "etd2:match-plan:v1";
@@ -63,6 +64,7 @@ export type MatchPlanAction = {
   legal: boolean;
   affordable: boolean;
   waitForGold?: number;
+  targetWave?: number;
   cell?: GridPoint;
   cellLabel?: string;
   campId?: string;
@@ -100,11 +102,35 @@ export type MatchPlanCamp = {
 export type MatchPlanEconomy = {
   cumulativeCost: number;
   phaseCost: number;
+  phaseStartGold: number;
+  incomeThisPhase: number;
+  phaseEndGold: number;
   goldLowerBound: number;
   goldUpperBound: number;
   emergencyReserve: number;
   spendableLowerBound: number;
   affordable: boolean;
+  assumptions: readonly string[];
+};
+
+export type MatchPlanWaveSurvival = {
+  wave: number;
+  element: ElementName | "Composite";
+  ability: string | null;
+  count: number;
+  hpPerCreep: number;
+  effectiveWaveHp: number;
+  modeledDamage: number | null;
+  margin: number | null;
+  status: "survives" | "borderline" | "fails" | "unverified";
+  limitingFactor: string | null;
+};
+
+export type MatchPlanSurvival = {
+  status: "survives" | "borderline" | "fails" | "unverified";
+  worstWave: number | null;
+  margin: number | null;
+  waves: readonly MatchPlanWaveSurvival[];
   assumptions: readonly string[];
 };
 
@@ -120,6 +146,7 @@ export type MatchPlanPhase = {
   endTowers: readonly PlannedTowerState[];
   actions: readonly MatchPlanAction[];
   economy: MatchPlanEconomy;
+  survival: MatchPlanSurvival;
   coverage: readonly ElementCoverageRow[];
   reservedCells: readonly { copyId: string; cell: GridPoint; label: string }[];
   risks: readonly string[];
@@ -157,6 +184,7 @@ export type MatchPlan = {
     mapId: string;
     mode: WaveMode;
     matchLength: LiveMatchLength;
+    difficulty: MatchPlanDifficulty;
     reserveGold: number;
   };
   camps: readonly MatchPlanCamp[];

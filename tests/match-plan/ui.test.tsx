@@ -11,6 +11,8 @@ import {
 import "@testing-library/jest-dom/vitest";
 import { MatchPlanView } from "@/components/match-plan/MatchPlan";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
+import { MATCH_PLAN_STORAGE_KEY } from "@/lib/domain/matchPlan";
+import { generateMatchPlan } from "@/lib/engine/matchPlan";
 
 vi.mock("@/components/build-lab/LabChrome", () => ({
   LabHeader: () => null,
@@ -49,6 +51,27 @@ describe("Match Plan UI", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("recommended").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/temporary/i).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Automatic budget model")).toHaveTextContent(
+      "Automatic allocation",
+    );
+    expect(screen.getByText("Plan skeleton")).toBeInTheDocument();
+    expect(screen.getByText("COPILOT DECISION")).toBeInTheDocument();
+    expect(screen.getByLabelText("Difficulty baseline")).toHaveValue(
+      "veryHard",
+    );
+    expect(screen.getByLabelText("Gold allocation")).toHaveTextContent(
+      "Wave income",
+    );
+    expect(screen.getByLabelText("Survival check")).toHaveTextContent("W1");
+    expect(screen.getByLabelText("Survival check")).toHaveTextContent("W5");
+    expect(screen.getByText("later placement")).toBeInTheDocument();
+    expect(
+      screen.getByText(/engine assigned every tower/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Select a tower")).not.toBeInTheDocument();
+    expect(
+      document.querySelectorAll("[data-future-placement]").length,
+    ).toBeGreaterThan(0);
     const coverage = screen
       .getByText("Armour coverage")
       .closest("div.match-coverage") as HTMLElement | null;
@@ -72,6 +95,7 @@ describe("Match Plan UI", () => {
     expect(
       screen.getByRole("heading", { name: "Waves 6–10" }),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Adjust generated plan"));
     const reserve = screen.getByLabelText("Emergency reserve");
     fireEvent.change(reserve, { target: { value: "900" } });
     expect(reserve).toHaveValue(900);
@@ -92,5 +116,35 @@ describe("Match Plan UI", () => {
     );
     const payload = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0];
     expect(payload).toContain("etd2-copilot-action/1");
+  });
+
+  it("refreshes a stored plan through the current automatic engine", async () => {
+    const stale = structuredClone(
+      generateMatchPlan(build, { mapId: "forest" }),
+    );
+    for (const phase of stale.phases) {
+      for (const tower of phase.endTowers) {
+        if (tower.effect === "damage" || tower.effect === "hybrid") {
+          (tower as { campId: string }).campId = "camp-1-1";
+        }
+      }
+    }
+    window.localStorage.setItem(MATCH_PLAN_STORAGE_KEY, JSON.stringify(stale));
+    render(<MatchPlanView initialPlan={null} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    await waitFor(() => {
+      const refreshed = JSON.parse(
+        window.localStorage.getItem(MATCH_PLAN_STORAGE_KEY) ?? "null",
+      );
+      const camps = new Set(
+        refreshed.phases[2].endTowers
+          .filter(
+            (tower: { effect: string }) =>
+              tower.effect === "damage" || tower.effect === "hybrid",
+          )
+          .map((tower: { campId: string }) => tower.campId),
+      );
+      expect(camps.size).toBeGreaterThan(1);
+    });
   });
 });

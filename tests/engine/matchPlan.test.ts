@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
 import { MATCH_PLAN_SCHEMA, parseMatchPlan } from "@/lib/domain/matchPlan";
+import { getTower } from "@/lib/domain/towerCatalog";
 import {
   generateMatchPlan,
   migrateLegacyLiveState,
@@ -49,17 +50,27 @@ describe("Match Plan", () => {
     expect(parseMatchPlan(JSON.stringify(a))?.id).toBe(a.id);
   });
 
-  it("uses Atom rather than Trickery as Laser's temporary early carry", () => {
+  it("scores a legal damage dual instead of hard-coding an early carry", () => {
     const plan = generateMatchPlan(laserBuild, {
       mapId: "forest",
       reserveGold: 0,
     });
     const towers = plan.phases.flatMap((phase) => phase.endTowers);
+    const carry = towers.find((tower) => {
+      if (["arrow", "cannon"].includes(tower.towerId)) return false;
+      try {
+        return getTower(tower.towerId).combination === "Dual";
+      } catch {
+        return false;
+      }
+    });
+    expect(carry?.level).toBe(1);
+    expect(carry?.status).toBe("temporary");
     expect(
-      towers.some(
-        (tower) => tower.towerId === "atom" && tower.status === "temporary",
-      ),
-    ).toBe(true);
+      plan.phases
+        .flatMap((phase) => phase.actions)
+        .find((action) => action.towerId === carry?.towerId)?.reason,
+    ).toContain("early-bridge score");
     expect(
       towers.some(
         (tower) =>
@@ -68,7 +79,47 @@ describe("Match Plan", () => {
     ).toBe(false);
     expect(
       towers.some(
-        (tower) => tower.towerId === "mono-earth" && tower.level === 2,
+        (tower) => tower.towerId.startsWith("mono-") && tower.level === 2,
+      ),
+    ).toBe(true);
+  });
+
+  it("re-scores the early bridge for a different elemental build", () => {
+    const golemBuild: PortableBuild = {
+      schema: "etd2-build/2",
+      source: "engine",
+      anchorTowerId: "golem",
+      towers: [{ towerId: "golem", level: 2 }],
+      allocation: {
+        Light: 0,
+        Darkness: 0,
+        Water: 3,
+        Fire: 0,
+        Nature: 3,
+        Earth: 3,
+      },
+      createdAt: "2026-09-14T00:00:00.000Z",
+    };
+    const carryFor = (build: PortableBuild) =>
+      generateMatchPlan(build, { mapId: "forest", reserveGold: 0 })
+        .phases[1].endTowers.filter(
+          (tower) => !["arrow", "cannon"].includes(tower.towerId),
+        )
+        .find((tower) => {
+          try {
+            return getTower(tower.towerId).combination === "Dual";
+          } catch {
+            return false;
+          }
+        });
+    const laserCarry = carryFor(laserBuild);
+    const golemCarry = carryFor(golemBuild);
+    expect(laserCarry).toBeDefined();
+    expect(golemCarry).toBeDefined();
+    expect(golemCarry?.towerId).not.toBe(laserCarry?.towerId);
+    expect(
+      getTower(golemCarry!.towerId).recipe.every(
+        (element) => golemBuild.allocation[element] >= 1,
       ),
     ).toBe(true);
   });
@@ -89,11 +140,36 @@ describe("Match Plan", () => {
       opening.actions.some((action) => action.reason.includes("wave 1")),
     ).toBe(true);
     expect(
-      secondWindow.endTowers.some(
-        (tower) => tower.towerId === "atom" && tower.level === 1,
-      ),
+      secondWindow.endTowers.some((tower) => {
+        try {
+          return (
+            getTower(tower.towerId).combination === "Dual" && tower.level === 1
+          );
+        } catch {
+          return false;
+        }
+      }),
     ).toBe(true);
     expect(plan.phases[2].startTowers.length).toBeGreaterThan(0);
+  });
+
+  it("puts the benchmark survival shell ahead of the elemental bridge", () => {
+    const opening = generateMatchPlan(laserBuild, {
+      mapId: "forest",
+    }).phases[0];
+    expect(
+      opening.endTowers.filter((tower) => tower.towerId === "arrow"),
+    ).toHaveLength(3);
+    expect(
+      opening.actions.filter(
+        (action) => action.towerId === "arrow" && action.targetWave === 1,
+      ),
+    ).toHaveLength(3);
+    expect(opening.survival.status).not.toBe("fails");
+    const bridge = generateMatchPlan(laserBuild, {
+      mapId: "forest",
+    }).phases[1].actions.find((action) => action.towerId === "infernal");
+    expect(bridge?.targetWave).toBe(11);
   });
 
   it("separates legal purchases from conservative affordability", () => {
@@ -106,6 +182,29 @@ describe("Match Plan", () => {
       .find((action) => action.legal && !action.affordable);
     expect(wait?.waitForGold).toBeGreaterThan(0);
     expect(wait?.reason).toContain("reserve");
+  });
+
+  it("allocates each phase budget from benchmark gold without manual spending", () => {
+    const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
+    expect(plan.settings.difficulty).toBe("veryHard");
+    expect(plan.phases[0].economy).toMatchObject({
+      phaseStartGold: 300,
+      incomeThisPhase: 390,
+      phaseCost: 400,
+      phaseEndGold: 290,
+    });
+    expect(plan.phases[0].survival.waves).toHaveLength(5);
+    for (const phase of plan.phases) {
+      expect(phase.economy.assumptions[0]).toContain("per-wave bounty");
+      expect(phase.economy.cumulativeCost).toBeLessThanOrEqual(
+        phase.economy.goldUpperBound,
+      );
+      expect(
+        phase.actions
+          .filter((action) => action.affordable)
+          .reduce((sum, action) => sum + action.cost, 0),
+      ).toBe(phase.economy.phaseCost);
+    }
   });
 
   it("derives multiple viable timing camps instead of one stack", () => {
@@ -123,6 +222,14 @@ describe("Match Plan", () => {
         .flatMap((tower) => (tower.campId ? [tower.campId] : [])),
     );
     expect(damageCamps.size).toBeGreaterThan(1);
+    const earlyDamageCamps = new Set(
+      plan.phases[2].endTowers
+        .filter(
+          (tower) => tower.effect === "damage" || tower.effect === "hybrid",
+        )
+        .flatMap((tower) => (tower.campId ? [tower.campId] : [])),
+    );
+    expect(earlyDamageCamps.size).toBeGreaterThan(1);
   });
 
   it("exports a versioned, ordered Co-pilot action contract", () => {
@@ -187,10 +294,14 @@ describe("Match Plan", () => {
       mapId: "forest",
       reserveGold: 0,
     });
-    const atom = base.phases
+    const carry = base.phases
       .flatMap((phase) => phase.endTowers)
-      .find((tower) => tower.towerId === "atom");
-    expect(atom).toBeDefined();
+      .find(
+        (tower) =>
+          tower.status === "temporary" &&
+          !["arrow", "cannon"].includes(tower.towerId),
+      );
+    expect(carry).toBeDefined();
     const overridden = generateMatchPlan(laserBuild, {
       mapId: "forest",
       reserveGold: 0,
@@ -198,21 +309,21 @@ describe("Match Plan", () => {
         {
           id: "cell",
           kind: "cell",
-          copyId: atom!.copyId,
+          copyId: carry!.copyId,
           cell: { col: 6, row: 0 },
         },
         {
           id: "retain",
           kind: "retain-temporary",
-          copyId: atom!.copyId,
+          copyId: carry!.copyId,
           retain: true,
         },
       ],
     });
-    const overriddenAtom = overridden.phases
+    const overriddenCarry = overridden.phases
       .flatMap((phase) => phase.endTowers)
-      .find((tower) => tower.copyId === atom!.copyId);
-    expect(overriddenAtom?.cell).toEqual({ col: 6, row: 0 });
-    expect(overriddenAtom?.status).toBe("permanent");
+      .find((tower) => tower.copyId === carry!.copyId);
+    expect(overriddenCarry?.cell).toEqual({ col: 6, row: 0 });
+    expect(overriddenCarry?.status).toBe("permanent");
   });
 });

@@ -36,12 +36,25 @@ import { getTower, TOWERS } from "@/lib/domain/towerCatalog";
 import { getTowerPlacementFact } from "@/lib/domain/towerPlacementFacts";
 import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
 import {
-  calibratedGrossGold,
+  benchmarkGoldAtEndWave,
+  economyCheckpoint,
   type LiveMatchLength,
 } from "@/lib/engine/liveEconomy";
+import {
+  combatFacts,
+  evaluatePhaseSurvival,
+} from "@/lib/engine/matchPlanSurvival";
+import {
+  bountyThroughWave,
+  type MatchPlanDifficulty,
+  waveBenchmark,
+} from "@/lib/engine/waveBenchmarks";
 import { liveTowerName, resolveLiveTowerCost } from "@/lib/engine/liveGame";
 import { coverageForMode, islands } from "@/lib/engine/mapPlacement";
 import { rankPlacements } from "@/lib/engine/placementValue";
+import earlyRanges from "@/data/earlyTowerRanges.v1.json";
+
+const EARLY_TOWER_RANGES = earlyRanges.ranges as Record<string, number>;
 
 const PHASES: readonly {
   id: MatchPlanPhaseId;
@@ -76,6 +89,7 @@ export type MatchPlanSettings = {
   mapId?: string;
   mode?: WaveMode;
   matchLength?: LiveMatchLength;
+  difficulty?: MatchPlanDifficulty;
   reserveGold?: number;
   overrides?: readonly MatchPlanOverride[];
   now?: string;
@@ -87,6 +101,7 @@ type Purchase = Omit<PortableTowerAction, "towerId"> & {
   reason: string;
   priority: number;
   copyOrdinal: number;
+  targetWave?: number;
 };
 
 function stableId(...parts: readonly (string | number)[]): string {
@@ -99,6 +114,8 @@ function stableId(...parts: readonly (string | number)[]): string {
 function allocationOrder(
   build: PortableBuild,
   overrides: readonly MatchPlanOverride[],
+  map: MapConfig,
+  mode: WaveMode,
 ): ElementName[] {
   const manual = overrides.find((entry) => entry.kind === "allocation-order");
   const serialized =
@@ -107,7 +124,7 @@ function allocationOrder(
       : (build.progression?.flatMap((stage) =>
           stage.keystoneSteps.map((step) => step.element),
         ) ?? []);
-  const carry = compatibleEarlyCarry(build);
+  const carry = compatibleEarlyCarry(build, map, mode);
   const openingTower = carry ?? { towerId: build.anchorTowerId, level: 1 };
   const openingRecipe = (() => {
     try {
@@ -116,12 +133,26 @@ function allocationOrder(
       return [];
     }
   })();
+  const preferredOpeningElement = openingMonoElement(
+    build,
+    openingTower,
+    map,
+    mode,
+  );
+  const orderedOpeningRecipe = preferredOpeningElement
+    ? [
+        preferredOpeningElement,
+        ...openingRecipe.filter(
+          (element) => element !== preferredOpeningElement,
+        ),
+      ]
+    : openingRecipe;
   const coverageElement = earlyCoverageElement(build, openingTower);
   const proposed =
     manual?.kind === "allocation-order"
       ? serialized
       : [
-          ...openingRecipe,
+          ...orderedOpeningRecipe,
           ...(coverageElement ? [coverageElement] : []),
           ...serialized,
           ...getTower(build.anchorTowerId).recipe,
@@ -148,6 +179,57 @@ function allocationOrder(
     result.push(next);
   }
   return result.slice(0, 11);
+}
+
+function openingMonoElement(
+  build: PortableBuild,
+  opening: { towerId: string; level: number },
+  map: MapConfig,
+  mode: WaveMode,
+): ElementName | null {
+  try {
+    const candidates = getTower(opening.towerId).recipe.filter(
+      (element) => (build.allocation[element] ?? 0) >= 1,
+    );
+    return (
+      candidates
+        .map((element) => {
+          const facts = combatFacts(`mono-${element.toLowerCase()}`, 1);
+          if (!facts) return { element, score: 0 };
+          const routeCoverage = Math.max(
+            0,
+            ...map.buildableCells.map(
+              (cell) =>
+                coverageForMode(map, cell, facts.range, mode).coveragePercent,
+            ),
+          );
+          const firstWaves = [1, 2, 3, 4, 5]
+            .map((wave) => waveBenchmark(wave, "veryHard"))
+            .filter((wave) => wave != null);
+          const multipliers = firstWaves.map((wave) =>
+            wave.element === "Composite"
+              ? 1
+              : ELEMENT_MATCHUPS[element][wave.element],
+          );
+          const floor = Math.min(...multipliers);
+          const mean =
+            multipliers.reduce((sum, value) => sum + value, 0) /
+            Math.max(1, multipliers.length);
+          return {
+            element,
+            score:
+              facts.averageDps *
+              (0.65 + (routeCoverage / 100) * 0.35) *
+              (0.65 + floor * 0.2 + mean * 0.15),
+          };
+        })
+        .sort(
+          (a, b) => b.score - a.score || a.element.localeCompare(b.element),
+        )[0]?.element ?? null
+    );
+  } catch {
+    return null;
+  }
 }
 
 function rolesFor(build: PortableBuild, towerId: string): readonly string[] {
@@ -208,23 +290,70 @@ function actionCost(
 
 function compatibleEarlyCarry(
   build: PortableBuild,
-): { towerId: string; level: number } | null {
+  map: MapConfig,
+  mode: WaveMode,
+): {
+  towerId: string;
+  level: number;
+  temporary: boolean;
+  reason: string;
+} | null {
   try {
     const anchor = getTower(build.anchorTowerId);
     if (anchor.combination === "Dual") return null;
-    const candidate = TOWERS.filter(
-      (tower) =>
-        tower.combination === "Dual" &&
-        tower.id !== "trickery" &&
-        !build.towers.some((entry) => entry.towerId === tower.id) &&
-        tower.recipe.every((element) => anchor.recipe.includes(element)) &&
-        getTowerProfile(tower.id).coreRoles.includes("main-dps"),
-    ).sort(
+    const candidates = TOWERS.flatMap((tower) => {
+      if (
+        tower.combination !== "Dual" ||
+        tower.recipe.some((element) => (build.allocation[element] ?? 0) < 1) ||
+        !getTowerProfile(tower.id).coreRoles.includes("main-dps") ||
+        getTowerPlacementFact(tower.id).targetsTowers
+      )
+        return [];
+      const baseDps = tower.stats.damage[0] * tower.stats.attackSpeed;
+      const routeCoverage = Math.max(
+        0,
+        ...map.buildableCells.map(
+          (cell) =>
+            coverageForMode(map, cell, tower.stats.range, mode).coveragePercent,
+        ),
+      );
+      const coverageElement = earlyCoverageElement(build, {
+        towerId: tower.id,
+        level: 1,
+      });
+      const matchupFloor = Math.min(
+        ...ELEMENTS.map((defender) =>
+          Math.max(
+            ELEMENT_MATCHUPS[tower.damageElement][defender],
+            coverageElement ? ELEMENT_MATCHUPS[coverageElement][defender] : 0,
+          ),
+        ),
+      );
+      const cost = Math.max(1, actionCost(tower.id, 0, 1));
+      const belongsToBuild = build.towers.some(
+        (entry) => entry.towerId === tower.id,
+      );
+      const score =
+        (baseDps / cost) *
+        (0.7 + (routeCoverage / 100) * 0.3) *
+        (0.75 + matchupFloor * 0.25) *
+        (belongsToBuild ? 1.08 : 1);
+      return [{ tower, score, routeCoverage, matchupFloor, belongsToBuild }];
+    }).sort(
       (a, b) =>
-        b.stats.damage[0] * b.stats.attackSpeed -
-        a.stats.damage[0] * a.stats.attackSpeed,
-    )[0];
-    return candidate ? { towerId: candidate.id, level: 1 } : null;
+        b.score - a.score ||
+        b.routeCoverage - a.routeCoverage ||
+        a.tower.id.localeCompare(b.tower.id),
+    );
+    const candidate = candidates[0];
+    return candidate
+      ? {
+          towerId: candidate.tower.id,
+          level: 1,
+          temporary: !candidate.belongsToBuild,
+          reason: `${candidate.tower.name} I wins the legal early-bridge score for damage per gold, route coverage and its level-II mono pairing.`,
+        }
+      : null;
   } catch {
     return null;
   }
@@ -265,6 +394,8 @@ function earlyCoverageElement(
 function purchases(
   build: PortableBuild,
   order: readonly ElementName[],
+  map: MapConfig,
+  mode: WaveMode,
 ): Purchase[] {
   const list: Purchase[] = [];
   const anchor = (() => {
@@ -290,8 +421,51 @@ function purchases(
       "Place this before wave 1. Opening survival spending takes priority over the emergency reserve.",
     priority: 1_000,
     copyOrdinal: 1,
+    targetWave: 1,
   });
-  const carry = compatibleEarlyCarry(build);
+  list.push({
+    kind: "build",
+    towerId: starterId,
+    towerName: liveTowerName(starterId),
+    toLevel: 1,
+    roles: ["main-dps"],
+    temporaryCarry: true,
+    reason:
+      "Place the third basic before wave 1. The Very Hard route-time benchmark does not credit two copies with enough damage margin.",
+    priority: 998,
+    copyOrdinal: 3,
+    targetWave: 1,
+  });
+  list.push({
+    kind: "build",
+    towerId: starterId,
+    towerName: liveTowerName(starterId),
+    toLevel: 1,
+    roles: ["main-dps"],
+    temporaryCarry: true,
+    reason:
+      "Place the second basic before wave 1. The benchmark needs two cheap coverage windows before elemental income arrives.",
+    priority: 999,
+    copyOrdinal: 2,
+    targetWave: 1,
+  });
+  const openingElement = order[0];
+  if (openingElement) {
+    const mono = getMonoTowerForElement(openingElement);
+    list.push({
+      kind: "build",
+      towerId: mono.id,
+      towerName: mono.name,
+      toLevel: 1,
+      roles: ["main-dps", "coverage"],
+      temporaryCarry: true,
+      reason: `${mono.name} I is the best legal opening mono for waves 1-5 after damage, armour matchups and traced route coverage are scored together.`,
+      priority: 130,
+      copyOrdinal: 1,
+      targetWave: 3,
+    });
+  }
+  const carry = compatibleEarlyCarry(build, map, mode);
   if (carry) {
     list.push({
       kind: "build",
@@ -299,8 +473,8 @@ function purchases(
       towerName: liveTowerName(carry.towerId),
       toLevel: 1,
       roles: ["main-dps"],
-      temporaryCarry: true,
-      reason: `Use ${liveTowerName(carry.towerId)} I as the 500-gold bridge; it deals damage before the Trio anchor is affordable.`,
+      temporaryCarry: carry.temporary,
+      reason: carry.reason,
       priority: 120,
       copyOrdinal: 1,
     });
@@ -487,6 +661,13 @@ export function deriveMatchPlanCamps(
 }
 
 function towerFacts(towerId: string, level: number) {
+  const combat = combatFacts(towerId, level);
+  if (combat)
+    return {
+      range: combat.range,
+      baseDps: combat.averageDps,
+      damageElement: combat.damageElement,
+    };
   try {
     const tower = getTower(towerId);
     const baseDps =
@@ -501,9 +682,17 @@ function towerFacts(towerId: string, level: number) {
       const element =
         ELEMENTS.find((entry) => towerId === `mono-${entry.toLowerCase()}`) ??
         null;
-      return { range: null, baseDps: null, damageElement: element };
+      return {
+        range: EARLY_TOWER_RANGES[towerId] ?? null,
+        baseDps: null,
+        damageElement: element,
+      };
     }
-    return { range: null, baseDps: null, damageElement: null };
+    return {
+      range: EARLY_TOWER_RANGES[towerId] ?? null,
+      baseDps: null,
+      damageElement: null,
+    };
   }
 }
 
@@ -546,17 +735,18 @@ function chooseCell(
       );
     return cell ? { cell, campId: camp?.id ?? "utility" } : null;
   }
-  if (facts.range && facts.baseDps != null) {
+  if (facts.range) {
     const placedDamage = placed.flatMap((tower) => {
       if (!tower.cell) return [];
       const towerData = towerFacts(tower.towerId, tower.level);
-      return towerData.range && towerData.baseDps != null
+      return towerData.range &&
+        (tower.effect === "damage" || tower.effect === "hybrid")
         ? [
             {
               cell: tower.cell,
               towerId: tower.towerId,
               rangeUnits: towerData.range,
-              baseDps: towerData.baseDps,
+              baseDps: towerData.baseDps ?? 1,
             },
           ]
         : [];
@@ -566,7 +756,7 @@ function chooseCell(
       mode,
       towerId,
       rangeUnits: facts.range,
-      baseDps: facts.baseDps,
+      baseDps: facts.baseDps ?? 1,
       placed: placedDamage,
       occupied,
       topN: map.buildableCells.length,
@@ -688,7 +878,10 @@ function coverageRows(
           towerName: tower.towerName,
           quantity: tower.quantity,
           baseDps: facts.baseDps,
-          multiplier: ELEMENT_MATCHUPS[facts.damageElement][defender],
+          multiplier:
+            facts.damageElement === "Composite"
+              ? 1
+              : ELEMENT_MATCHUPS[facts.damageElement][defender],
         },
       ];
     });
@@ -748,14 +941,15 @@ export function generateMatchPlan(
   if (!map) throw new Error("Match Plan requires at least one traced map.");
   const mode = settings.mode ?? "standard";
   const matchLength = settings.matchLength ?? "full";
+  const difficulty = settings.difficulty ?? "veryHard";
   const overrides = settings.overrides ?? [];
   const overrideReserve = overrides.find((entry) => entry.kind === "reserve");
   const reserveGold =
     overrideReserve?.kind === "reserve"
       ? overrideReserve.value
       : (settings.reserveGold ?? 300);
-  const order = allocationOrder(build, overrides);
-  const queue = purchases(build, order);
+  const order = allocationOrder(build, overrides, map, mode);
+  const queue = purchases(build, order, map, mode);
   const requiresEarlyCoverage = queue.some(
     (entry) => entry.priority === 115 && isMonoTowerId(entry.towerId),
   );
@@ -771,6 +965,26 @@ export function generateMatchPlan(
   let actionOrder = 0;
   const phases: MatchPlanPhase[] = [];
   const violations: string[] = [];
+  const earliestAffordableWave = (
+    requiredGold: number,
+    startWave: number,
+    endWave: number | null,
+  ) => {
+    const lastTarget = (endWave ?? 55) + 1;
+    for (
+      let targetWave = startWave;
+      targetWave <= lastTarget;
+      targetWave += 1
+    ) {
+      const goldBeforeWave = benchmarkGoldAtEndWave(
+        targetWave - 1,
+        matchLength,
+        bountyThroughWave,
+      );
+      if (goldBeforeWave >= requiredGold) return targetWave;
+    }
+    return lastTarget;
+  };
 
   for (let phaseIndex = 0; phaseIndex < PHASES.length; phaseIndex += 1) {
     const definition = PHASES[phaseIndex];
@@ -792,12 +1006,29 @@ export function generateMatchPlan(
         cost: 0,
         legal: true,
         affordable: true,
+        targetWave: definition.start,
       });
     }
 
-    const phaseNumber = phaseIndex + 1;
-    const gross = calibratedGrossGold(phaseNumber);
-    const lower = phaseNumber === 1 ? gross : Math.round(gross * 0.85);
+    const checkpoint = economyCheckpoint(matchLength);
+    const phaseEndWave = definition.end ?? 55;
+    const gross = benchmarkGoldAtEndWave(
+      phaseEndWave,
+      matchLength,
+      bountyThroughWave,
+    );
+    const previousEndWave = Math.max(
+      checkpoint.startWave - 1,
+      definition.start - 1,
+    );
+    const grossAtStart = benchmarkGoldAtEndWave(
+      previousEndWave,
+      matchLength,
+      bountyThroughWave,
+    );
+    const incomeThisPhase = Math.max(0, gross - grossAtStart);
+    const phaseStartGold = Math.max(0, grossAtStart - cumulativeCost);
+    const lower = gross;
     let phaseCost = 0;
     let madeProgress = true;
     while (purchaseIndex < queue.length && madeProgress) {
@@ -875,6 +1106,7 @@ export function generateMatchPlan(
           entry.kind,
           entry.towerId,
           entry.toLevel,
+          copyId,
         ),
         phaseId: definition.id,
         order: actionOrder++,
@@ -889,6 +1121,14 @@ export function generateMatchPlan(
         cost,
         legal,
         affordable: true,
+        targetWave: Math.max(
+          entry.targetWave ?? 0,
+          earliestAffordableWave(
+            cumulativeCost + purchaseReserve,
+            definition.start,
+            definition.end,
+          ),
+        ),
         cell: placement?.cell,
         cellLabel: placement ? cellLabel(placement.cell, origin) : undefined,
         campId: placement?.campId,
@@ -971,6 +1211,11 @@ export function generateMatchPlan(
           cost: repair.cost,
           legal: true,
           affordable: true,
+          targetWave: earliestAffordableWave(
+            cumulativeCost + reserveGold,
+            definition.start,
+            definition.end,
+          ),
           cell: placement?.cell,
           cellLabel: placement ? cellLabel(placement.cell, origin) : undefined,
           campId: placement?.campId,
@@ -1010,14 +1255,39 @@ export function generateMatchPlan(
         legal: true,
         affordable: false,
         waitForGold: Math.max(0, cumulativeCost + cost + reserveGold - lower),
+        targetWave: Math.max(definition.start, pending.targetWave ?? 0),
         temporary: !!pending.temporaryCarry,
       });
     }
     const coverage = coverageRows(field);
+    const survival = evaluatePhaseSurvival({
+      map,
+      mode,
+      difficulty,
+      startWave: definition.start,
+      endWave: definition.end,
+      towers: field,
+      availableFromWave: new Map(
+        actions.flatMap((action) =>
+          action.copyId && action.affordable
+            ? [[action.copyId, action.targetWave ?? definition.start] as const]
+            : [],
+        ),
+      ),
+    });
     const critical = coverage.filter(
       (row) => row.status === "critical" || row.status === "weak",
     );
     const risks = [
+      ...(survival.status === "fails"
+        ? [
+            `Modeled survival failure on wave ${survival.worstWave ?? definition.start}; repair the field before following later upgrades.`,
+          ]
+        : survival.status === "borderline"
+          ? [
+              `Wave ${survival.worstWave ?? definition.start} has less than the 15% modeled safety margin.`,
+            ]
+          : []),
       ...(critical.length
         ? [
             `Coverage danger: ${critical.map((row) => row.defender).join(", ")}. Do not treat the average as safe.`,
@@ -1061,16 +1331,20 @@ export function generateMatchPlan(
       economy: {
         cumulativeCost,
         phaseCost,
+        phaseStartGold,
+        incomeThisPhase,
+        phaseEndGold: Math.max(0, gross - cumulativeCost),
         goldLowerBound: lower,
         goldUpperBound: gross,
         emergencyReserve: protectedReserve,
         spendableLowerBound,
         affordable: cumulativeCost <= spendableLowerBound,
         assumptions: [
-          "Gold is a conservative checkpoint range, not a wave-income simulation.",
+          "Starting gold and per-wave bounty are benchmark inputs.",
           "No interest income or sale value is assumed.",
         ],
       },
+      survival,
       coverage,
       reservedCells: field.flatMap((tower) =>
         tower.cell && tower.status === "temporary"
@@ -1085,11 +1359,13 @@ export function generateMatchPlan(
       ),
       risks,
       recoveries,
-      confidence: critical.length
-        ? "low"
-        : field.some((tower) => tower.cell == null)
-          ? "medium"
-          : "high",
+      confidence:
+        survival.status === "fails" || critical.length
+          ? "low"
+          : survival.status === "unverified" ||
+              field.some((tower) => tower.cell == null)
+            ? "medium"
+            : "high",
     });
   }
   if (queue.slice(purchaseIndex).length)
@@ -1108,7 +1384,13 @@ export function generateMatchPlan(
     updatedAt: now,
     sourceBuildSchema: build.schema,
     sourceBuild: build,
-    settings: { mapId: map.id, mode, matchLength, reserveGold },
+    settings: {
+      mapId: map.id,
+      mode,
+      matchLength,
+      difficulty,
+      reserveGold,
+    },
     camps,
     phases,
     overrides,
@@ -1247,6 +1529,27 @@ export function migrateLegacyLiveState(
     : [];
   let build = sourceBuild;
   const warnings: string[] = [];
+  if (build && built.length) {
+    const merged = new Map(
+      build.towers.map((tower) => [tower.towerId, { ...tower }]),
+    );
+    for (const entry of built) {
+      try {
+        getTower(entry.towerId);
+      } catch {
+        continue;
+      }
+      const existing = merged.get(entry.towerId);
+      merged.set(entry.towerId, {
+        towerId: entry.towerId,
+        level: Math.max(
+          existing?.level ?? 0,
+          Math.max(1, Math.round(entry.level)),
+        ),
+      });
+    }
+    build = { ...build, towers: [...merged.values()] };
+  }
   if (!build && built.length) {
     const normal = built.filter((entry) => {
       try {

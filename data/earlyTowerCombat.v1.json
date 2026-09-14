@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "verifiedThrough": "2026-09-14",
+  "note": "Opening-field combat facts used by Match Plan survival checks. Damage and attack rates come from the developer-linked Element TD 2 DPS/Gold workbook; Arrow damage and range include the official Version 1.9.4 change. Average DPS is conservative for abilities and splash.",
+  "sources": [
+    "https://docs.google.com/spreadsheets/d/1GdfCqVeudiNHhxHF1XYSUMqkyNRRkCx-loXJiNQqv4s/edit?usp=sharing",
+    "https://store.steampowered.com/news/app/1018830/view/4226147001091211135"
+  ],
+  "towers": {
+    "arrow": {
+      "damage": 62,
+      "attacksPerSecond": 1.5,
+      "averageDps": 93,
+      "range": 1150,
+      "damageElement": "Composite"
+    },
+    "cannon": {
+      "damage": 77,
+      "attacksPerSecond": 0.67,
+      "averageDps": 103,
+      "range": 700,
+      "damageElement": "Composite"
+    },
+    "mono-light": {
+      "damage": 130,
+      "attacksPerSecond": 1.5,
+      "averageDps": 195,
+      "range": 1750,
+      "damageElement": "Light"
+    },
+    "mono-darkness": {
+      "damage": 300,
+      "attacksPerSecond": 0.66,
+      "averageDps": 198,
+      "range": 1450,
+      "damageElement": "Darkness"
+    },
+    "mono-water": {
+      "damage": 90,
+      "attacksPerSecond": 1.5,
+      "averageDps": 202.5,
+      "range": 1000,
+      "damageElement": "Water"
+    },
+    "mono-fire": {
+      "damage": 30,
+      "attacksPerSecond": 3,
+      "averageDps": 180,
+      "range": 875,
+      "damageElement": "Fire"
+    },
+    "mono-nature": {
+      "damage": 95,
+      "attacksPerSecond": 3,
+      "averageDps": 285,
+      "range": 875,
+      "damageElement": "Nature"
+    },
+    "mono-earth": {
+      "damage": 125,
+      "attacksPerSecond": 0.66,
+      "averageDps": 165,
+      "range": 1000,
+      "damageElement": "Earth"
+    }
+  }
+}
