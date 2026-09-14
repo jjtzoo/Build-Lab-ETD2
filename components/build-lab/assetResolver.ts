@@ -25,6 +25,13 @@ export type TowerHeroMedia = {
 export type BuildLabAssets = {
   towerForms: Record<TowerId, string | null>;
   towerIcons: Record<TowerId, string | null>;
+  /**
+   * Icon art for the six single-element base towers, keyed by element. The
+   * recommendation catalog does not carry these towers, so mono placements
+   * (`mono-<element>`) resolve their token art through here instead of
+   * `towerIcons`.
+   */
+  elementTowerIcons: Record<ElementName, string | null>;
   towerHero: Record<TowerId, TowerHeroMedia>;
   endGameForms: Record<EndGameTowerId, string | null>;
   elements: Record<ElementName, string | null>;
@@ -123,6 +130,7 @@ export function resolveBuildLabAssets(): BuildLabAssets {
   const elementFiles = readAssets("elements");
 
   const towerForms = resolveTowerAssets(forms);
+  const iconLookup = new Map(icons.map((entry) => [entry.stem, entry.url]));
   const elementLookup = new Map(
     elementFiles.map((entry) => [entry.stem, entry.url]),
   );
@@ -142,6 +150,12 @@ export function resolveBuildLabAssets(): BuildLabAssets {
   return {
     towerForms,
     towerIcons: resolveTowerAssets(icons),
+    elementTowerIcons: Object.fromEntries(
+      elements.map((element) => [
+        element,
+        iconLookup.get(element.toLowerCase()) ?? null,
+      ]),
+    ) as Record<ElementName, string | null>,
     towerHero: resolveHeroMedia(hero, towerForms),
     endGameForms: Object.fromEntries(
       END_GAME_TOWER_IDS.map((id) => [id, endGameLookup.get(id) ?? null]),

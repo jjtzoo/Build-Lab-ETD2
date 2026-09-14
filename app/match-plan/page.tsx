@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { resolveBuildLabAssets } from "@/components/build-lab/assetResolver";
 import { MatchPlanView } from "@/components/match-plan/MatchPlan";
 import { decodePortableBuild } from "@/lib/domain/portableBuild";
 
@@ -9,5 +10,10 @@ export const metadata: Metadata = {
 
 export default async function MatchPlanPage({ searchParams }: { searchParams: Promise<{ b?: string }> }) {
   const { b } = await searchParams;
-  return <MatchPlanView initialPlan={b ? decodePortableBuild(b) : null} />;
+  return (
+    <MatchPlanView
+      initialPlan={b ? decodePortableBuild(b) : null}
+      assets={resolveBuildLabAssets()}
+    />
+  );
 }

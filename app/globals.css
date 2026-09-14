@@ -7317,6 +7317,16 @@ button.mechanic-chip {
   font-style: normal;
   font-weight: 800;
 }
+.snapshot-towers i:has(.snapshot-tower-icon) {
+  padding: 0;
+  overflow: hidden;
+}
+.snapshot-tower-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
+}
 .snapshot-towers button.is-new i {
   box-shadow: 0 0 14px color-mix(in srgb, var(--plan-cyan) 48%, transparent);
 }
@@ -8027,6 +8037,9 @@ button.mechanic-chip {
   font-size: 0.24px;
   font-weight: 800;
   letter-spacing: -0.03em;
+}
+.match-tower-icon {
+  pointer-events: none;
 }
 .match-tower.is-temporary circle {
   fill: #c0a476;

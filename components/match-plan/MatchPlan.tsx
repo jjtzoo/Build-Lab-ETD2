@@ -1,9 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { LabFooter, LabHeader } from "@/components/build-lab/LabChrome";
-import { ELEMENTS } from "@/lib/domain/elements";
+import {
+  getMonoTower,
+  isMonoTowerId,
+} from "@/lib/domain/auxiliaryTowers";
+import { ELEMENTS, type ElementName } from "@/lib/domain/elements";
 import {
   LIVE_PLAN_KEY,
   LIVE_STORAGE_KEY,
@@ -59,6 +65,34 @@ function towerMark(name: string): string {
         .join("")
         .toUpperCase()
     : name.slice(0, 2).toUpperCase();
+}
+
+function TowerToken({
+  icon,
+  name,
+}: {
+  icon: string | null | undefined;
+  name: string;
+}) {
+  if (icon) {
+    return (
+      <image
+        className="match-tower-icon"
+        href={icon}
+        x={-0.36}
+        y={-0.36}
+        width={0.72}
+        height={0.72}
+        clipPath="url(#match-tower-clip)"
+        preserveAspectRatio="xMidYMid slice"
+      />
+    );
+  }
+  return (
+    <text className="match-tower-mark" y=".1" textAnchor="middle">
+      {towerMark(name)}
+    </text>
+  );
 }
 
 function campCode(camp: MatchPlanCamp): string {
@@ -155,9 +189,21 @@ function readSeed(initialPlan: PortableBuild | null): {
 
 export function MatchPlanView({
   initialPlan,
+  assets,
 }: {
   initialPlan: PortableBuild | null;
+  assets?: BuildLabAssets;
 }) {
+  const towerIcons = assets?.towerIcons ?? {};
+  const elementTowerIcons =
+    assets?.elementTowerIcons ?? ({} as Record<ElementName, string | null>);
+  const iconForTower = (towerId: string): string | null | undefined => {
+    const direct = towerIcons[towerId];
+    if (direct) return direct;
+    if (isMonoTowerId(towerId))
+      return elementTowerIcons[getMonoTower(towerId).element] ?? null;
+    return direct;
+  };
   const hydrated = useRef(false);
   const [plan, setPlan] = useState<MatchPlan | null>(null);
   const [source, setSource] = useState<PortableBuild | null>(initialPlan);
@@ -638,6 +684,7 @@ export function MatchPlanView({
         phase={phase}
         selectedCopyId={selectedCopyId}
         onSelectTower={setSelectedCopyId}
+        iconFor={iconForTower}
       />
 
       <div className="match-storyboard">
@@ -660,6 +707,7 @@ export function MatchPlanView({
             phase={phase}
             selectedCopyId={selectedCopyId}
             onAssignCell={assignCell}
+            iconFor={iconForTower}
           />
           <output className="match-notice" aria-live="polite">
             {notice ??
@@ -795,10 +843,12 @@ function PhaseSnapshot({
   phase,
   selectedCopyId,
   onSelectTower,
+  iconFor,
 }: {
   phase: MatchPlan["phases"][number];
   selectedCopyId: string | null;
   onSelectTower: (copyId: string) => void;
+  iconFor: (towerId: string) => string | null | undefined;
 }) {
   const startByCopy = new Map(
     phase.startTowers.map((tower) => [tower.copyId, tower]),
@@ -918,7 +968,9 @@ function PhaseSnapshot({
           <p>03 · End target · after wave {phase.endWave ?? "56+"}</p>
           <div className="snapshot-towers">
             {changes.length ? (
-              changes.map(({ tower, kind }) => (
+              changes.map(({ tower, kind }) => {
+                const icon = iconFor(tower.towerId);
+                return (
                 <button
                   key={tower.copyId}
                   type="button"
@@ -926,7 +978,19 @@ function PhaseSnapshot({
                   className={`is-${kind} ${tower.copyId === selectedCopyId ? "is-selected" : ""}`}
                   onClick={() => onSelectTower(tower.copyId)}
                 >
-                  <i>{tower.towerName.slice(0, 1)}</i>
+                  <i>
+                    {icon ? (
+                      <Image
+                        className="snapshot-tower-icon"
+                        src={icon}
+                        alt=""
+                        width={24}
+                        height={24}
+                      />
+                    ) : (
+                      tower.towerName.slice(0, 1)
+                    )}
+                  </i>
                   <span>
                     {tower.towerName} {tower.level}
                   </span>
@@ -936,7 +1000,8 @@ function PhaseSnapshot({
                     {tower.campId ? ` · ${tower.campId}` : ""}
                   </small>
                 </button>
-              ))
+                );
+              })
             ) : (
               <span>Nothing should be placed yet.</span>
             )}
@@ -1115,11 +1180,13 @@ function PlanMap({
   phase,
   selectedCopyId,
   onAssignCell,
+  iconFor,
 }: {
   plan: MatchPlan;
   phase: MatchPlan["phases"][number];
   selectedCopyId: string | null;
   onAssignCell: (cell: { col: number; row: number }, campId?: string) => void;
+  iconFor: (towerId: string) => string | null | undefined;
 }) {
   const [hoveredCampId, setHoveredCampId] = useState<string | null>(null);
   const map = getMap(plan.settings.mapId);
@@ -1246,6 +1313,9 @@ function PlanMap({
             >
               <path d="M 1 0 L 0 0 0 1" className="match-grid-line" />
             </pattern>
+            <clipPath id="match-tower-clip">
+              <circle r=".36" />
+            </clipPath>
           </defs>
           <rect
             x={minCol}
@@ -1392,13 +1462,10 @@ function PlanMap({
                     className={`match-tower ${prior.has(tower.copyId) ? "is-carried" : "is-new"} is-${tower.status} is-${tower.effect} ${tower.globalBuff ? "has-global-buff" : ""} ${tower.directHitDebuff ? "has-debuff" : ""} ${tower.copyId === selectedCopyId ? "is-selected" : ""}`}
                   >
                     <circle r=".42" />
-                    <text
-                      className="match-tower-mark"
-                      y=".1"
-                      textAnchor="middle"
-                    >
-                      {towerMark(tower.towerName)}
-                    </text>
+                    <TowerToken
+                      icon={iconFor(tower.towerId)}
+                      name={tower.towerName}
+                    />
                     <g
                       className="match-tower-callout"
                       transform="translate(.55 -.32)"
@@ -1439,9 +1506,10 @@ function PlanMap({
                   : "planned"}
               </title>
               <circle r=".42" />
-              <text className="match-tower-mark" y=".1" textAnchor="middle">
-                {towerMark(tower.towerName)}
-              </text>
+              <TowerToken
+                icon={iconFor(tower.towerId)}
+                name={tower.towerName}
+              />
               <text className="match-future-wave" y=".76" textAnchor="middle">
                 {phaseId}
               </text>

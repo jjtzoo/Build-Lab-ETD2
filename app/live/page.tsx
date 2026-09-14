@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { resolveBuildLabAssets } from "@/components/build-lab/assetResolver";
 import { MatchPlanView } from "@/components/match-plan/MatchPlan";
 import { decodePortableBuild } from "@/lib/domain/portableBuild";
 
@@ -16,5 +17,7 @@ export default async function LivePage({
   const { b } = await searchParams;
   const initialPlan = b ? decodePortableBuild(b) : null;
 
-  return <MatchPlanView initialPlan={initialPlan} />;
+  return (
+    <MatchPlanView initialPlan={initialPlan} assets={resolveBuildLabAssets()} />
+  );
 }
