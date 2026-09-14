@@ -1120,16 +1120,24 @@ export function generateMatchPlan(
         steps.sort((a, b) => a.fromWave - b.fromWave);
       return timeline;
     };
+    // Planning looks one wave past the window: the first wave of the next
+    // window can only be met by gold and copies committed here, so rescue
+    // choices are ranked against it too (a copy that counters its armour
+    // beats one that does not). The verdict shown stays the window's own.
     const evaluate = (
       towers: readonly PlannedTowerState[],
       candidate?: { copyId: string; targetWave: number },
+      horizon = 1,
     ) =>
       evaluatePhaseSurvival({
         map,
         mode,
         difficulty,
         startWave: definition.start,
-        endWave: definition.end,
+        endWave:
+          definition.end == null
+            ? null
+            : Math.min(55, definition.end + horizon),
         towers,
         levelTimeline: timelineFor(towers, candidate),
       });
@@ -1910,23 +1918,49 @@ export function generateMatchPlan(
     actions.splice(
       0,
       actions.length,
-      ...played.map((action, index) => ({ ...action, order: firstOrder + index })),
+      ...played.map((action, index) => ({
+        ...action,
+        order: firstOrder + index,
+      })),
     );
 
+    const reported = evaluate(field, undefined, 0);
+    const lookaheadLeak =
+      definition.end != null
+        ? survival.waves.find(
+            (wave) =>
+              wave.wave === definition.end! + 1 && wave.status === "fails",
+          )
+        : undefined;
     const coverage = coverageRows(field);
     const critical = coverage.filter(
       (row) => row.status === "critical" || row.status === "weak",
     );
     const risks = [
-      ...(survival.status === "fails"
+      ...(reported.status === "fails"
         ? [
-            `Modeled survival failure on wave ${survival.worstWave ?? definition.start}; repair the field before following later upgrades.`,
+            `Modeled survival failure on wave ${reported.worstWave ?? definition.start}; repair the field before following later upgrades.`,
           ]
-        : survival.status === "borderline"
+        : reported.status === "borderline"
           ? [
-              `Wave ${survival.worstWave ?? definition.start} has less than the 15% modeled safety margin.`,
+              `Wave ${reported.worstWave ?? definition.start} has less than the 15% modeled safety margin.`,
             ]
           : []),
+      ...(lookaheadLeak
+        ? [
+            `Wave ${lookaheadLeak.wave} (first of the next window) is at ${Math.round((lookaheadLeak.margin ?? 0) * 100)}% of its HP on this field; nothing bought after wave ${definition.end} can land before it.`,
+          ]
+        : []),
+      ...(reported.status === "unverified"
+        ? [
+            `${reported.waves
+              .filter((wave) => wave.status === "unverified" && wave.ability)
+              .map((wave) => `W${wave.wave} ${wave.ability}`)
+              .join(
+                ", ",
+              )} clear base HP only; the ability is not quantified, so do not read this window as safe.`,
+          ]
+        : []),
       ...(critical.length
         ? [
             `Coverage danger: ${critical.map((row) => row.defender).join(", ")}. Do not treat the average as safe.`,
@@ -1987,7 +2021,7 @@ export function generateMatchPlan(
             : `Sell refunds are credited at ${Math.round(sellRefund * 100)}% of the gold paid.`,
         ],
       },
-      survival,
+      survival: reported,
       coverage,
       reservedCells: field.flatMap((tower) =>
         tower.cell && tower.status === "temporary"
@@ -2003,9 +2037,9 @@ export function generateMatchPlan(
       risks,
       recoveries,
       confidence:
-        survival.status === "fails" || critical.length
+        reported.status === "fails" || critical.length
           ? "low"
-          : survival.status === "unverified" ||
+          : reported.status === "unverified" ||
               field.some((tower) => tower.cell == null)
             ? "medium"
             : "high",
