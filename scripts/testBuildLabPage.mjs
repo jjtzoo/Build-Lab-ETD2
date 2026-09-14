@@ -61,7 +61,7 @@ page.on("response", (response) => {
 
 try {
   await page.goto(`${baseUrl}/build-lab`, {
-    waitUntil: "domcontentloaded",
+    waitUntil: "networkidle2",
     timeout: 30_000,
   });
 
@@ -87,18 +87,7 @@ try {
     { timeout: 10_000 },
   );
 
-  const clicked = await page.evaluate(() => {
-    const button = [...document.querySelectorAll("button")].find((candidate) =>
-      candidate.textContent?.includes("Build around Laser"),
-    );
-    if (!(button instanceof HTMLButtonElement)) return false;
-    button.click();
-    return true;
-  });
-
-  if (!clicked) {
-    throw new Error("The rendered Build around Laser button was not clickable.");
-  }
+  await page.click(".build-cta");
 
   await page.waitForFunction(
     () =>
