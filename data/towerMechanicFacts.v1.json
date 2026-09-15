@@ -114,7 +114,12 @@
       "targetCoverage": "nearby-towers",
       "resourceBurden": {
         "resource": "lives",
-        "amount": "scales-with-affected-towers"
+        "amount": "scales-with-affected-towers",
+        "refund": "only when the Life Altar itself lands the kill"
+      },
+      "observation": {
+        "source": "owner, live play, 2026-09-15",
+        "note": "The lives the cast spends come back only for kills the Life Altar itself makes, not for kills by the towers it buffed. This contradicts data/mechanics.json (\"every 3 kills by affected tower grants a life\"); the owner saw it in play, so the observation stands until a capture settles it. A second copy is a second drain; the plan builds one."
       }
     },
     {
