@@ -6,6 +6,8 @@
  * the coach conservative enough to stop calling an unaffordable tower a
  * "build now" action.
  */
+import { LAST_BENCHMARK_WAVE } from "@/lib/engine/waveBenchmarks";
+
 export const LIVE_MATCH_LENGTHS = [
   "full",
   "short",
@@ -119,6 +121,9 @@ export function benchmarkGoldAtEndWave(
   if (endWave < checkpoint.startWave) return checkpoint.startingGold;
   return (
     checkpoint.startingGold +
-    bountyThroughWave(checkpoint.startWave, Math.min(55, endWave))
+    bountyThroughWave(
+      checkpoint.startWave,
+      Math.min(LAST_BENCHMARK_WAVE, endWave),
+    )
   );
 }

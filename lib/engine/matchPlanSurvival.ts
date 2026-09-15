@@ -113,9 +113,15 @@ export function combatFacts(towerId: string, level: number): CombatFact | null {
 
 function matchup(
   attacker: ElementName | "Composite",
-  defender: ElementName | "Composite",
+  defender: ElementName | "Composite" | "Boss",
 ): number {
-  if (attacker === "Composite" || defender === "Composite") return 1;
+  // "Boss · Mixed" armour is not in the matchup table; 1.0 until measured.
+  if (
+    attacker === "Composite" ||
+    defender === "Composite" ||
+    defender === "Boss"
+  )
+    return 1;
   return ELEMENT_MATCHUPS[attacker][defender];
 }
 
@@ -309,6 +315,24 @@ export function evaluatePhaseSurvival({
         limitingFactor: "No benchmark row is available for this wave.",
       };
 
+    // A boss wave's HP per creep is in the workbook; its creep count is
+    // not. Without a count there is no wave total to verify against, so
+    // the wave is reported as it is known — per creep — and stays
+    // unverified until a capture supplies the count.
+    if (benchmark.count == null)
+      return {
+        wave,
+        element: benchmark.element,
+        ability: benchmark.ability,
+        count: null,
+        hpPerCreep: benchmark.hpPerCreep,
+        effectiveWaveHp: benchmark.effectiveHpPerCreep,
+        modeledDamage: null,
+        margin: null,
+        estimatedLeaks: null,
+        status: "unverified" as const,
+        limitingFactor: `Boss wave: ${Math.round(benchmark.hpPerCreep).toLocaleString()} HP per creep from the workbook, but the creep count is not measured yet, so no wave total can be verified.`,
+      };
     const unknownAbility = benchmark.modelConfidence === "ability-estimate";
     let missingTowerFacts = false;
     const trainSeconds = (benchmark.count - 1) * benchmark.spawnSpacingSeconds;

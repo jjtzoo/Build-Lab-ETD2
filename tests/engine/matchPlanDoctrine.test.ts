@@ -122,8 +122,9 @@ describe("Match Plan doctrine — survival over economy", () => {
     // explains that, and a fully maxed roster (every fielded damage tower
     // at its real max level) has nothing further to buy or upgrade.
     //
-    // Waves 51–55 (the last window Match Plan scores; 56+ has no bounded
-    // benchmark) is excluded here. Measured 2026-09-15: at that point every
+    // Waves 51–55 (the last window with a verifiable wave total; the two
+    // boss windows after it carry HP per creep but no measured creep count)
+    // is excluded here. Measured 2026-09-15: at that point every
     // curated anchor's only remaining un-maxed towers are pure support —
     // Blacksmith, Well, Trickery — whose attack level the survival model
     // does not translate into any credited buff on the rest of the field
@@ -133,7 +134,7 @@ describe("Match Plan doctrine — survival over economy", () => {
     // does not model the End Game essence layer), not a planner bug — see
     // the survival-over-economy-fallback note on crediting buffs.
     const idle = plans.flatMap(({ anchor, matchPlan }) =>
-      matchPlan.phases.slice(0, -2).flatMap((phase) => {
+      matchPlan.phases.slice(0, -3).flatMap((phase) => {
         if (phase.endWave == null) return [];
         const short = phase.survival.waves.some(
           (wave) => wave.margin != null && wave.margin < 1,

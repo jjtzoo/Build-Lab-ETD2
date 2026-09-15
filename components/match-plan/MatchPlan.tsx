@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import { LabFooter, LabHeader } from "@/components/build-lab/LabChrome";
 import {
@@ -102,7 +102,8 @@ function calibrationNotice(difficulty: MatchPlanDifficulty): string | null {
   let modeled = 0;
   for (let wave = 1; wave <= 55; wave += 1) {
     const benchmark = waveBenchmark(wave, "hard");
-    if (benchmark) modeled += benchmark.effectiveHpPerCreep * benchmark.count;
+    if (benchmark?.count != null)
+      modeled += benchmark.effectiveHpPerCreep * benchmark.count;
   }
   const tightest = Math.min(...wins.map((game) => game.totalDamageDealt!));
   if (modeled <= tightest) return null;
@@ -856,35 +857,64 @@ export function MatchPlanView({
 
       <nav className="match-timeline" aria-label="Match phases">
         {plan.phases.map((entry, index) => {
-          const danger =
-            entry.survival.status === "fails" ||
-            entry.coverage.some(
-              (row) => row.status === "critical" || row.status === "weak",
-            );
+          // Each chip carries the window's tightest verified wave and its
+          // share of the wave HP, coloured by how close it is: clear at or
+          // above 100%, thin in the nineties, short below. A window with no
+          // verified wave (a boss window today) is hollow; a coverage
+          // problem is named only when there is no tighter fact to show.
+          const boss = entry.survival.waves.some((wave) => wave.count == null);
+          const margin = entry.survival.margin;
+          const severity =
+            margin == null
+              ? "hollow"
+              : margin < 0.9
+                ? "short"
+                : margin < 1
+                  ? "thin"
+                  : "clear";
+          const critical = entry.coverage.some(
+            (row) => row.status === "critical",
+          );
+          const readout =
+            margin != null && entry.survival.worstWave != null
+              ? `W${entry.survival.worstWave} · ${Math.floor(margin * 100)}%`
+              : boss
+                ? "boss · unmeasured"
+                : critical
+                  ? "coverage risk"
+                  : "unverified";
+          const firstBoss =
+            boss &&
+            !plan.phases
+              .slice(0, index)
+              .some((earlier) =>
+                earlier.survival.waves.some((wave) => wave.count == null),
+              );
           return (
-            <button
-              key={entry.id}
-              type="button"
-              className={index === phaseIndex ? "is-active" : ""}
-              aria-current={index === phaseIndex ? "step" : undefined}
-              onClick={() => selectPhase(index)}
-            >
-              <span>{entry.id}</span>
-              <small>
-                {entry.survival.status === "fails"
-                  ? `fails W${entry.survival.worstWave ?? entry.startWave}`
-                  : danger
-                    ? "coverage risk"
-                    : `${entry.endTowers.length} tower field`}
-              </small>
-            </button>
+            <Fragment key={entry.id}>
+              {firstBoss && (
+                <i className="match-timeline-divider" aria-hidden="true" />
+              )}
+              <button
+                type="button"
+                className={index === phaseIndex ? "is-active" : ""}
+                data-severity={severity}
+                aria-current={index === phaseIndex ? "step" : undefined}
+                onClick={() => selectPhase(index)}
+              >
+                <span>{entry.id}</span>
+                <small>{readout}</small>
+              </button>
+            </Fragment>
           );
         })}
       </nav>
 
       <section className="match-phase-heading">
         <div>
-          <p className="eyebrow">PHASE {phase.index + 1} OF 12</p>
+          <p className="eyebrow">
+            PHASE {phase.index + 1} OF {plan.phases.length}
+          </p>
           <h2>{phase.label}</h2>
         </div>
         <div
@@ -935,7 +965,7 @@ export function MatchPlanView({
                   <path d="M6.4 1.6 3 5l3.4 3.4" />
                 </svg>
               </button>
-              <span>End of wave {phase.endWave ?? "56+"}</span>
+              <span>End of wave {phase.endWave ?? "70+"}</span>
               <button
                 type="button"
                 disabled={phaseIndex === plan.phases.length - 1}
@@ -1103,8 +1133,12 @@ function PhaseSnapshot({
     return { tower, kind };
   });
   const unmodeledAbilityWaves = phase.survival.waves
-    .filter((wave) => wave.status === "unverified" && wave.ability)
+    .filter(
+      (wave) =>
+        wave.status === "unverified" && wave.ability && wave.count != null,
+    )
     .map((wave) => `W${wave.wave}`);
+  const bossWaves = phase.survival.waves.filter((wave) => wave.count == null);
   const missingStatWaves = phase.survival.waves.filter(
     (wave) =>
       wave.status === "unverified" &&
@@ -1117,9 +1151,11 @@ function PhaseSnapshot({
         ? `Thin margin · wave ${phase.survival.worstWave}`
         : phase.survival.status === "fails"
           ? `Leaks at wave ${phase.survival.worstWave} · ${Math.floor((phase.survival.margin ?? 0) * 100)}% of its HP`
-          : missingStatWaves.length
-            ? "Cannot verify · a placed tower has no combat stat at this level"
-            : `Clears base HP · ${unmodeledAbilityWaves.join(", ")} abilit${unmodeledAbilityWaves.length === 1 ? "y" : "ies"} not modeled`;
+          : bossWaves.length && !unmodeledAbilityWaves.length
+            ? `Boss stage · ${Math.round(bossWaves[0].hpPerCreep).toLocaleString()}–${Math.round(bossWaves[bossWaves.length - 1].hpPerCreep).toLocaleString()} HP per creep, count unmeasured`
+            : missingStatWaves.length
+              ? "Cannot verify · a placed tower has no combat stat at this level"
+              : `Clears base HP · ${unmodeledAbilityWaves.join(", ")} abilit${unmodeledAbilityWaves.length === 1 ? "y" : "ies"} not modeled`;
 
   return (
     <section
@@ -1236,7 +1272,7 @@ function PhaseSnapshot({
           </ol>
         </section>
         <section className="snapshot-end">
-          <p>03 · End target · after wave {phase.endWave ?? "56+"}</p>
+          <p>03 · End target · after wave {phase.endWave ?? "70+"}</p>
           <div className="snapshot-towers">
             {changes.length ? (
               changes.map(({ tower, kind }) => {
@@ -1287,9 +1323,11 @@ function PhaseSnapshot({
               {phase.survival.status === "fails"
                 ? "This field leaks: modeled damage is short of the wave HP"
                 : phase.survival.status === "unverified"
-                  ? missingStatWaves.length
-                    ? "A placed tower has no combat stat at this level, so the damage shown is only a floor"
-                    : "Base HP clears; wave abilities are not modeled yet, so these waves are not proven safe"
+                  ? phase.survival.waves.every((wave) => wave.count == null)
+                    ? "Boss waves: the workbook gives HP per creep but no creep count, so nothing here is verified yet"
+                    : missingStatWaves.length
+                      ? "A placed tower has no combat stat at this level, so the damage shown is only a floor"
+                      : "Base HP clears; wave abilities are not modeled yet, so these waves are not proven safe"
                   : "Modeled field damage against each wave's HP"}
             </strong>
           </div>
@@ -1307,12 +1345,12 @@ function PhaseSnapshot({
                 </header>
                 <dl>
                   <div>
-                    <dt>Wave HP</dt>
+                    <dt>{wave.count == null ? "HP per creep" : "Wave HP"}</dt>
                     <dd>{Math.round(wave.effectiveWaveHp).toLocaleString()}</dd>
                   </div>
                   <div>
                     <dt>Units</dt>
-                    <dd>{wave.count}</dd>
+                    <dd>{wave.count ?? "unmeasured"}</dd>
                   </div>
                   <div>
                     <dt>Damage</dt>
@@ -1325,14 +1363,18 @@ function PhaseSnapshot({
                 </dl>
                 <strong>
                   {wave.margin == null
-                    ? "No benchmark"
+                    ? wave.count == null
+                      ? "Count unmeasured"
+                      : "No benchmark"
                     : `${Math.round(wave.margin * 100)}% of wave HP`}
                 </strong>
                 {wave.status === "unverified" && (
                   <small>
-                    {wave.limitingFactor?.includes("no combat stat")
-                      ? "stat missing"
-                      : `${wave.ability} not modeled`}
+                    {wave.count == null
+                      ? "boss wave · workbook HP only"
+                      : wave.limitingFactor?.includes("no combat stat")
+                        ? "stat missing"
+                        : `${wave.ability} not modeled`}
                   </small>
                 )}
               </article>
@@ -1451,7 +1493,7 @@ function LineupSnapshot({
   return (
     <>
       <p className="match-lineup-state" aria-label="Field state">
-        <b>End of wave {phase.endWave ?? "56+"}</b> · {summary}
+        <b>End of wave {phase.endWave ?? "70+"}</b> · {summary}
       </p>
       {changed.length > 0 && (
         <ul className="match-lineup">{changed.map(renderRow)}</ul>

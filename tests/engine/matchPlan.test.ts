@@ -42,7 +42,7 @@ describe("Match Plan", () => {
       now: "2026-09-14T00:00:00.000Z",
     });
     expect(a.schema).toBe(MATCH_PLAN_SCHEMA);
-    expect(a.phases).toHaveLength(12);
+    expect(a.phases).toHaveLength(13);
     expect(a.phases.map((phase) => phase.id)).toEqual(
       b.phases.map((phase) => phase.id),
     );
@@ -338,7 +338,7 @@ describe("Match Plan", () => {
     const migrated = migrateLegacyLiveState(laserBuild, "{broken", {
       mapId: "forest",
     });
-    expect(migrated.plan?.phases).toHaveLength(12);
+    expect(migrated.plan?.phases).toHaveLength(13);
     expect(migrated.warnings[0]).toContain("malformed");
   });
 

@@ -7884,7 +7884,8 @@ button.mechanic-chip {
 }
 .match-timeline {
   display: grid;
-  grid-template-columns: repeat(12, minmax(72px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(72px, 1fr);
   overflow-x: auto;
   padding: 24px clamp(20px, 4vw, 56px) 8px;
 }
@@ -7926,6 +7927,37 @@ button.mechanic-chip {
 .match-timeline button small {
   font-size: 9px;
   white-space: nowrap;
+}
+/* Severity of the window's tightest verified wave, on the dot and the
+   readout: clear (cyan), thin (amber), short (red), hollow (unverified). */
+.match-timeline button[data-severity="clear"] small {
+  color: var(--plan-cyan);
+}
+.match-timeline button[data-severity="thin"] small {
+  color: var(--plan-amber);
+}
+.match-timeline button[data-severity="short"] small {
+  color: var(--plan-red);
+}
+.match-timeline button[data-severity="short"]::before {
+  border-color: var(--plan-red);
+}
+.match-timeline button[data-severity="thin"]::before {
+  border-color: var(--plan-amber);
+}
+.match-timeline button[data-severity="hollow"]::before {
+  background: transparent;
+  border-style: dashed;
+}
+.match-timeline button[data-severity="hollow"] small {
+  color: var(--muted);
+}
+/* The boss stage sits after a hairline. */
+.match-timeline-divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 8px 6px 0;
+  background: var(--line-strong);
 }
 .match-phase-heading {
   display: flex;

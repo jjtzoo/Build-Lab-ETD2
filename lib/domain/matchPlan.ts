@@ -18,7 +18,8 @@ export type MatchPlanPhaseId =
   | "41-45"
   | "46-50"
   | "51-55"
-  | "56+";
+  | "56-60"
+  | "61-70";
 
 export type PlannedTowerState = {
   copyId: string;
@@ -121,9 +122,10 @@ export type MatchPlanEconomy = {
 
 export type MatchPlanWaveSurvival = {
   wave: number;
-  element: ElementName | "Composite";
+  element: ElementName | "Composite" | "Boss";
   ability: string | null;
-  count: number;
+  /** Creeps in the wave; null on a boss wave until a capture measures it. */
+  count: number | null;
   hpPerCreep: number;
   effectiveWaveHp: number;
   modeledDamage: number | null;
@@ -242,7 +244,10 @@ export function isMatchPlan(value: unknown): value is MatchPlan {
     typeof plan.id === "string" &&
     !!plan.settings &&
     Array.isArray(plan.phases) &&
-    plan.phases.length === 12 &&
+    // 12 windows before the boss stage was split in two (2026-09-15), 13
+    // after. A stored plan is regenerated from its source build on load,
+    // so an older shape only has to be recognised, not read.
+    (plan.phases.length === 12 || plan.phases.length === 13) &&
     Array.isArray(plan.camps) &&
     Array.isArray(plan.overrides)
   );

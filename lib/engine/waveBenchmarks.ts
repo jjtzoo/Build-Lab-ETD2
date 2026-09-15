@@ -165,30 +165,65 @@ const WAVE_BOUNTIES = [
   3900, 4290, 4710, 5160, 5700, 6240, 6870, 7560, 8310, 9150,
 ] as const;
 
+/** Last wave the developer workbook describes: the boss stage runs 56–70. */
+export const LAST_BENCHMARK_WAVE = 70;
+/** Last wave with a normal element and a measured creep count; 55 clears the game. */
+export const LAST_NORMAL_WAVE = 55;
+
+/**
+ * Boss stage, from the workbook's wave table (rows 56–70): element "Boss",
+ * ability "Mixed", Normal HP 500,000 growing ×1.25 per wave, 300 bounty per
+ * creep and 9,000 per wave. The table does not say how many creeps a boss
+ * wave carries, so no wave total can be verified until a capture supplies
+ * the count; the benchmark carries HP per creep and says so.
+ */
+const BOSS_BASE_HP = 500_000;
+const BOSS_HP_GROWTH = 1.25;
+const BOSS_BOUNTY_PER_CREEP = 300;
+const BOSS_WAVE_BOUNTY = 9_000;
+
 export type WaveBenchmark = {
   wave: number;
-  element: ElementName | "Composite";
-  ability: (typeof ABILITIES)[number];
-  count: number;
+  element: ElementName | "Composite" | "Boss";
+  ability: (typeof ABILITIES)[number] | "Mixed";
+  /** Creeps in the wave. Unmeasured on boss waves (see modelConfidence). */
+  count: number | null;
   spawnSpacingSeconds: number;
   hpPerCreep: number;
   effectiveHpPerCreep: number;
   bountyPerCreep: number;
   waveBounty: number;
   speedMultiplier: number;
-  modelConfidence: "verified" | "ability-estimate";
+  modelConfidence: "verified" | "ability-estimate" | "boss-count-unmeasured";
 };
 
 function normalHp(wave: number): number {
   if (wave <= 45) return 125 * 1.157 ** (wave - 1);
-  return 90_600 * 1.19 ** (wave - 46);
+  if (wave <= LAST_NORMAL_WAVE) return 90_600 * 1.19 ** (wave - 46);
+  return BOSS_BASE_HP * BOSS_HP_GROWTH ** (wave - 56);
 }
 
 export function waveBenchmark(
   wave: number,
   difficulty: MatchPlanDifficulty,
 ): WaveBenchmark | null {
-  if (wave < 1 || wave > 55) return null;
+  if (wave < 1 || wave > LAST_BENCHMARK_WAVE) return null;
+  if (wave > LAST_NORMAL_WAVE) {
+    const hpPerCreep = normalHp(wave) * DIFFICULTY_MULTIPLIERS[difficulty];
+    return {
+      wave,
+      element: "Boss",
+      ability: "Mixed",
+      count: null,
+      spawnSpacingSeconds: 0.5,
+      hpPerCreep,
+      effectiveHpPerCreep: hpPerCreep,
+      bountyPerCreep: BOSS_BOUNTY_PER_CREEP,
+      waveBounty: BOSS_WAVE_BOUNTY,
+      speedMultiplier: 1,
+      modelConfidence: "boss-count-unmeasured",
+    };
+  }
   const index = wave - 1;
   const ability = ABILITIES[index];
   const hpPerCreep = normalHp(wave) * DIFFICULTY_MULTIPLIERS[difficulty];
@@ -220,9 +255,12 @@ export function bountyThroughWave(startWave: number, endWave: number): number {
   let total = 0;
   for (
     let wave = Math.max(1, startWave);
-    wave <= Math.min(55, endWave);
+    wave <= Math.min(LAST_BENCHMARK_WAVE, endWave);
     wave += 1
   )
-    total += WAVE_BOUNTIES[wave - 1] ?? 0;
+    total +=
+      wave > LAST_NORMAL_WAVE
+        ? BOSS_WAVE_BOUNTY
+        : (WAVE_BOUNTIES[wave - 1] ?? 0);
   return total;
 }

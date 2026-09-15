@@ -30,7 +30,8 @@ function modeledHp(
   let total = 0;
   for (let wave = from; wave <= to; wave += 1) {
     const benchmark = waveBenchmark(wave, difficulty);
-    if (benchmark) total += benchmark.effectiveHpPerCreep * benchmark.count;
+    if (benchmark?.count != null)
+      total += benchmark.effectiveHpPerCreep * benchmark.count;
   }
   return total;
 }

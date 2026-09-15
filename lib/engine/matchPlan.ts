@@ -49,6 +49,7 @@ import {
 import {
   bountyThroughWave,
   DEFAULT_MATCH_PLAN_DIFFICULTY,
+  LAST_BENCHMARK_WAVE,
   type MatchPlanDifficulty,
   waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
@@ -84,7 +85,10 @@ const PHASES: readonly {
   { id: "41-45", label: "Waves 41–45", start: 41, end: 45 },
   { id: "46-50", label: "Waves 46–50", start: 46, end: 50 },
   { id: "51-55", label: "Waves 51–55", start: 51, end: 55 },
-  { id: "56+", label: "Waves 56+ · Boss", start: 56, end: null },
+  // The boss stage, from the workbook's rows 56–70: bounded by the table,
+  // unverified on damage until a capture measures a boss wave's creep count.
+  { id: "56-60", label: "Waves 56–60 · Boss", start: 56, end: 60 },
+  { id: "61-70", label: "Waves 61–70 · Boss", start: 61, end: 70 },
 ];
 
 const EMPTY_ALLOCATION = (): ElementAllocation => ({
@@ -259,7 +263,7 @@ function openingMonoElement(
             .map((wave) => waveBenchmark(wave, DEFAULT_MATCH_PLAN_DIFFICULTY))
             .filter((wave) => wave != null);
           const multipliers = firstWaves.map((wave) =>
-            wave.element === "Composite"
+            wave.element === "Composite" || wave.element === "Boss"
               ? 1
               : ELEMENT_MATCHUPS[element][wave.element],
           );
@@ -1373,7 +1377,7 @@ export function generateMatchPlan(
         endWave:
           definition.end == null
             ? null
-            : Math.min(55, definition.end + horizon),
+            : Math.min(LAST_BENCHMARK_WAVE, definition.end + horizon),
         towers,
         levelTimeline: timelineFor(towers, candidate),
       });
@@ -2350,14 +2354,36 @@ export function generateMatchPlan(
           ]
         : []),
       ...(reported.status === "unverified"
-        ? [
-            `${reported.waves
-              .filter((wave) => wave.status === "unverified" && wave.ability)
-              .map((wave) => `W${wave.wave} ${wave.ability}`)
-              .join(
-                ", ",
-              )} clear base HP only; the ability is not quantified, so do not read this window as safe.`,
-          ]
+        ? (() => {
+            const boss = reported.waves.filter((wave) => wave.count == null);
+            const ability = reported.waves.filter(
+              (wave) =>
+                wave.status === "unverified" &&
+                wave.ability &&
+                wave.count != null,
+            );
+            const lines: string[] = [];
+            if (boss.length) {
+              const first = boss[0];
+              const last = boss[boss.length - 1];
+              const income = bountyThroughWave(
+                definition.start,
+                definition.end ?? definition.start,
+              );
+              lines.push(
+                `Boss waves ${first.wave}–${last.wave} carry ${Math.round(first.hpPerCreep).toLocaleString()}–${Math.round(last.hpPerCreep).toLocaleString()} HP per creep (workbook); the creep count is not measured, so nothing here is verified. This window pays ${income.toLocaleString()}g and the package is spent: the End Game essence layer (Pure / Periodic) is the outlet this plan does not model yet.`,
+              );
+            }
+            if (ability.length)
+              lines.push(
+                `${ability
+                  .map((wave) => `W${wave.wave} ${wave.ability}`)
+                  .join(
+                    ", ",
+                  )} clear base HP only; the ability is not quantified, so do not read this window as safe.`,
+              );
+            return lines;
+          })()
         : []),
       ...(critical.length
         ? [
@@ -2459,7 +2485,7 @@ export function generateMatchPlan(
   );
   if (unbought.length)
     violations.push(
-      `${unbought.length} planned tower step(s) remain outside the conservative 56+ budget.`,
+      `${unbought.length} planned tower step(s) remain unbought after wave 70, the last wave the workbook describes.`,
     );
   if (!camps.some((camp) => camp.viable))
     violations.push(
