@@ -925,7 +925,7 @@ function PhaseSnapshot({
       : phase.survival.status === "borderline"
         ? `Thin margin · wave ${phase.survival.worstWave}`
         : phase.survival.status === "fails"
-          ? `Leaks at wave ${phase.survival.worstWave} · ${Math.round((phase.survival.margin ?? 0) * 100)}% of its HP`
+          ? `Leaks at wave ${phase.survival.worstWave} · ${Math.floor((phase.survival.margin ?? 0) * 100)}% of its HP`
           : missingStatWaves.length
             ? "Cannot verify · a placed tower has no combat stat at this level"
             : `Clears base HP · ${unmodeledAbilityWaves.join(", ")} abilit${unmodeledAbilityWaves.length === 1 ? "y" : "ies"} not modeled`;
