@@ -723,6 +723,7 @@ export function evaluatePhaseSurvival({
       "Corrosion, Incantation and Rage amplify the damage every tower in overlapping reach deals, for the share of that tower's contact during which the creep still carries the debuff (highest amplifier applies). Nova, Muck, Root and Windstorm extend the contact time of every tower in overlapping reach the same way, for the share of that tower's contact during which the creep is still slowed. Interest, hand-cast buffs, creep abilities, creep displacement and overkill are not credited.",
       "Every verified wave must reach 100% damage capacity. The planner never spends the 50-life pool as a buffer.",
       "End Game towers (Pure, Periodic) are credited over a 20-second sustained engagement from their own verified facts, ability included where it can be derived without a guess (Overkill's on-kill spread cannot, and stays uncredited); a wave with an open factor on its field never reads as a clean pass.",
+      "Tesla Tree links with copies of itself within its own range and combines their damage, but that range is not measured, so every copy is credited at its own single-tower DPS only.",
     ],
   };
 }

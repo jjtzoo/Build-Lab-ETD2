@@ -43,6 +43,7 @@ export type MatchPlanActionType =
   | "allocate-element"
   | "build"
   | "upgrade"
+  | "evolve"
   | "reserve-cell"
   | "release-cell"
   | "remove-temporary"
@@ -59,6 +60,9 @@ export type MatchPlanAction = {
   elementLevel?: number;
   towerId?: string;
   towerName?: string;
+  /** For an "evolve" action: the tower this copy was upgraded from. */
+  fromTowerId?: string;
+  fromTowerName?: string;
   copyId?: string;
   fromLevel?: number;
   toLevel?: number;
@@ -216,6 +220,9 @@ export type CopilotAction = {
     copyId?: string;
     fromLevel?: number;
     toLevel?: number;
+    /** "evolve" only: the tower this same copy was upgraded from. */
+    fromTowerId?: string;
+    fromTowerName?: string;
   };
   element?: { name: ElementName; level: number };
   placement?: {

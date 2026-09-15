@@ -66,6 +66,7 @@ import {
   waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
 import { sellRefundFraction } from "@/lib/domain/towerEconomics";
+import { evolutionCost, evolutionTargets } from "@/lib/domain/towerEvolution";
 import {
   isEndGameTowerId,
   liveTowerName,
@@ -400,6 +401,21 @@ function displacementRisks(field: readonly PlannedTowerState[]): string[] {
   const names = [...new Set(throwers.map((tower) => tower.towerName))];
   return [
     `${names.join(" and ")} throws each hit creep forward to the front of the wave; the ${others.length} other damage ${others.length === 1 ? "copy" : "copies"} lose contact on the skipped stretch. This model still credits their full route and train time, so this window's survival figures overstate the field — the owner saw it nullify the damage towers in live play. Not modeled until the lost contact is measured.`,
+  ];
+}
+
+/**
+ * Tesla Tree links with copies of itself within its own range, but that
+ * range is not measured (data/mechanics.json: "chain": "UNKNOWN"), so
+ * combatFacts credits every copy at its own single-tower DPS only. Say so
+ * whenever 2+ copies are fielded, the same way an unquantified ability or
+ * an End Game tower's open factor is named rather than left silent.
+ */
+function teslaTreeRisks(field: readonly PlannedTowerState[]): string[] {
+  const copies = field.filter((tower) => tower.towerId === "tesla-tree");
+  if (copies.length < 2) return [];
+  return [
+    `${copies.length} Tesla Trees are fielded; each is credited at its own single-tower DPS only, since the range at which they link is not measured — the real field may be doing more.`,
   ];
 }
 
@@ -1054,6 +1070,24 @@ function chooseCell(
       return value;
     };
     const longRange = facts.range >= 1_125;
+    // Tesla Tree is the one tower the dev sheet documents as linking to
+    // copies of itself within its own (unmeasured) range: "Tesla Trees in
+    // range of each other link, combining damage, attack speed, range,
+    // buffs and debuffs" (data/mechanics.json). The camp-load spread below
+    // exists to scatter ordinary damage towers across camps for route
+    // coverage; for this one tower it does the opposite of what its own
+    // mechanic wants. Since the real chain radius is not measured, the same
+    // camp is used as the closest available proxy for "in range" rather
+    // than inventing a distance — narrowly scoped to this tower, since no
+    // other tower's mechanic is documented this way.
+    const clustersWithSelf = towerId === "tesla-tree";
+    const sameTowerCamps = new Set(
+      clustersWithSelf
+        ? placed
+            .filter((tower) => tower.towerId === towerId && tower.campId)
+            .map((tower) => tower.campId as string)
+        : [],
+    );
     const chosen = fact.debuff
       ? (viableRanked[0] ?? ranked[0])
       : ([...(competitive.length ? competitive : viableRanked)].sort((a, b) => {
@@ -1072,9 +1106,19 @@ function chooseCell(
           if (!firstCopy && tier(a) !== tier(b)) return tier(a) - tier(b);
           const campA = campFor(a.cell);
           const campB = campFor(b.cell);
+          if (!firstCopy && clustersWithSelf && sameTowerCamps.size) {
+            const aSame = campA && sameTowerCamps.has(campA.id) ? 0 : 1;
+            const bSame = campB && sameTowerCamps.has(campB.id) ? 0 : 1;
+            if (aSame !== bSame) return aSame - bSame;
+          }
           const loadA = campA ? (damageLoad.get(campA.id) ?? 0) : 99;
           const loadB = campB ? (damageLoad.get(campB.id) ?? 0) : 99;
-          if (!firstCopy && placedDamage.length > 0 && loadA !== loadB)
+          if (
+            !firstCopy &&
+            !clustersWithSelf &&
+            placedDamage.length > 0 &&
+            loadA !== loadB
+          )
             return loadA - loadB;
           const passes = b.value.coverage.passes - a.value.coverage.passes;
           if (!firstCopy && passes !== 0) return passes;
@@ -2470,6 +2514,110 @@ export function generateMatchPlan(
     runSamePathCoverageRepair();
     survival = applySurvivalRescue(evaluate(field), "after-package");
 
+    // A starter (Arrow/Cannon) or Level 1 mono that is about to be sold for
+    // no longer moving any wave is, in the real game, never actually sold —
+    // it is upgraded in place into whatever the build's own queue calls for
+    // next, keeping the gold already sunk into it (lib/domain/towerEvolution.ts).
+    // Tried once per candidate, right where a sale would otherwise happen: if
+    // the queue's own next build for a reachable tower is still legal and
+    // affordable at the net evolution price, this exact copy becomes that
+    // tower on its own cell instead of being discarded for an unmeasured
+    // refund and rebuilt from nothing elsewhere.
+    const tryEvolve = (tower: PlannedTowerState): boolean => {
+      if (!isBasicTowerId(tower.towerId) && !isMonoTowerId(tower.towerId))
+        return false;
+      // Only a tower's very first step evolves cleanly into another's very
+      // first step — evolutionTargets carries the level across unchanged, so
+      // a Level 2+ mono would land its target at a level the queue's own
+      // first build for that tower never asks for.
+      if (tower.level !== 1) return false;
+      const targets = new Set(
+        evolutionTargets(tower.towerId, tower.level).map(
+          (step) => step.towerId,
+        ),
+      );
+      const entry = remainingQueue().find(
+        (candidate) =>
+          targets.has(candidate.towerId) &&
+          candidate.toLevel === 1 &&
+          !purchased.has(purchaseKey(candidate)) &&
+          isLegal(candidate.towerId, candidate.toLevel, allocation) &&
+          !field.some(
+            (t) =>
+              t.copyId ===
+              stableId(planId, "copy", candidate.towerId, candidate.copyOrdinal),
+          ),
+      );
+      if (!entry) return false;
+      const cost = evolutionCost(
+        { towerId: tower.towerId, level: tower.level },
+        { towerId: entry.towerId, level: entry.toLevel },
+      );
+      const spendable = Math.max(0, lower - windowReserve);
+      if (cumulativeCost + cost > spendable) return false;
+      const officialCopyId = stableId(
+        planId,
+        "copy",
+        entry.towerId,
+        entry.copyOrdinal,
+      );
+      const evolved: PlannedTowerState = {
+        copyId: officialCopyId,
+        towerId: entry.towerId,
+        towerName: entry.towerName,
+        level: entry.toLevel,
+        quantity: 1,
+        purpose: entry.temporaryCarry
+          ? "Temporary early carry"
+          : purposeFor(build, entry.towerId),
+        roles: entry.roles,
+        status:
+          entry.temporaryCarry && !retainTemporary(overrides, officialCopyId)
+            ? "temporary"
+            : "permanent",
+        effect: effectFor(entry.towerId, entry.toLevel),
+        globalBuff: getTowerPlacementFact(entry.towerId).targetsTowers,
+        directHitDebuff: getTowerPlacementFact(entry.towerId).debuff !== null,
+        cell: tower.cell,
+        cellLabel: tower.cellLabel,
+        campId: tower.campId,
+      };
+      field = [...field.filter((t) => t.copyId !== tower.copyId), evolved];
+      cumulativeCost += cost;
+      phaseCost += cost;
+      actions.push({
+        id: stableId(
+          planId,
+          definition.id,
+          "evolve",
+          tower.copyId,
+          entry.towerId,
+        ),
+        phaseId: definition.id,
+        order: actionOrder++,
+        type: "evolve",
+        summary: `Evolve ${tower.towerName} into ${entry.towerName} ${entry.toLevel}`,
+        reason: `${tower.towerName} no longer moves a wave here, but the build's own queue calls for ${entry.towerName} next and this exact tower can become it — ${cost.toLocaleString()}g net of the gold already spent on it, cheaper than selling for an unmeasured refund and building fresh elsewhere.`,
+        towerId: entry.towerId,
+        towerName: entry.towerName,
+        fromTowerId: tower.towerId,
+        fromTowerName: tower.towerName,
+        copyId: officialCopyId,
+        fromLevel: tower.level,
+        toLevel: entry.toLevel,
+        cost,
+        legal: true,
+        affordable: true,
+        targetWave: definition.start,
+        cell: tower.cell ?? undefined,
+        cellLabel: tower.cellLabel ?? undefined,
+        campId: tower.campId ?? undefined,
+        temporary: evolved.status === "temporary",
+      });
+      purchased.add(purchaseKey(entry));
+      return true;
+    };
+
     // ---- Retirement. A temporary copy carried into this window is sold
     // when the window no longer needs its damage: outright if it no longer
     // moves any wave, otherwise only when its refund (with the others') lets
@@ -2550,7 +2698,12 @@ export function generateMatchPlan(
       }
       if (!toSell.length) return false;
       const funding = toSell.some((c) => !negligible.includes(c));
-      for (const { tower, refund, contribution } of toSell) {
+      for (const candidate of toSell) {
+        const { tower, refund, contribution } = candidate;
+        // A negligible copy is tried as an evolution before it is sold — a
+        // copy kept specifically to fund another step (below) never is,
+        // since evolving spends net gold rather than freeing it.
+        if (negligible.includes(candidate) && tryEvolve(tower)) continue;
         field = field.filter((t) => t.copyId !== tower.copyId);
         cumulativeCost -= refund;
         phaseRefund += refund;
@@ -2791,6 +2944,7 @@ export function generateMatchPlan(
       // credits the full route and the full train, so its numbers overstate
       // such a field until the loss is measured.
       ...displacementRisks(field),
+      ...teslaTreeRisks(field),
       // Blacksmith and Well pay +10/30/90% by level, and level 3 needs both
       // recipe elements at 3. A build whose allocation stops them at 2 is
       // buying a +30% tower and calling it the +90% one.
@@ -2919,6 +3073,12 @@ export function serializeCopilotActions(
                 copyId: action.copyId,
                 fromLevel: action.fromLevel,
                 toLevel: action.toLevel,
+                ...(action.fromTowerId && action.fromTowerName
+                  ? {
+                      fromTowerId: action.fromTowerId,
+                      fromTowerName: action.fromTowerName,
+                    }
+                  : {}),
               },
             }
           : {}),

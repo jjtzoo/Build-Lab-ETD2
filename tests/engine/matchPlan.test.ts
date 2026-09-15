@@ -300,6 +300,86 @@ describe("Match Plan", () => {
     );
   });
 
+  it("serializes an evolve action with its own tower identity, distinct from a fresh build", () => {
+    const plan = generateMatchPlan(laserBuild, {
+      mapId: "forest",
+      reserveGold: 0,
+    });
+    const withEvolve = {
+      ...plan,
+      phases: plan.phases.map((phase, index) =>
+        index === 0
+          ? {
+              ...phase,
+              actions: [
+                ...phase.actions,
+                {
+                  id: "test:evolve",
+                  phaseId: phase.id,
+                  order: 9999,
+                  type: "evolve" as const,
+                  summary: "Evolve Arrow into Light 1",
+                  reason: "test fixture",
+                  towerId: "mono-light",
+                  towerName: "Light",
+                  fromTowerId: "arrow",
+                  fromTowerName: "Arrow",
+                  copyId: "test-copy",
+                  fromLevel: 1,
+                  toLevel: 1,
+                  cost: 100,
+                  legal: true,
+                  affordable: true,
+                },
+              ],
+            }
+          : phase,
+      ),
+    };
+    const actions = serializeCopilotActions(withEvolve);
+    const evolve = actions.find((action) => action.actionId === "test:evolve");
+    expect(evolve?.command).toBe("evolve");
+    expect(evolve?.tower?.id).toBe("mono-light");
+    expect(evolve?.tower?.fromTowerId).toBe("arrow");
+    expect(evolve?.tower?.fromTowerName).toBe("Arrow");
+  });
+
+  it("clusters repeat Tesla Trees in the same camp instead of spreading them, and names the uncredited link bonus", () => {
+    const build: PortableBuild = {
+      schema: "etd2-build/2",
+      source: "engine",
+      anchorTowerId: "laser",
+      towers: [
+        { towerId: "laser", level: 2 },
+        { towerId: "tesla-tree", level: 1 },
+        { towerId: "tesla-tree", level: 1 },
+      ],
+      allocation: {
+        Light: 3,
+        Darkness: 3,
+        Earth: 3,
+        Water: 1,
+        Fire: 0,
+        Nature: 1,
+      },
+      createdAt: "2026-09-14T00:00:00.000Z",
+    };
+    const plan = generateMatchPlan(build, { mapId: "forest" });
+    const finalField = plan.phases.at(-1)!.endTowers;
+    const teslaTrees = finalField.filter(
+      (tower) => tower.towerId === "tesla-tree",
+    );
+    expect(teslaTrees.length).toBeGreaterThanOrEqual(2);
+    const camps = new Set(teslaTrees.map((tower) => tower.campId));
+    expect(camps.size).toBe(1);
+    const risked = plan.phases.some((phase) =>
+      phase.risks.some((risk) =>
+        risk.includes("credited at its own single-tower DPS only"),
+      ),
+    );
+    expect(risked).toBe(true);
+  });
+
   it("migrates legacy pick order, compatible cells and final-form intent", () => {
     const migrated = migrateLegacyLiveState(
       laserBuild,
