@@ -232,6 +232,52 @@ export function isSurvivalAmpProvider(towerId: string): boolean {
   return AMP_BY_TOWER.has(towerId);
 }
 
+type SlowFact = {
+  towerId: string;
+  /** Contact-time multiplier on a slowed creep, by provider level. */
+  dwellFactorByLevel: readonly number[];
+  /** How long the slow lingers after the last hit, by provider level. */
+  durationByLevel: readonly number[];
+};
+
+/**
+ * Verified on-hit slows from towerMechanicFacts: Nova, Muck, Root and
+ * Windstorm each slow a hit creep 16/32% for 5s. A fixed route segment
+ * crossed at (1 - slow%) of normal speed takes 1 / (1 - slow%) as long, so
+ * a slowed creep spends that much longer inside every other tower's reach
+ * it shares with the provider — the same "overlapping reach, share of
+ * contact, highest wins" mechanism already used for the damage-taken
+ * amplifiers above, applied to contact time instead of damage taken.
+ */
+const SLOW_FACTS: readonly SlowFact[] = (
+  mechanicFacts.effects as readonly {
+    towerId: string;
+    signal: string;
+    magnitude?: { unit: string; byLevel: readonly number[] };
+    durationSeconds?: { byLevel: readonly number[] };
+    activationRequirement?: string;
+  }[]
+).flatMap((effect) =>
+  effect.signal === "enemy-slow" &&
+  effect.activationRequirement === "on-hit" &&
+  effect.magnitude
+    ? [
+        {
+          towerId: effect.towerId,
+          dwellFactorByLevel: effect.magnitude.byLevel.map(
+            (percent) => 1 / (1 - percent / 100),
+          ),
+          durationByLevel: effect.durationSeconds?.byLevel ?? [],
+        },
+      ]
+    : [],
+);
+const SLOW_BY_TOWER = new Map(SLOW_FACTS.map((fact) => [fact.towerId, fact]));
+
+export function isSurvivalSlowProvider(towerId: string): boolean {
+  return SLOW_BY_TOWER.has(towerId);
+}
+
 export function isSurvivalBuffProvider(towerId: string): boolean {
   return BUFF_BY_TOWER.has(towerId);
 }
@@ -464,6 +510,44 @@ export function evaluatePhaseSurvival({
         );
       }
     }
+    // Slows: a creep hit by Nova / Muck / Root / Windstorm spends longer in
+    // every other damage copy's reach that overlaps the provider's, for the
+    // share of that copy's contact during which the creep still carries the
+    // slow. Same mechanism as the amplifiers above, as a dwell-time
+    // multiplier instead of a damage-taken one.
+    const slowMultiplier = new Map<string, number>();
+    for (const provider of present) {
+      const fact = SLOW_BY_TOWER.get(provider.tower.towerId);
+      if (!fact || !provider.cell || provider.contactSeconds <= 0) continue;
+      const dwell =
+        fact.dwellFactorByLevel[provider.level - 1] ??
+        fact.dwellFactorByLevel.at(-1) ??
+        1;
+      const linger =
+        fact.durationByLevel[provider.level - 1] ??
+        fact.durationByLevel.at(-1) ??
+        0;
+      const slowedSeconds =
+        provider.contactSeconds + linger / benchmark.speedMultiplier;
+      for (const target of present) {
+        if (
+          target === provider ||
+          target.damage <= 0 ||
+          !target.cell ||
+          target.contactSeconds <= 0 ||
+          cellsApart(target.cell, provider.cell) *
+            Math.max(1, map.rangeUnitsPerCell) >
+            provider.range + target.range
+        )
+          continue;
+        const share = Math.min(1, slowedSeconds / target.contactSeconds);
+        const factor = 1 + (dwell - 1) * share;
+        slowMultiplier.set(
+          target.tower.copyId,
+          Math.max(slowMultiplier.get(target.tower.copyId) ?? 1, factor),
+        );
+      }
+    }
     // Buffs: each provider present this wave lifts up to maxTargets of the
     // strongest non-provider damage copies within its range. Two copies of
     // the same signal do not stack on one target (the higher applies —
@@ -516,8 +600,10 @@ export function evaluatePhaseSurvival({
       present.reduce((sum, entry) => {
         const boost = multiplier.get(entry.tower.copyId);
         const amp = ampMultiplier.get(entry.tower.copyId) ?? 1;
+        const slow = slowMultiplier.get(entry.tower.copyId) ?? 1;
         return (
-          sum + entry.damage * (boost ? boost.damage * boost.speed : 1) * amp
+          sum +
+          entry.damage * (boost ? boost.damage * boost.speed : 1) * amp * slow
         );
       }, 0) + cloneDamage;
     const effectiveWaveHp = benchmark.effectiveHpPerCreep * benchmark.count;
@@ -595,7 +681,7 @@ export function evaluatePhaseSurvival({
       "Damage capacity uses each placed tower's traced seconds in range plus wave spawn duration.",
       "Elemental armour multipliers are applied; each normal tower's damage uses the developer workbook's expected-engagement ratio (area damage and duty cycle averaged in, isolation not credited).",
       "Blacksmith, Well and Trickery are credited from their verified magnitudes on the strongest towers in range (same-signal buffs do not stack); Laser and Incantation use their isolated damage row while Rage is fielded in reach.",
-      "Corrosion, Incantation and Rage amplify the damage every tower in overlapping reach deals, for the share of that tower's contact during which the creep still carries the debuff (highest amplifier applies). Interest, hand-cast buffs, creep abilities, creep displacement and overkill are not credited.",
+      "Corrosion, Incantation and Rage amplify the damage every tower in overlapping reach deals, for the share of that tower's contact during which the creep still carries the debuff (highest amplifier applies). Nova, Muck, Root and Windstorm extend the contact time of every tower in overlapping reach the same way, for the share of that tower's contact during which the creep is still slowed. Interest, hand-cast buffs, creep abilities, creep displacement and overkill are not credited.",
       "Every verified wave must reach 100% damage capacity. The planner never spends the 50-life pool as a buffer.",
     ],
   };
