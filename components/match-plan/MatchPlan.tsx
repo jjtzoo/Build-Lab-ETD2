@@ -147,11 +147,58 @@ function campCode(camp: MatchPlanCamp): string {
   return camp.name.match(/^Camp [A-Z]+/)?.[0] ?? camp.name;
 }
 
+/**
+ * Why the window's verdict is as trustworthy as it is — the pill says
+ * "low" or "high", this says what made it so, in the engine's own terms.
+ */
+function confidenceReason(phase: MatchPlanPhase): string {
+  // The engine counts weak coverage as critical for this verdict.
+  const critical = phase.coverage.filter(
+    (row) => row.status === "critical" || row.status === "weak",
+  );
+  if (phase.survival.status === "fails")
+    return `modeled failure on W${phase.survival.worstWave ?? phase.startWave}`;
+  if (critical.length)
+    return `${critical.map((row) => row.defender).join(", ")} armour ${critical.length === 1 ? "is" : "are"} weakly covered`;
+  if (phase.survival.status === "unverified") {
+    const abilities = [
+      ...new Set(
+        phase.survival.waves
+          .filter((wave) => wave.status === "unverified" && wave.ability)
+          .map((wave) => wave.ability),
+      ),
+    ];
+    return abilities.length
+      ? `${abilities.join(", ")} not modeled`
+      : "a fielded tower has no combat data";
+  }
+  if (phase.endTowers.some((tower) => tower.cell == null))
+    return "a tower has no cell yet";
+  return "every wave clears on modeled data";
+}
+
+/**
+ * The route moment(s) a camp engages, in a player's words. Camp names come
+ * from the engine as "<Entry|Mid|Late|Exit>[ + …][ double pass] camp N".
+ */
 function campMoment(camp: MatchPlanCamp): string {
-  if (camp.name.includes("Early")) return "first contact";
-  if (camp.name.includes("Late")) return "cleanup";
-  if (camp.name.includes("Mid")) return "mid-route";
-  return "utility";
+  const moment = camp.name
+    .replace(/^Camp [A-Z]+ · /, "")
+    .replace(/ camp [0-9]+$/, "");
+  const word = (part: string) =>
+    ({
+      Entry: "first contact",
+      Mid: "mid-route",
+      Late: "late route",
+      Exit: "exit run",
+    })[part.trim()] ?? part.trim().toLowerCase();
+  if (moment.endsWith(" double pass"))
+    return `double pass · ${moment
+      .replace(/ double pass$/, "")
+      .split("+")
+      .map(word)
+      .join(" + ")}`;
+  return word(moment);
 }
 
 function distanceToRoute(
@@ -781,8 +828,12 @@ export function MatchPlanView({
           <p className="eyebrow">PHASE {phase.index + 1} OF 12</p>
           <h2>{phase.label}</h2>
         </div>
-        <div className={`match-confidence is-${phase.confidence}`}>
-          {phase.confidence} confidence
+        <div
+          className={`match-confidence is-${phase.confidence}`}
+          title="How far this window's verdict can be trusted: low when a wave fails on modeled data or an armour is uncovered, medium when an ability or a placement is not modeled, high when every wave clears on modeled data."
+        >
+          <b>{phase.confidence} confidence</b>
+          <span>{confidenceReason(phase)}</span>
         </div>
       </section>
 
@@ -1472,8 +1523,7 @@ function CopilotDecision({
               ]
                 .filter(Boolean)
                 .join(" · ");
-              const locatable =
-                action.copyId != null && action.type !== "sell";
+              const locatable = action.copyId != null && action.type !== "sell";
               return (
                 <li
                   key={action.id}
@@ -1847,8 +1897,8 @@ function PlanMap({
                 data-future-placement={tower.copyId}
               >
                 <title>
-                  {tower.towerName} {romanLevel(tower.level)} · waves{" "}
-                  {phaseId} ·{" "}
+                  {tower.towerName} {romanLevel(tower.level)} · waves {phaseId}{" "}
+                  ·{" "}
                   {tower.campId
                     ? (campLabelById.get(tower.campId) ?? tower.campId)
                     : "planned"}

@@ -129,6 +129,18 @@
         "resource": "lives",
         "amount": "scales-with-affected-towers"
       }
+    },
+    {
+      "towerId": "archdruid",
+      "signal": "enemy-displacement",
+      "activationRequirement": "on-hit",
+      "maxTargets": 1,
+      "targetCoverage": "one-creep-per-attack",
+      "conditionalRequirement": "the hit creep is launched forward to the front-most creep of the wave; the path it skips is contact time lost for every tower whose reach covers that stretch",
+      "observation": {
+        "source": "owner, live Hard game, 2026-09-15",
+        "note": "Fielding Archdruid nullified the build's damage towers: thrown creeps skipped their contact. How much contact is lost per wave is not measured yet."
+      }
     }
   ]
 }

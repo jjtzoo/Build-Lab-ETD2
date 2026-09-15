@@ -180,21 +180,26 @@ describe("Match Plan", () => {
   });
 
   it("buys survival before a package purchase that cannot land in time", () => {
-    // Waves 6–10 for a Trio anchor: the 500g bridge only lands at W11, so
-    // banking for it would leave W7 leaking. Survival over economy — cheap
-    // copies that land before W7 are bought first; the bridge follows at W11.
+    // Waves 6–10 for a Trio anchor: the 500g bridge only lands at W10–11,
+    // so banking for it would leave an earlier wave leaking. Survival over
+    // economy — a cheap copy that lands before the leak is bought first and
+    // the bridge follows. Which wave leaks depends on where the opening
+    // shell stands, so the assertion is on the order, not on a wave number:
+    // the first repair lands no later than the bridge and is bought first.
     const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
     const window = plan.phases[1];
     const repairs = window.actions.filter((action) =>
       action.id.includes(":survival-repair:"),
     );
     expect(repairs.length).toBeGreaterThan(0);
-    expect(repairs[0].targetWave).toBeLessThanOrEqual(7);
-    expect(repairs[0].reason).toContain("before the next package purchase");
+    expect(repairs[0].reason).toMatch(
+      /before the next package purchase|takes priority over the reserve/,
+    );
     const bridge = plan.phases
       .flatMap((phase) => phase.actions)
       .find((action) => action.towerId === "atom" && action.affordable);
     expect(bridge?.targetWave).toBeLessThanOrEqual(11);
+    expect(repairs[0].targetWave).toBeLessThanOrEqual(bridge!.targetWave!);
     expect(bridge!.order).toBeGreaterThan(repairs[0].order);
     const w7 = window.survival.waves.find((wave) => wave.wave === 7);
     expect(w7?.status).toBe("survives");

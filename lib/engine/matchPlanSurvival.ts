@@ -180,6 +180,52 @@ const BUFF_FACTS: readonly BuffFact[] = (
 });
 const BUFF_BY_TOWER = new Map(BUFF_FACTS.map((fact) => [fact.towerId, fact]));
 
+type AmpFact = {
+  towerId: string;
+  /** Multiplier on damage taken by an affected creep, by provider level. */
+  multiplierByLevel: readonly number[];
+  /** How long the debuff lingers after the last hit, by provider level. */
+  durationByLevel: readonly number[];
+};
+
+/**
+ * Verified on-hit damage-taken amplifiers from towerMechanicFacts: Corrosion
+ * (+20/40% for 5s), Incantation (+13/26%), Rage (+28%). A creep the provider
+ * is hitting takes that much more from every tower for the duration, so
+ * each amplifier present lifts the damage of the towers whose reach
+ * overlaps its own, for the share of their contact during which the creep
+ * carries the debuff. Same-signal amplifiers do not stack (the higher
+ * applies — stacking is not a verified fact).
+ */
+const AMP_FACTS: readonly AmpFact[] = (
+  mechanicFacts.effects as readonly {
+    towerId: string;
+    signal: string;
+    magnitude?: { unit: string; byLevel: readonly number[] };
+    durationSeconds?: { byLevel: readonly number[] };
+    activationRequirement?: string;
+  }[]
+).flatMap((effect) =>
+  effect.signal === "damage-taken-amp" &&
+  effect.activationRequirement === "on-hit" &&
+  effect.magnitude
+    ? [
+        {
+          towerId: effect.towerId,
+          multiplierByLevel: effect.magnitude.byLevel.map(
+            (percent) => 1 + percent / 100,
+          ),
+          durationByLevel: effect.durationSeconds?.byLevel ?? [],
+        },
+      ]
+    : [],
+);
+const AMP_BY_TOWER = new Map(AMP_FACTS.map((fact) => [fact.towerId, fact]));
+
+export function isSurvivalAmpProvider(towerId: string): boolean {
+  return AMP_BY_TOWER.has(towerId);
+}
+
 export function isSurvivalBuffProvider(towerId: string): boolean {
   return BUFF_BY_TOWER.has(towerId);
 }
@@ -302,7 +348,16 @@ export function evaluatePhaseSurvival({
       );
       if (level == null) return [];
       if (tower.effect === "global-buff" || tower.effect === "debuff")
-        return [{ tower, level, damage: 0, cell: tower.cell }];
+        return [
+          {
+            tower,
+            level,
+            damage: 0,
+            cell: tower.cell,
+            contactSeconds: 0,
+            range: 0,
+          },
+        ];
       const baseFacts = combatFacts(tower.towerId, level);
       const facts =
         baseFacts &&
@@ -318,7 +373,16 @@ export function evaluatePhaseSurvival({
           : baseFacts;
       if (!facts || !tower.cell) {
         missingTowerFacts = true;
-        return [{ tower, level, damage: 0, cell: tower.cell }];
+        return [
+          {
+            tower,
+            level,
+            damage: 0,
+            cell: tower.cell,
+            contactSeconds: 0,
+            range: 0,
+          },
+        ];
       }
       const coverage = coverageForMode(map, tower.cell, facts.range, mode);
       const contactSeconds =
@@ -328,6 +392,8 @@ export function evaluatePhaseSurvival({
           tower,
           level,
           cell: tower.cell,
+          contactSeconds,
+          range: facts.range,
           damage:
             facts.averageDps *
             (contactSeconds + trainSeconds) *
@@ -336,6 +402,44 @@ export function evaluatePhaseSurvival({
         },
       ];
     });
+    // Damage-taken amplifiers: a creep hit by Corrosion / Incantation / Rage
+    // takes more from everyone for the debuff's duration. Each amplifier
+    // lifts every other damage copy whose reach overlaps its own, by the
+    // share of that copy's contact during which the creep still carries the
+    // debuff (the amplifier's own contact plus the linger). Highest wins.
+    const ampMultiplier = new Map<string, number>();
+    for (const provider of present) {
+      const fact = AMP_BY_TOWER.get(provider.tower.towerId);
+      if (!fact || !provider.cell || provider.contactSeconds <= 0) continue;
+      const amp =
+        fact.multiplierByLevel[provider.level - 1] ??
+        fact.multiplierByLevel.at(-1) ??
+        1;
+      const linger =
+        fact.durationByLevel[provider.level - 1] ??
+        fact.durationByLevel.at(-1) ??
+        0;
+      const debuffedSeconds =
+        provider.contactSeconds + linger / benchmark.speedMultiplier;
+      for (const target of present) {
+        if (
+          target === provider ||
+          target.damage <= 0 ||
+          !target.cell ||
+          target.contactSeconds <= 0 ||
+          cellsApart(target.cell, provider.cell) *
+            Math.max(1, map.rangeUnitsPerCell) >
+            provider.range + target.range
+        )
+          continue;
+        const share = Math.min(1, debuffedSeconds / target.contactSeconds);
+        const factor = 1 + (amp - 1) * share;
+        ampMultiplier.set(
+          target.tower.copyId,
+          Math.max(ampMultiplier.get(target.tower.copyId) ?? 1, factor),
+        );
+      }
+    }
     // Buffs: each provider present this wave lifts up to maxTargets of the
     // strongest non-provider damage copies within its range. Two copies of
     // the same signal do not stack on one target (the higher applies —
@@ -387,7 +491,10 @@ export function evaluatePhaseSurvival({
     const modeledDamage =
       present.reduce((sum, entry) => {
         const boost = multiplier.get(entry.tower.copyId);
-        return sum + entry.damage * (boost ? boost.damage * boost.speed : 1);
+        const amp = ampMultiplier.get(entry.tower.copyId) ?? 1;
+        return (
+          sum + entry.damage * (boost ? boost.damage * boost.speed : 1) * amp
+        );
       }, 0) + cloneDamage;
     const effectiveWaveHp = benchmark.effectiveHpPerCreep * benchmark.count;
     const margin = modeledDamage / effectiveWaveHp;
@@ -463,7 +570,8 @@ export function evaluatePhaseSurvival({
       `${difficulty} creep HP and per-wave unit counts are benchmark inputs.`,
       "Damage capacity uses each placed tower's traced seconds in range plus wave spawn duration.",
       "Elemental armour multipliers are applied; each normal tower's damage uses the developer workbook's expected-engagement ratio (area damage and duty cycle averaged in, isolation not credited).",
-      "Blacksmith, Well and Trickery are credited from their verified magnitudes on the strongest towers in range (same-signal buffs do not stack); Laser and Incantation use their isolated damage row while Rage is fielded in reach. Interest, hand-cast buffs, creep abilities and overkill are not credited.",
+      "Blacksmith, Well and Trickery are credited from their verified magnitudes on the strongest towers in range (same-signal buffs do not stack); Laser and Incantation use their isolated damage row while Rage is fielded in reach.",
+      "Corrosion, Incantation and Rage amplify the damage every tower in overlapping reach deals, for the share of that tower's contact during which the creep still carries the debuff (highest amplifier applies). Interest, hand-cast buffs, creep abilities, creep displacement and overkill are not credited.",
       "Every verified wave must reach 100% damage capacity. The planner never spends the 50-life pool as a buffer.",
     ],
   };

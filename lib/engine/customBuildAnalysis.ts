@@ -1,7 +1,4 @@
-import {
-  ELEMENTS,
-  type ElementName,
-} from "@/lib/domain/elements";
+import { ELEMENTS, type ElementName } from "@/lib/domain/elements";
 
 import type { TowerId } from "@/lib/domain/tower";
 import { getTower } from "@/lib/domain/towerCatalog";
@@ -39,7 +36,8 @@ export type CustomBuildWarning = {
   kind:
     | "missing-core-role"
     | "trio-underdeveloped"
-    | "isolation-vs-area";
+    | "isolation-vs-area"
+    | "displacement-vs-contact";
   title: string;
   detail: string;
   towerIds: readonly TowerId[];
@@ -99,9 +97,7 @@ export function analyzeCustomBuild(
     placed.map((entry) => [entry.towerId, entry.level]),
   );
 
-  const profiles = placed.map((entry) =>
-    getTowerProfile(entry.towerId),
-  );
+  const profiles = placed.map((entry) => getTowerProfile(entry.towerId));
 
   const allocation = deriveAllocation(placed);
 
@@ -113,8 +109,7 @@ export function analyzeCustomBuild(
     saturated
       .filter((match) => match.contribution !== "ignored")
       .map((match) => {
-        const providerLevel =
-          levelByTower.get(match.providerTowerId) ?? 1;
+        const providerLevel = levelByTower.get(match.providerTowerId) ?? 1;
         const fact =
           getTowerMechanicFacts(match.providerTowerId).find(
             (entry) => entry.signal === match.signal,
@@ -130,37 +125,28 @@ export function analyzeCustomBuild(
           signal: match.signal,
           effectiveStrength: match.effectiveStrength,
           contribution:
-            match.contribution === "diminished"
-              ? "diminished"
-              : "full",
+            match.contribution === "diminished" ? "diminished" : "full",
           availabilityClass,
           anchorTowerId,
         });
       }),
   );
-  const { primary, secondary } =
-    partitionSynergyRelations(relations);
+  const { primary, secondary } = partitionSynergyRelations(relations);
 
   // ---- Tensions ---------------------------------------------------------
-  const tensions = findConditionalMechanicTensions(profiles).map(
-    (tension) => ({
-      providerId: tension.providerTowerId,
-      providerName: getTower(tension.providerTowerId).name,
-      affectedId: tension.affectedTowerId,
-      affectedName: getTower(tension.affectedTowerId).name,
-      condition: tension.condition,
-    }),
-  );
+  const tensions = findConditionalMechanicTensions(profiles).map((tension) => ({
+    providerId: tension.providerTowerId,
+    providerName: getTower(tension.providerTowerId).name,
+    affectedId: tension.affectedTowerId,
+    affectedName: getTower(tension.affectedTowerId).name,
+    condition: tension.condition,
+  }));
 
   // ---- Element coverage ------------------------------------------------
-  const anchorProfile = anchorTowerId
-    ? getTowerProfile(anchorTowerId)
-    : null;
+  const anchorProfile = anchorTowerId ? getTowerProfile(anchorTowerId) : null;
   const anchorElement =
     anchorProfile?.offense?.offensiveElement ??
-    (anchorTowerId
-      ? getTower(anchorTowerId).damageElement
-      : "Light");
+    (anchorTowerId ? getTower(anchorTowerId).damageElement : "Light");
   const supportingElements = placed
     .slice(1)
     .map((entry) => getTowerProfile(entry.towerId))
@@ -174,14 +160,10 @@ export function analyzeCustomBuild(
   ).map((row) => ({
     defender: row.defender,
     anchorMultiplier: row.anchorMultiplier,
-    packageAverageMultiplier: Number(
-      row.packageAverageMultiplier.toFixed(2),
-    ),
+    packageAverageMultiplier: Number(row.packageAverageMultiplier.toFixed(2)),
     hasMeaningfulDirectCounter: row.hasMeaningfulDirectCounter,
     isAnchorWeakness: row.anchorMultiplier === 0.5,
-    covered:
-      row.anchorMultiplier !== 0.5 ||
-      row.hasMeaningfulDirectCounter,
+    covered: row.anchorMultiplier !== 0.5 || row.hasMeaningfulDirectCounter,
   }));
 
   const offensiveTowers = placed.filter(
@@ -191,8 +173,7 @@ export function analyzeCustomBuild(
     (entry) => getTower(entry.towerId).stats.range,
   );
   const shapes = offensiveTowers.map(
-    (entry) =>
-      getTowerProfile(entry.towerId).offense!.damageShape,
+    (entry) => getTowerProfile(entry.towerId).offense!.damageShape,
   );
 
   // ---- Core roles -----------------------------------------------------
@@ -259,6 +240,35 @@ export function analyzeCustomBuild(
     }
   }
 
+  // A creep-throwing tower (Archdruid) takes contact away from every tower
+  // that ramps on sustained attacks or pays off over duration — the owner
+  // saw it nullify the damage towers in live play.
+  const throwers = placed.filter((entry) =>
+    getTowerProfile(entry.towerId).mechanics.provides.some(
+      (supply) => supply.signal === "enemy-displacement",
+    ),
+  );
+  if (throwers.length > 0) {
+    const starved = placed.filter((entry) => {
+      if (throwers.some((thrower) => thrower.towerId === entry.towerId))
+        return false;
+      const triggers =
+        getTowerProfile(entry.towerId).offense?.scalingTriggers ?? [];
+      return (
+        triggers.includes("attack-scaling") ||
+        triggers.includes("duration-scaling")
+      );
+    });
+    if (starved.length > 0) {
+      warnings.push({
+        kind: "displacement-vs-contact",
+        title: "Thrown creeps starve ramping towers",
+        detail: `${throwers.map((entry) => getTower(entry.towerId).name).join(" and ")} throws each hit creep forward to the front of the wave. ${starved.map((entry) => getTower(entry.towerId).name).join(", ")} need${starved.length === 1 ? "s" : ""} the target to stay in reach to ramp or pay off, and a thrown target ends that contact.`,
+        towerIds: [...throwers, ...starved].map((entry) => entry.towerId),
+      });
+    }
+  }
+
   return {
     allocation: Object.fromEntries(
       ELEMENTS.map((element) => [element, allocation[element]]),
@@ -268,15 +278,10 @@ export function analyzeCustomBuild(
     coverage: {
       rows: coverageRows,
       hasSingleTarget: shapes.some(
-        (shape) =>
-          shape === "single-target" || shape === "hybrid",
+        (shape) => shape === "single-target" || shape === "hybrid",
       ),
-      hasAoe: shapes.some(
-        (shape) => shape === "aoe" || shape === "hybrid",
-      ),
-      anchorRange: anchorTowerId
-        ? getTower(anchorTowerId).stats.range
-        : 0,
+      hasAoe: shapes.some((shape) => shape === "aoe" || shape === "hybrid"),
+      anchorRange: anchorTowerId ? getTower(anchorTowerId).stats.range : 0,
       rangeMin: ranges.length ? Math.min(...ranges) : 0,
       rangeMax: ranges.length ? Math.max(...ranges) : 0,
     },

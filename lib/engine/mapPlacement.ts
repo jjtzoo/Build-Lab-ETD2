@@ -326,6 +326,58 @@ export function coverageForSpot(
   };
 }
 
+/** One stretch of route inside a tower's reach, in seconds from the wave's entry. */
+export type ContactInterval = { enterSeconds: number; exitSeconds: number };
+
+/**
+ * Every separate pass the route makes through a cell's reach, in route
+ * order. Where coverageForSpot folds these into totals, this keeps them
+ * apart: a cell the route crosses at 10s and again at 40s is a different
+ * kind of position from one it crosses once for the same total.
+ */
+export function contactIntervals(
+  map: MapConfig,
+  cell: GridPoint,
+  towerRangeUnits: number,
+  mode: WaveMode,
+): readonly ContactInterval[] {
+  if (map.rangeUnitsPerCell <= 0) return [];
+  const rangeCells = towerRangeUnits / map.rangeUnitsPerCell;
+  const speed = creepSpeedCellsPerSecond(map);
+  if (speed <= 0) return [];
+  const intervals: ContactInterval[] = [];
+  for (const path of pathsForMode(map, mode)) {
+    let travelledCells = 0;
+    let open: ContactInterval | null = null;
+    for (let i = 1; i < path.points.length; i++) {
+      const a = path.points[i - 1];
+      const b = path.points[i];
+      const segLen = cellDistance(a, b);
+      const overlap = circleSegmentOverlap(a, b, cell, rangeCells);
+      if (!overlap) {
+        if (open) intervals.push(open);
+        open = null;
+        travelledCells += segLen;
+        continue;
+      }
+      const enterSeconds = (travelledCells + overlap.from * segLen) / speed;
+      const exitSeconds = (travelledCells + overlap.to * segLen) / speed;
+      if (open && overlap.from === 0) open.exitSeconds = exitSeconds;
+      else {
+        if (open) intervals.push(open);
+        open = { enterSeconds, exitSeconds };
+      }
+      if (overlap.to < 1) {
+        intervals.push(open);
+        open = null;
+      }
+      travelledCells += segLen;
+    }
+    if (open) intervals.push(open);
+  }
+  return intervals.sort((a, b) => a.enterSeconds - b.enterSeconds);
+}
+
 export type ModeCoverage = SpotCoverage & {
   perPath: readonly { pathId: string; coverage: SpotCoverage }[];
 };

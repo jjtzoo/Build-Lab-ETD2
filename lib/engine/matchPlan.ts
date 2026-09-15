@@ -33,6 +33,7 @@ import {
   isMonoTowerId,
 } from "@/lib/domain/auxiliaryTowers";
 import { getTower, TOWERS } from "@/lib/domain/towerCatalog";
+import { getTowerMechanicFacts } from "@/lib/domain/towerMechanicFacts";
 import { getTowerPlacementFact } from "@/lib/domain/towerPlacementFacts";
 import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
 import {
@@ -52,7 +53,11 @@ import {
 } from "@/lib/engine/waveBenchmarks";
 import { sellRefundFraction } from "@/lib/domain/towerEconomics";
 import { liveTowerName, resolveLiveTowerCost } from "@/lib/engine/liveGame";
-import { coverageForMode, islands } from "@/lib/engine/mapPlacement";
+import {
+  contactIntervals,
+  coverageForMode,
+  islands,
+} from "@/lib/engine/mapPlacement";
 import { rankPlacements } from "@/lib/engine/placementValue";
 import earlyRanges from "@/data/earlyTowerRanges.v1.json";
 
@@ -171,34 +176,43 @@ function allocationOrder(
   // each recipe element, then level 2, up to its planned level. Package
   // unlocks follow. A Trio anchor whose second level waited on the tenth
   // pick was reaching full damage twenty waves after it could have.
+  // Level-major and level-capped: every recipe element to 1 before any to
+  // 2. A Trio anchor after a Dual opening must not see its opening's two
+  // elements stepped to 2 while its third element is still unpicked — that
+  // left Impulse unbuildable until the fifth pick.
   const anchorRecipe = (() => {
     try {
       const tower = getTower(build.anchorTowerId);
       const planned =
         build.towers.find((entry) => entry.towerId === build.anchorTowerId)
           ?.level ?? 1;
-      return Array.from({ length: Math.max(1, planned) }, () => [
-        ...tower.recipe,
-      ]).flat();
+      return Array.from({ length: Math.max(1, planned) }, (_, index) =>
+        tower.recipe.map((element) => ({ element, upTo: index + 1 })),
+      ).flat();
     } catch {
       return [];
     }
   })();
-  const proposed =
+  const open = (element: ElementName) => ({
+    element,
+    upTo: Number.POSITIVE_INFINITY,
+  });
+  const proposed: { element: ElementName; upTo: number }[] =
     manual?.kind === "allocation-order"
-      ? serialized
+      ? serialized.map(open)
       : [
-          ...orderedOpeningRecipe,
+          ...orderedOpeningRecipe.map(open),
           ...anchorRecipe,
-          ...(coverageElement ? [coverageElement] : []),
-          ...serialized,
-          ...anchorRecipe,
+          ...(coverageElement ? [open(coverageElement)] : []),
+          ...serialized.map(open),
+          ...anchorRecipe.map((step) => open(step.element)),
         ];
   const result: ElementName[] = [];
   const used = EMPTY_ALLOCATION();
-  for (const element of proposed) {
+  for (const { element, upTo } of proposed) {
     if (
       !ELEMENTS.includes(element) ||
+      used[element] >= upTo ||
       used[element] >= (build.allocation[element] ?? 0)
     )
       continue;
@@ -342,6 +356,30 @@ function nextTowerLevel(towerId: string, currentLevel: number): number | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Risk lines for creep-displacing towers (Archdruid) fielded alongside
+ * contact-dependent damage towers, from the verified mechanic fact and the
+ * owner's live observation attached to it.
+ */
+function displacementRisks(field: readonly PlannedTowerState[]): string[] {
+  const throwers = field.filter((tower) =>
+    getTowerMechanicFacts(tower.towerId).some(
+      (effect) => effect.signal === "enemy-displacement",
+    ),
+  );
+  if (!throwers.length) return [];
+  const others = field.filter(
+    (tower) =>
+      (tower.effect === "damage" || tower.effect === "hybrid") &&
+      !throwers.some((thrower) => thrower.towerId === tower.towerId),
+  );
+  if (!others.length) return [];
+  const names = [...new Set(throwers.map((tower) => tower.towerName))];
+  return [
+    `${names.join(" and ")} throws each hit creep forward to the front of the wave; the ${others.length} other damage ${others.length === 1 ? "copy" : "copies"} lose contact on the skipped stretch. This model still credits their full route and train time, so this window's survival figures overstate the field — the owner saw it nullify the damage towers in live play. Not modeled until the lost contact is measured.`,
+  ];
 }
 
 function actionCost(
@@ -674,7 +712,39 @@ function originFor(map: MapConfig): GridPoint {
   };
 }
 
-/** Camps split connected terrain again when cells engage clearly different route moments. */
+const CAMP_QUARTER_NAMES = ["Entry", "Mid", "Late", "Exit"] as const;
+
+/**
+ * Route moments a cell engages: the sorted set of route quarters the
+ * midpoints of its passes fall in. Quarters are the coarsest split that
+ * still tells Forest's entry block (passes at ~6s and ~46s) from the column
+ * between the middle loop and the final climb (~13s and ~40s).
+ */
+function passSignature(
+  map: MapConfig,
+  cell: GridPoint,
+  mode: WaveMode,
+): number[] {
+  const duration = Math.max(1, map.pathDurationSeconds ?? 1);
+  const quarters = new Set<number>();
+  for (const pass of contactIntervals(map, cell, 1000, mode)) {
+    const mid = (pass.enterSeconds + pass.exitSeconds) / 2;
+    quarters.add(Math.max(0, Math.min(3, Math.floor((mid / duration) * 4))));
+  }
+  return [...quarters].sort((a, b) => a - b);
+}
+
+/**
+ * Camps split connected terrain again when cells engage clearly different
+ * route moments. The moments are the *passes* the route makes through a
+ * cell's reach, not just its first contact: on Forest the column between
+ * the middle loop and the final climb to the exit is crossed twice, at
+ * ~15s and ~40s, and one tower there covers two route moments — which is
+ * exactly what spreading copies across camps is trying to buy. Grouping by
+ * first contact alone folded that column into the entry camp and left it
+ * under-used. Small signature groups are merged into the most similar
+ * larger camp on the same island so the map does not shatter into slivers.
+ */
 export function deriveMatchPlanCamps(
   map: MapConfig,
   mode: WaveMode,
@@ -682,21 +752,39 @@ export function deriveMatchPlanCamps(
   const origin = originFor(map);
   const raw: MatchPlanCamp[] = [];
   for (const [islandIndex, island] of islands(map).entries()) {
-    const buckets = new Map<number, GridPoint[]>();
+    const groups = new Map<
+      string,
+      { signature: number[]; cells: GridPoint[] }
+    >();
     for (const cell of island) {
-      const coverage = coverageForMode(map, cell, 1000, mode);
-      const duration = Math.max(1, map.pathDurationSeconds ?? 1);
-      const bucket =
-        coverage.firstContactSeconds == null
-          ? 3
-          : Math.min(
-              2,
-              Math.floor((coverage.firstContactSeconds / duration) * 3),
-            );
-      buckets.set(bucket, [...(buckets.get(bucket) ?? []), cell]);
+      const signature = passSignature(map, cell, mode);
+      const key = signature.join(",") || "none";
+      const group = groups.get(key) ?? { signature, cells: [] };
+      group.cells.push(cell);
+      groups.set(key, group);
     }
-    for (const [bucket, cells] of buckets) {
-      const ranked = cells
+    // Fold slivers (fewer than three cells) into the most similar larger
+    // group — the one sharing the most sixths — so every camp is a place a
+    // player can actually put several towers.
+    const large = [...groups.values()].filter((g) => g.cells.length >= 3);
+    for (const group of groups.values()) {
+      if (group.cells.length >= 3 || !large.length) continue;
+      const host = large
+        .map((candidate) => ({
+          candidate,
+          shared: candidate.signature.filter((x) => group.signature.includes(x))
+            .length,
+        }))
+        .sort(
+          (a, b) =>
+            b.shared - a.shared ||
+            b.candidate.cells.length - a.candidate.cells.length,
+        )[0].candidate;
+      host.cells.push(...group.cells);
+    }
+    const kept = large.length ? large : [...groups.values()];
+    for (const [groupIndex, group] of kept.entries()) {
+      const ranked = group.cells
         .map((cell) => ({
           cell,
           coverage: coverageForMode(map, cell, 1000, mode),
@@ -706,11 +794,17 @@ export function deriveMatchPlanCamps(
         );
       const lead = ranked[0];
       if (!lead) continue;
+      const quarters = group.signature;
+      const moment = !quarters.length
+        ? "Utility"
+        : quarters.length === 1
+          ? CAMP_QUARTER_NAMES[quarters[0]]
+          : `${quarters.map((quarter) => CAMP_QUARTER_NAMES[quarter]).join(" + ")} double pass`;
       raw.push({
-        id: `camp-${islandIndex + 1}-${bucket + 1}`,
-        name: `${["Early", "Mid", "Late", "Utility"][bucket]} camp ${islandIndex + 1}`,
+        id: `camp-${islandIndex + 1}-${groupIndex + 1}`,
+        name: `${moment} camp ${islandIndex + 1}`,
         cells: ranked.map((entry) => entry.cell),
-        capacity: cells.length,
+        capacity: group.cells.length,
         viable: false,
         coveragePercent: lead.coverage.coveragePercent,
         firstContactSeconds: lead.coverage.firstContactSeconds,
@@ -895,11 +989,27 @@ function chooseCell(
     const chosen = fact.debuff
       ? (viableRanked[0] ?? ranked[0])
       : ([...(competitive.length ? competitive : viableRanked)].sort((a, b) => {
+          // The build's first copy of a real tower takes the best cell
+          // outright; spreading across camps is for the copies that follow,
+          // and even then only among cells within a tenth of the best — a
+          // camp is not opened at the price of a clearly weaker position.
+          // Starters and monos are not "real" here: they are placed before
+          // the anchor exists and must not sit in the cell it will want.
+          const firstCopy =
+            !isBasicTowerId(towerId) &&
+            !isMonoTowerId(towerId) &&
+            !placed.some((tower) => tower.towerId === towerId);
+          const tier = (entry: (typeof ranked)[number]) =>
+            entry.value.score >= bestScore * 0.9 ? 0 : 1;
+          if (!firstCopy && tier(a) !== tier(b)) return tier(a) - tier(b);
           const campA = campFor(a.cell);
           const campB = campFor(b.cell);
           const loadA = campA ? (damageLoad.get(campA.id) ?? 0) : 99;
           const loadB = campB ? (damageLoad.get(campB.id) ?? 0) : 99;
-          if (placedDamage.length > 0 && loadA !== loadB) return loadA - loadB;
+          if (!firstCopy && placedDamage.length > 0 && loadA !== loadB)
+            return loadA - loadB;
+          const passes = b.value.coverage.passes - a.value.coverage.passes;
+          if (!firstCopy && passes !== 0) return passes;
           if (longRange) {
             const routeDistance =
               distanceToRoute(b.cell) - distanceToRoute(a.cell);
@@ -1055,14 +1165,21 @@ export function generateMatchPlan(
     (entry) => entry.priority === 115 && isMonoTowerId(entry.towerId),
   );
   const camps = deriveMatchPlanCamps(map, mode);
-  // How many copies of any one non-anchor tower the rescue cascade will ever
-  // add: one per viable camp, floor 2. A real player does not fill every
-  // buildable cell with the cheapest legal tower to nibble a failing wave's
-  // margin by another percent — they place a few strong copies and stop.
-  const fleetCopySaturation = Math.max(
-    2,
-    camps.filter((camp) => camp.viable).length,
-  );
+  // How many copies of any one tower the rescue cascade will ever add. The
+  // anchor may stand in every viable camp (a winning Wisp field ran six);
+  // any other tower in half of them, floor 2. A real player does not fill
+  // every buildable cell with the cheapest legal tower to nibble a failing
+  // wave's margin by another percent — they place a few strong copies and
+  // stop. Camps are route moments, so a map with more of them earns more
+  // copies, but not one per moment for every cheap mono.
+  const viableCampCount = camps.filter((camp) => camp.viable).length;
+  const fleetCopySaturationFor = (towerId: string) =>
+    Math.max(
+      2,
+      towerId === build.anchorTowerId
+        ? viableCampCount
+        : Math.floor(viableCampCount / 2),
+    );
   const now = settings.now ?? new Date().toISOString();
   const planId =
     settings.id ??
@@ -1396,7 +1513,7 @@ export function generateMatchPlan(
           (copyCountByTower.get(tower.towerId) ?? 0) + 1,
         );
       const belowSaturation = (towerId: string) =>
-        (copyCountByTower.get(towerId) ?? 0) < fleetCopySaturation;
+        (copyCountByTower.get(towerId) ?? 0) < fleetCopySaturationFor(towerId);
       // A fielded tower can be copied at its current level or any lower
       // one: a fresh level-1 copy of the anchor is often the best damage per
       // gold on the field once the original has been upgraded.
@@ -1471,10 +1588,26 @@ export function generateMatchPlan(
         const stage = (c: RescueCandidate) =>
           c.source === "build-path" ? 0 : 1;
         const upgradeFirst = (c: RescueCandidate) => (c.fromLevel ? 0 : 1);
+        // The anchor's first copy outranks efficiency: it is the build's
+        // damage backbone and lifts every window after this one, which a
+        // per-window lift-per-gold figure cannot see. A cheaper support
+        // tower that happens to score better here must not delay it —
+        // only a step that lands before the first leaking wave may.
+        const anchorFirst = (c: RescueCandidate) =>
+          c.source === "build-path" &&
+          c.tower.towerId === build.anchorTowerId &&
+          !c.fromLevel &&
+          !field.some((tower) => tower.towerId === build.anchorTowerId)
+            ? 0
+            : 1;
         return (
           (policy === "timing-first"
-            ? late(a) - late(b) || stage(a) - stage(b)
-            : stage(a) - stage(b) || late(a) - late(b)) ||
+            ? late(a) - late(b) ||
+              anchorFirst(a) - anchorFirst(b) ||
+              stage(a) - stage(b)
+            : anchorFirst(a) - anchorFirst(b) ||
+              stage(a) - stage(b) ||
+              late(a) - late(b)) ||
           b.efficiency - a.efficiency ||
           a.shortfall - b.shortfall ||
           upgradeFirst(a) - upgradeFirst(b) ||
@@ -1574,17 +1707,26 @@ export function generateMatchPlan(
     ) => {
       const start = snapshot();
       const timingFirst = runRescuePolicy(initial, timing, "timing-first");
+      // The window's own floor decides first — a wave left short here is
+      // never traded for lift later. Only between equal windows does the
+      // longer look (this window plus the next) break the tie, so a fleet
+      // of cheap in-time copies that patches this window and leaves the
+      // next bare loses to the build's own step that lifts both.
+      const timingWindow = verifiedShortfall(timingFirst);
+      const timingAhead = verifiedShortfall(evaluate(field, undefined, 5));
       const timingState = { ...snapshot(), survival: timingFirst };
       restore(start);
       const buildFirst = runRescuePolicy(initial, timing, "build-path-first");
-      const buildShortfall = verifiedShortfall(buildFirst);
-      const timingShortfall = verifiedShortfall(timingFirst);
-      if (
-        buildShortfall < timingShortfall - 0.0001 ||
-        (Math.abs(buildShortfall - timingShortfall) <= 0.0001 &&
-          cumulativeCost <= timingState.cumulativeCost)
-      )
-        return buildFirst;
+      const buildWindow = verifiedShortfall(buildFirst);
+      const buildAhead = verifiedShortfall(evaluate(field, undefined, 5));
+      const close = (a: number, b: number) => Math.abs(a - b) <= 0.0001;
+      const buildWins =
+        buildWindow < timingWindow - 0.0001 ||
+        (close(buildWindow, timingWindow) &&
+          (buildAhead < timingAhead - 0.0001 ||
+            (close(buildAhead, timingAhead) &&
+              cumulativeCost <= timingState.cumulativeCost)));
+      if (buildWins) return buildFirst;
       restore(timingState);
       return timingFirst;
     };
@@ -1941,9 +2083,19 @@ export function generateMatchPlan(
     // a build-path step that is waiting on gold be bought now. Needs the
     // verified sell rate; without it nothing is sold and the plan says so.
     const retireTemporaries = (): boolean => {
-      if (sellRefund == null) return false;
+      // Without a verified sell rate no refund is credited, but a temporary
+      // copy that no longer moves any wave (an un-upgraded Arrow left over
+      // from the opening) is still retired: a real player does not keep it,
+      // and carrying it forward only clutters the field and the cell map.
+      const refundRate = sellRefund ?? 0;
+      // A window with no scored wave (the open boss window today) cannot
+      // tell a dead copy from a live one: everything looks negligible.
+      if (!survival.waves.some((wave) => wave.margin != null)) return false;
       const baseline = verifiedShortfall(survival);
       const carried = new Set(startTowers.map((tower) => tower.copyId));
+      const anchorUp = field.some(
+        (tower) => tower.towerId === build.anchorTowerId,
+      );
       const candidates = field
         .flatMap((tower) => {
           if (
@@ -1955,7 +2107,10 @@ export function generateMatchPlan(
             return [];
           const without = field.filter((t) => t.copyId !== tower.copyId);
           const result = evaluate(without);
-          if (verifiedShortfall(result) > baseline + 0.0001) return [];
+          // Losing more than one percent of a wave is not negligible; a
+          // hair less is, and the rescue pass that follows a sale can put a
+          // real step in its place.
+          if (verifiedShortfall(result) > baseline + 0.01) return [];
           const contribution = Math.max(
             0,
             ...survival.waves.map((wave, index) => {
@@ -1966,8 +2121,16 @@ export function generateMatchPlan(
             }),
           );
           const paid = resolveLiveTowerCost(tower.towerId, tower.level);
+          // An un-upgraded starter (Arrow / Cannon) is wave-one shell: once
+          // the anchor is up a real player sells it whatever hair of damage
+          // it still adds, rather than leaving it forgotten on the field.
+          const starterPastItsTime = anchorUp && isBasicTowerId(tower.towerId);
           return [
-            { tower, contribution, refund: Math.round(paid * sellRefund) },
+            {
+              tower,
+              contribution: starterPastItsTime ? 0 : contribution,
+              refund: Math.round(paid * refundRate),
+            },
           ];
         })
         .sort((a, b) => a.contribution - b.contribution || b.refund - a.refund);
@@ -1979,7 +2142,9 @@ export function generateMatchPlan(
       const needed = blocked?.waitForGold ?? 0;
       const negligible = candidates.filter((c) => c.contribution < 0.01);
       const toSell = [...negligible];
-      if (blocked && needed > 0) {
+      // Selling a still-useful copy to fund a step is only honest when the
+      // refund it would bring is a verified number.
+      if (blocked && needed > 0 && sellRefund != null) {
         let pool = negligible.reduce((sum, c) => sum + c.refund, 0);
         for (const candidate of candidates) {
           if (pool >= needed) break;
@@ -2004,7 +2169,7 @@ export function generateMatchPlan(
           summary: `Sell ${tower.towerName} ${tower.level}`,
           reason:
             contribution < 0.01
-              ? `This temporary copy no longer moves any wave in this window (under 1% of a wave). Sell it at the start of the window and recover ${refund.toLocaleString()}g.`
+              ? `${isBasicTowerId(tower.towerId) ? "An un-upgraded starter has no place once the anchor is up: it adds under 1% of any wave here." : "This temporary copy no longer moves any wave in this window (under 1% of a wave)."} Sell it at the start of the window${sellRefund == null ? "; no refund is credited because the sell rate is not in the data yet." : ` and recover ${refund.toLocaleString()}g.`}`
               : `This temporary copy is not needed for this window's 100% damage floor, and its ${refund.toLocaleString()}g refund helps fund ${blocked?.summary.replace(/^Wait on /, "") ?? "the next build-path step"}.`,
           towerId: tower.towerId,
           towerName: tower.towerName,
@@ -2029,8 +2194,30 @@ export function generateMatchPlan(
       }
       return true;
     };
-    if (retireTemporaries())
-      survival = applySurvivalRescue(evaluate(field), "after-package");
+    // Retirement is a transaction: sell, let the rescue pass spend what the
+    // sale frees, and keep the result only if the window's verified floor
+    // did not drop. Each copy is negligible on its own; three starters sold
+    // together can still cost a wave its last percent, and a window that
+    // was clearing must never be traded down for a tidier field.
+    {
+      const beforeSales = snapshot();
+      const floorBefore = verifiedShortfall(survival);
+      const clearingBefore = survival.waves
+        .filter((wave) => wave.margin != null && wave.margin >= 1)
+        .map((wave) => wave.wave);
+      if (retireTemporaries()) {
+        const after = applySurvivalRescue(evaluate(field), "after-package");
+        const lostAWave = after.waves.some(
+          (wave) =>
+            clearingBefore.includes(wave.wave) &&
+            wave.margin != null &&
+            wave.margin < 1,
+        );
+        if (verifiedShortfall(after) > floorBefore + 0.0001 || lostAWave)
+          restore(beforeSales);
+        else survival = after;
+      }
+    }
 
     // Present the window the way it is played: keystone, then sells (they
     // happen first and free the gold), then purchases in landing order — a
@@ -2141,6 +2328,11 @@ export function generateMatchPlan(
             "Damage is concentrated in one copy; a leak or bad armour matchup can end the run.",
           ]
         : []),
+      // A tower that throws creeps forward takes contact time away from
+      // every other tower on the skipped stretch. The survival model still
+      // credits the full route and the full train, so its numbers overstate
+      // such a field until the loss is measured.
+      ...displacementRisks(field),
     ];
     const recoveries = [
       ...critical.flatMap((row) => (row.repair ? [row.repair] : [])),
@@ -2180,7 +2372,7 @@ export function generateMatchPlan(
           "Starting gold and per-wave bounty are benchmark inputs.",
           "No interest income is assumed.",
           sellRefund == null
-            ? "No sale value is assumed: the sell refund rate is not in the data, so temporary copies are never sold."
+            ? "No sale value is assumed: the sell refund rate is not in the data. Temporary copies that no longer move any wave are still sold, at 0g credited."
             : `Sell refunds are credited at ${Math.round(sellRefund * 100)}% of the gold paid.`,
         ],
       },

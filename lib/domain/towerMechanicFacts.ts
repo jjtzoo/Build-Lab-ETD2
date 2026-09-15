@@ -39,6 +39,14 @@ export type MechanicEffectFact = {
     resource: "lives";
     amount: string;
   };
+  /**
+   * A live-play observation attached to the effect when its magnitude is
+   * not measured yet — enough to warn on, not enough to model.
+   */
+  observation?: {
+    source: string;
+    note: string;
+  };
 };
 
 export type TowerMechanicFactCatalog = {
