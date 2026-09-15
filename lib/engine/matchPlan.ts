@@ -2304,6 +2304,7 @@ export function generateMatchPlan(
       const clearingBefore = survival.waves
         .filter((wave) => wave.margin != null && wave.margin >= 1)
         .map((wave) => wave.wave);
+      const fieldBefore = field.length;
       if (retireTemporaries()) {
         const after = applySurvivalRescue(evaluate(field), "after-package");
         const lostAWave = after.waves.some(
@@ -2312,7 +2313,13 @@ export function generateMatchPlan(
             wave.margin != null &&
             wave.margin < 1,
         );
-        if (verifiedShortfall(after) > floorBefore + 0.0001 || lostAWave)
+        // A sold shell may cost up to one percent of a wave each — that is
+        // the definition of negligible — but never a wave that was clearing.
+        const sold = Math.max(0, fieldBefore - field.length);
+        if (
+          verifiedShortfall(after) > floorBefore + 0.01 * sold + 0.0001 ||
+          lostAWave
+        )
           restore(beforeSales);
         else survival = after;
       }

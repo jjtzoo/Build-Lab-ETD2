@@ -153,6 +153,18 @@ describe("Match Plan UI", () => {
     expect(document.querySelectorAll(".match-tower.is-selected").length).toBe(
       1,
     );
+    // The snapshot reads as grouped rosters and grouped actions, not as
+    // one card per copy: temporaries fold into a single line, the actions
+    // carry a tier, and the anchor row sits first once it is fielded.
+    expect(
+      document.querySelectorAll(".snapshot-roster-temp summary").length,
+    ).toBeGreaterThan(0);
+    expect(
+      document.querySelector(".snapshot-roster-temp summary")?.textContent,
+    ).toMatch(/[0-9]+ temporary cop/);
+    expect(
+      document.querySelectorAll(".snapshot-actions li[data-tier]").length,
+    ).toBeGreaterThan(0);
     // Every token on the board carries its level as a roman numeral pip.
     const pips = document.querySelectorAll(".match-tower-level text");
     expect(pips.length).toBeGreaterThan(0);

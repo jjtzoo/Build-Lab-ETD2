@@ -22,6 +22,7 @@ import {
   MATCH_PLAN_STORAGE_KEY,
   parseMatchPlan,
   type MatchPlan,
+  type MatchPlanAction,
   type MatchPlanCamp,
   type MatchPlanPhase,
   type PlannedTowerState,
@@ -858,8 +859,9 @@ export function MatchPlanView({
       <nav className="match-timeline" aria-label="Match phases">
         {plan.phases.map((entry, index) => {
           // Each chip carries the window's tightest verified wave and its
-          // share of the wave HP, coloured by how close it is: clear at or
-          // above 100%, thin in the nineties, short below. A window with no
+          // share of the wave HP, coloured by the engine's own verdict —
+          // fails, borderline (under the 15% safety margin), survives — so
+          // the row never looks better than the verdict. A window with no
           // verified wave (a boss window today) is hollow; a coverage
           // problem is named only when there is no tighter fact to show.
           const boss = entry.survival.waves.some((wave) => wave.count == null);
@@ -867,11 +869,13 @@ export function MatchPlanView({
           const severity =
             margin == null
               ? "hollow"
-              : margin < 0.9
+              : entry.survival.status === "fails"
                 ? "short"
-                : margin < 1
-                  ? "thin"
-                  : "clear";
+                : entry.survival.status === "unverified"
+                  ? "hollow"
+                  : entry.survival.status === "borderline" || margin < 1.15
+                    ? "thin"
+                    : "clear";
           const critical = entry.coverage.some(
             (row) => row.status === "critical",
           );
@@ -928,6 +932,12 @@ export function MatchPlanView({
 
       <PhaseSnapshot
         phase={phase}
+        anchorTowerId={
+          source?.anchorTowerId ??
+          (plan.sourceBuild as { anchorTowerId?: string }).anchorTowerId ??
+          ""
+        }
+        campNames={new Map(plan.camps.map((camp) => [camp.id, campCode(camp)]))}
         selectedCopyId={selectedCopyId}
         onSelectTower={setSelectedCopyId}
         iconFor={iconForTower}
@@ -1107,13 +1117,348 @@ export function MatchPlanView({
   );
 }
 
+type RosterRow = {
+  key: string;
+  towerId: string;
+  towerName: string;
+  level: number;
+  count: number;
+  status: PlannedTowerState["status"];
+  change: TowerChange | null;
+  camps: string[];
+  copyIds: string[];
+};
+
+/**
+ * A field as a player counts it: one row per tower and level, the anchor
+ * first, then the package, with every temporary copy folded into one
+ * collapsed line. Thirty identical cards say less than "Laser 2 · ×3".
+ */
+function rosterRows(
+  towers: readonly PlannedTowerState[],
+  anchorTowerId: string,
+  campNames: ReadonlyMap<string, string>,
+  changeOf?: (tower: PlannedTowerState) => TowerChange,
+): { main: RosterRow[]; temporary: RosterRow[] } {
+  // Only starters and monos fold into the "temporary" line: the engine
+  // also flags rescue copies of real towers as temporary (it may sell
+  // them), but a fourth Laser is the field, not a shell.
+  const shell = (tower: PlannedTowerState) =>
+    tower.status === "temporary" &&
+    (isBasicTowerId(tower.towerId) || isMonoTowerId(tower.towerId));
+  const rows = new Map<string, RosterRow>();
+  for (const tower of towers) {
+    const change = changeOf ? changeOf(tower) : null;
+    const key = `${tower.towerId}:${tower.level}:${shell(tower) ? "shell" : "main"}:${change ?? ""}`;
+    const row = rows.get(key) ?? {
+      key,
+      towerId: tower.towerId,
+      towerName: tower.towerName,
+      level: tower.level,
+      count: 0,
+      status: shell(tower) ? "temporary" : "permanent",
+      change,
+      camps: [],
+      copyIds: [],
+    };
+    row.count += tower.quantity || 1;
+    row.copyIds.push(tower.copyId);
+    const camp = tower.campId
+      ? (campNames.get(tower.campId) ?? tower.campId)
+      : null;
+    if (camp && !row.camps.includes(camp)) row.camps.push(camp);
+    rows.set(key, row);
+  }
+  const order = (a: RosterRow, b: RosterRow) =>
+    Number(b.towerId === anchorTowerId) - Number(a.towerId === anchorTowerId) ||
+    b.level - a.level ||
+    b.count - a.count ||
+    a.towerName.localeCompare(b.towerName);
+  const all = [...rows.values()];
+  return {
+    main: all.filter((row) => row.status !== "temporary").sort(order),
+    temporary: all.filter((row) => row.status === "temporary").sort(order),
+  };
+}
+
+const CHANGE_WORD: Record<TowerChange, string> = {
+  new: "new here",
+  upgraded: "upgraded here",
+  carried: "held",
+};
+
+function Roster({
+  towers,
+  anchorTowerId,
+  campNames,
+  iconFor,
+  changeOf,
+  selectedCopyId,
+  onSelectTower,
+}: {
+  towers: readonly PlannedTowerState[];
+  anchorTowerId: string;
+  campNames: ReadonlyMap<string, string>;
+  iconFor: (towerId: string) => string | null | undefined;
+  changeOf?: (tower: PlannedTowerState) => TowerChange;
+  selectedCopyId?: string | null;
+  onSelectTower?: (copyId: string) => void;
+}) {
+  const { main, temporary } = rosterRows(
+    towers,
+    anchorTowerId,
+    campNames,
+    changeOf,
+  );
+  const temporaryCount = temporary.reduce((sum, row) => sum + row.count, 0);
+  const renderRow = (row: RosterRow) => {
+    const icon = iconFor(row.towerId);
+    const selected =
+      selectedCopyId != null && row.copyIds.includes(selectedCopyId);
+    const body = (
+      <>
+        <i>
+          {icon ? (
+            <Image
+              className="snapshot-tower-icon"
+              src={icon}
+              alt=""
+              width={20}
+              height={20}
+            />
+          ) : (
+            row.towerName.slice(0, 1)
+          )}
+        </i>
+        <span>
+          {row.towerName} {row.level}
+        </span>
+        <b>×{row.count}</b>
+        <small>
+          {[
+            row.camps.length ? row.camps.join(", ") : null,
+            row.change ? CHANGE_WORD[row.change] : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </small>
+      </>
+    );
+    return (
+      <li
+        key={row.key}
+        data-change={row.change ?? undefined}
+        data-anchor={row.towerId === anchorTowerId || undefined}
+      >
+        {onSelectTower ? (
+          <button
+            type="button"
+            className={selected ? "is-selected" : ""}
+            aria-pressed={selected}
+            aria-label={`${row.towerName} ${row.level} ×${row.count} — show on the map`}
+            onClick={() => onSelectTower(row.copyIds[0])}
+          >
+            {body}
+          </button>
+        ) : (
+          <div>{body}</div>
+        )}
+      </li>
+    );
+  };
+  return (
+    <div className="snapshot-roster">
+      {main.length > 0 && <ul>{main.map(renderRow)}</ul>}
+      {temporary.length > 0 && (
+        <details className="snapshot-roster-temp">
+          <summary>
+            {temporaryCount} temporary{" "}
+            {temporaryCount === 1 ? "copy" : "copies"}
+            <small>
+              {temporary
+                .map((row) => `${row.count} ${row.towerName} ${row.level}`)
+                .join(", ")}
+            </small>
+          </summary>
+          <ul>{temporary.map(renderRow)}</ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+type ActionRow = {
+  key: string;
+  tier: "keystone" | "package" | "repair" | "sell" | "wait";
+  verb: string;
+  subject: string;
+  count: number;
+  cost: number;
+  refund: number;
+  waves: number[];
+  cells: string[];
+  copyIds: string[];
+  reason: string;
+};
+
+/**
+ * The window's actions grouped the way a player reads them: "Upgrade
+ * Blacksmith 2 ×3 · 2,400g · W46–49". Three tiers — the build's own steps,
+ * survival repairs, sells — then what is being waited on.
+ */
+function actionRows(actions: readonly MatchPlanAction[]): ActionRow[] {
+  const rows = new Map<string, ActionRow>();
+  for (const action of actions) {
+    const tier: ActionRow["tier"] =
+      action.type === "allocate-element"
+        ? "keystone"
+        : action.type === "sell"
+          ? "sell"
+          : !action.affordable
+            ? "wait"
+            : /:(survival|coverage)-repair:/.test(action.id)
+              ? "repair"
+              : "package";
+    const verb =
+      tier === "keystone"
+        ? "Allocate"
+        : tier === "sell"
+          ? "Sell"
+          : tier === "wait"
+            ? "Wait on"
+            : action.fromLevel
+              ? "Upgrade"
+              : "Build";
+    const level =
+      tier === "sell" ? action.fromLevel : action.toLevel || action.fromLevel;
+    const subject =
+      tier === "keystone"
+        ? `${action.element} ${action.elementLevel}`
+        : `${action.towerName ?? action.summary} ${level ?? ""}`.trim();
+    const key = `${tier}:${verb}:${subject}`;
+    const row = rows.get(key) ?? {
+      key,
+      tier,
+      verb,
+      subject,
+      count: 0,
+      cost: 0,
+      refund: 0,
+      waves: [],
+      cells: [],
+      copyIds: [],
+      reason: action.reason,
+    };
+    row.count += 1;
+    row.cost += action.cost;
+    row.refund += action.refund ?? 0;
+    if (action.targetWave) row.waves.push(action.targetWave);
+    if (action.cellLabel) row.cells.push(action.cellLabel);
+    if (action.copyId) row.copyIds.push(action.copyId);
+    rows.set(key, row);
+  }
+  const tierOrder = { keystone: 0, package: 1, repair: 2, sell: 3, wait: 4 };
+  return [...rows.values()].sort(
+    (a, b) =>
+      tierOrder[a.tier] - tierOrder[b.tier] ||
+      Math.min(...a.waves, 99) - Math.min(...b.waves, 99),
+  );
+}
+
+function ActionRows({
+  actions,
+  selectedCopyId,
+  onSelectTower,
+}: {
+  actions: readonly MatchPlanAction[];
+  selectedCopyId: string | null;
+  onSelectTower: (copyId: string) => void;
+}) {
+  const rows = actionRows(actions);
+  const shown = rows.slice(0, 8);
+  const rest = rows.slice(8);
+  const renderRow = (row: ActionRow) => {
+    const first = row.waves.length ? Math.min(...row.waves) : null;
+    const last = row.waves.length ? Math.max(...row.waves) : null;
+    const waves =
+      first == null ? null : first === last ? `W${first}` : `W${first}–${last}`;
+    const money =
+      row.tier === "sell"
+        ? `+${row.refund.toLocaleString()}g back`
+        : row.tier === "keystone"
+          ? "keystone"
+          : `${row.cost.toLocaleString()}g`;
+    const meta = [
+      money,
+      row.cells.length && row.cells.length <= 3 ? row.cells.join(", ") : null,
+      waves
+        ? row.tier === "wait"
+          ? `wanted by ${waves}`
+          : `before ${waves}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const selected =
+      selectedCopyId != null && row.copyIds.includes(selectedCopyId);
+    const locatable = row.copyIds.length > 0 && row.tier !== "sell";
+    const body = (
+      <>
+        <span>
+          {row.verb} {row.subject}
+          {row.count > 1 && <b> ×{row.count}</b>}
+        </span>
+        <small>{meta}</small>
+      </>
+    );
+    return (
+      <li key={row.key} data-tier={row.tier}>
+        {locatable ? (
+          <button
+            type="button"
+            className={selected ? "is-selected" : ""}
+            aria-pressed={selected}
+            aria-label={`${row.verb} ${row.subject} — show on the map`}
+            onClick={() => onSelectTower(row.copyIds[0])}
+          >
+            {body}
+          </button>
+        ) : (
+          <div>{body}</div>
+        )}
+      </li>
+    );
+  };
+  if (!rows.length)
+    return (
+      <p className="snapshot-action-empty">
+        Nothing to buy or sell in this window.
+      </p>
+    );
+  return (
+    <>
+      <ol className="snapshot-actions">{shown.map(renderRow)}</ol>
+      {rest.length > 0 && (
+        <details className="snapshot-actions-more">
+          <summary>and {rest.length} more</summary>
+          <ol className="snapshot-actions">{rest.map(renderRow)}</ol>
+        </details>
+      )}
+    </>
+  );
+}
+
 function PhaseSnapshot({
   phase,
+  anchorTowerId,
+  campNames,
   selectedCopyId,
   onSelectTower,
   iconFor,
 }: {
   phase: MatchPlan["phases"][number];
+  anchorTowerId: string;
+  campNames: ReadonlyMap<string, string>;
   selectedCopyId: string | null;
   onSelectTower: (copyId: string) => void;
   iconFor: (towerId: string) => string | null | undefined;
@@ -1179,13 +1524,12 @@ function PhaseSnapshot({
           </strong>
           <small>bank at wave {phase.startWave}</small>
           {phase.startTowers.length ? (
-            <ul>
-              {phase.startTowers.map((tower) => (
-                <li key={tower.copyId}>
-                  {tower.towerName} {tower.level}
-                </li>
-              ))}
-            </ul>
+            <Roster
+              towers={phase.startTowers}
+              anchorTowerId={anchorTowerId}
+              campNames={campNames}
+              iconFor={iconFor}
+            />
           ) : (
             <span>Open field</span>
           )}
@@ -1207,7 +1551,6 @@ function PhaseSnapshot({
               <small>Plan spend</small>
               <b>{phase.economy.phaseCost.toLocaleString()}g</b>
             </span>
-            <i>=</i>
             {phase.economy.phaseRefund > 0 && (
               <>
                 <i>+</i>
@@ -1217,102 +1560,34 @@ function PhaseSnapshot({
                 </span>
               </>
             )}
+            <i>=</i>
             <span>
-              <small>Left after wave {phase.endWave ?? "56"}</small>
+              <small>Left after wave {phase.endWave ?? "70"}</small>
               <b>{phase.economy.phaseEndGold.toLocaleString()}g</b>
             </span>
           </div>
           <p className="snapshot-action-label">Do in this window</p>
-          <ol>
-            {phase.actions.length ? (
-              phase.actions.map((action) => (
-                <li
-                  key={action.id}
-                  className={
-                    action.type === "sell"
-                      ? "is-sell"
-                      : !action.affordable
-                        ? "is-wait"
-                        : ""
-                  }
-                >
-                  <button
-                    type="button"
-                    disabled={!action.copyId}
-                    onClick={() =>
-                      action.copyId && onSelectTower(action.copyId)
-                    }
-                  >
-                    <b>
-                      {action.type === "sell"
-                        ? "Sell"
-                        : action.affordable
-                          ? "Do"
-                          : "Wait"}
-                    </b>
-                    {action.summary}
-                    <small>
-                      {action.type === "sell"
-                        ? `+${(action.refund ?? 0).toLocaleString()}g back`
-                        : action.cost
-                          ? `${action.cost.toLocaleString()}g`
-                          : "keystone"}
-                      {action.targetWave
-                        ? ` · before W${action.targetWave}`
-                        : ""}
-                    </small>
-                  </button>
-                </li>
-              ))
-            ) : (
-              <li>
-                <span>Nothing to buy or sell in this window</span>
-              </li>
-            )}
-          </ol>
+          <ActionRows
+            actions={phase.actions}
+            selectedCopyId={selectedCopyId}
+            onSelectTower={onSelectTower}
+          />
         </section>
         <section className="snapshot-end">
-          <p>03 · End target · after wave {phase.endWave ?? "70+"}</p>
-          <div className="snapshot-towers">
-            {changes.length ? (
-              changes.map(({ tower, kind }) => {
-                const icon = iconFor(tower.towerId);
-                return (
-                  <button
-                    key={tower.copyId}
-                    type="button"
-                    aria-pressed={tower.copyId === selectedCopyId}
-                    className={`is-${kind} ${tower.copyId === selectedCopyId ? "is-selected" : ""}`}
-                    onClick={() => onSelectTower(tower.copyId)}
-                  >
-                    <i>
-                      {icon ? (
-                        <Image
-                          className="snapshot-tower-icon"
-                          src={icon}
-                          alt=""
-                          width={24}
-                          height={24}
-                        />
-                      ) : (
-                        tower.towerName.slice(0, 1)
-                      )}
-                    </i>
-                    <span>
-                      {tower.towerName} {tower.level}
-                    </span>
-                    <small>
-                      {kind}
-                      {tower.status === "temporary" ? " · temporary" : ""}
-                      {tower.campId ? ` · ${tower.campId}` : ""}
-                    </small>
-                  </button>
-                );
-              })
-            ) : (
-              <span>Nothing should be placed yet.</span>
-            )}
-          </div>
+          <p>03 · End target · after wave {phase.endWave ?? "70"}</p>
+          {phase.endTowers.length ? (
+            <Roster
+              towers={phase.endTowers}
+              anchorTowerId={anchorTowerId}
+              campNames={campNames}
+              iconFor={iconFor}
+              changeOf={(tower) => towerChange(phase, tower)}
+              selectedCopyId={selectedCopyId}
+              onSelectTower={onSelectTower}
+            />
+          ) : (
+            <span>Nothing should be placed yet.</span>
+          )}
         </section>
       </div>
       <section className="snapshot-survival" aria-label="Survival check">
@@ -1560,7 +1835,11 @@ function CopilotDecision({
                 risk.startsWith("Out of gold in time") ||
                 risk.startsWith("Nothing more can be bought"),
             ) ??
-            "Do not advance the long-term package until the five-wave survival check passes.",
+            (phase.actions.some(
+              (action) => action.affordable && action.cost > 0,
+            )
+              ? "Every purchase in this window is already the strongest legal step for the failing wave; the shortfall that remains is what the field cannot buy its way out of here."
+              : "Nothing this window can buy lifts the failing wave in time."),
         }
       : blocked
         ? blocked.legal
@@ -1606,7 +1885,9 @@ function CopilotDecision({
         <b>Decision gate</b>{" "}
         {phase.survival.status === "survives"
           ? "Proceed while live gold and the field match this snapshot."
-          : "Resolve the survival or data warning before proceeding."}
+          : phase.survival.status === "fails"
+            ? "Buy the repairs above before anything else in this window; if the wave still leaks, the next lever is named in the reason."
+            : "Nothing here is verified against live play; follow the field and watch the wave the model cannot see."}
       </p>
       {phase.actions.length > 0 && (
         <details>
@@ -1770,13 +2051,13 @@ function PlanMap({
     : (viableCamps.find((camp) => camp.id === focusTower?.campId) ?? null);
   const doctrine = focusTower
     ? focusTower.globalBuff
-      ? "Global buff: use a low-opportunity cell. Ally proximity and route contact do not improve the effect."
+      ? "This tower buffs the others, so put it on a cell nobody else wants — being near the route does nothing for it."
       : focusTower.directHitDebuff
-        ? "Direct-hit debuff: share a firing window with damage towers so affected creeps are actually punished."
+        ? "This tower weakens creeps on hit, so it belongs where your damage towers are already shooting."
         : selectedIsLongRange
-          ? "Long range: work from the backline and preserve scarce route-edge cells for short-range towers."
-          : "Damage: open a distinct route-time camp before adding another copy to an occupied camp."
-    : "Spread damage across distinct route moments. Keep route-edge cells for effects that must make contact.";
+          ? "Long range: place it a row back and keep the cells beside the route for towers that need to be close."
+          : "Damage: put the next copy in a camp the creeps reach at a different moment before doubling up in one."
+    : "Each camp meets the creeps at a different moment of the route. Spread damage across them; keep the cells beside the route for towers that must be close.";
   const labelOrigin = {
     col: Math.min(...map.buildableCells.map((cell) => cell.col)),
     row: Math.min(...map.buildableCells.map((cell) => cell.row)),
@@ -2120,8 +2401,14 @@ function PlanMap({
                   </button>
                 ) : (
                   <p className="match-camp-auto">
-                    Engine assigned · {assigned} now
-                    {queued ? ` · ${queued} later` : ""}
+                    {assigned
+                      ? `${assigned} tower${assigned === 1 ? "" : "s"} here`
+                      : "Empty this window"}
+                    {queued
+                      ? ` · ${queued} more planned later`
+                      : assigned
+                        ? " · none planned later"
+                        : ""}
                   </p>
                 )}
               </article>

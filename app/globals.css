@@ -7142,15 +7142,6 @@ button.mechanic-chip {
 .snapshot-start {
   background: color-mix(in srgb, var(--surface-raised) 58%, transparent);
 }
-.snapshot-start ul {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--text-2);
-  font-size: 13px;
-}
 .snapshot-start span {
   color: var(--muted);
   font-size: 13px;
@@ -7230,121 +7221,203 @@ button.mechanic-chip {
   margin-bottom: 6px !important;
   font-size: 8px !important;
 }
-.snapshot-commitments ol {
+/* Grouped rosters (01 and 03): one row per tower and level, the anchor
+   first, temporaries folded away. Tabular numbers keep the ×N column
+   still while the eye runs down it. */
+.snapshot-roster ul {
   display: grid;
-  gap: 7px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.snapshot-commitments li {
-  border-left: 2px solid var(--plan-cyan);
-}
-.snapshot-commitments li.is-wait {
-  border-color: var(--plan-amber);
-}
-.snapshot-commitments button {
+.snapshot-roster li > button,
+.snapshot-roster li > div {
   display: grid;
-  grid-template-columns: max-content 1fr max-content;
+  grid-template-columns: 20px minmax(0, 1fr) max-content;
+  grid-template-areas:
+    "icon name count"
+    "icon meta meta";
+  column-gap: 9px;
+  row-gap: 1px;
   align-items: center;
-  gap: 8px;
   width: 100%;
   padding: 5px 8px;
-  color: var(--text-2);
-  border: 0;
-  background: transparent;
-  text-align: left;
-  font-size: 12px;
-}
-.snapshot-commitments button:not(:disabled):hover {
-  background: color-mix(in srgb, var(--plan-cyan) 8%, transparent);
-  color: var(--text);
-}
-.snapshot-commitments button:disabled {
-  cursor: default;
-  opacity: 0.84;
-}
-.snapshot-commitments button b {
-  color: var(--plan-cyan);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.snapshot-commitments li.is-wait button b {
-  color: var(--plan-amber);
-}
-.snapshot-commitments button small {
-  color: var(--muted);
-  font: 10px var(--font-mono, monospace);
-}
-.snapshot-towers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.snapshot-towers button {
-  display: grid;
-  grid-template-columns: 24px auto;
-  column-gap: 7px;
-  align-items: center;
-  min-width: 135px;
-  padding: 7px 9px;
-  color: var(--text);
-  border: 1px solid var(--line-strong);
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: var(--surface-raised);
+  background: transparent;
+  color: var(--text);
   text-align: left;
   transition:
-    border-color 0.18s ease,
-    transform 0.18s ease,
-    background 0.18s ease;
+    border-color 0.16s var(--ease),
+    background 0.16s var(--ease);
 }
-.snapshot-towers button:hover,
-.snapshot-towers button.is-selected {
-  border-color: var(--plan-cyan);
-  background: color-mix(in srgb, var(--plan-cyan) 9%, var(--surface-raised));
-  transform: translateY(-1px);
+.snapshot-roster li > button:hover,
+.snapshot-roster li > button.is-selected {
+  border-color: color-mix(in srgb, var(--plan-cyan) 55%, transparent);
+  background: color-mix(in srgb, var(--plan-cyan) 8%, transparent);
 }
-.snapshot-towers i {
+.snapshot-roster li > button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.snapshot-roster i {
+  grid-area: icon;
   display: grid;
-  grid-row: span 2;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--plan-cyan);
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line-strong);
   border-radius: 3px;
+  overflow: hidden;
   color: var(--plan-cyan);
+  font-size: 10px;
   font-style: normal;
   font-weight: 800;
 }
-.snapshot-towers i:has(.snapshot-tower-icon) {
-  padding: 0;
-  overflow: hidden;
+.snapshot-roster li[data-anchor] i {
+  border-color: var(--plan-cyan);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--plan-cyan) 40%, transparent);
 }
 .snapshot-tower-icon {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 2px;
 }
-.snapshot-towers button.is-carried .snapshot-tower-icon {
-  opacity: 0.55;
-}
-.snapshot-towers button.is-new i {
-  box-shadow: 0 0 14px color-mix(in srgb, var(--plan-cyan) 48%, transparent);
-}
-.snapshot-towers button.is-upgraded i {
-  border-color: var(--plan-amber);
-  color: var(--plan-amber);
-}
-.snapshot-towers span {
+.snapshot-roster span {
+  grid-area: name;
   font-size: 12px;
   font-weight: 700;
 }
-.snapshot-towers small {
-  color: var(--muted);
-  font-size: 9px;
+.snapshot-roster b {
+  grid-area: count;
+  color: var(--text-2);
+  font: 700 11px var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
 }
+.snapshot-roster small {
+  grid-area: meta;
+  color: var(--muted);
+  font-size: 10px;
+}
+.snapshot-roster li[data-change="new"] small,
+.snapshot-roster li[data-change="upgraded"] small {
+  color: var(--plan-cyan);
+}
+.snapshot-roster li[data-change="carried"] > button {
+  opacity: 0.8;
+}
+.snapshot-roster li[data-change="carried"] > button:hover,
+.snapshot-roster li[data-change="carried"] > button.is-selected {
+  opacity: 1;
+}
+.snapshot-roster-temp {
+  margin-top: 6px;
+}
+.snapshot-roster-temp > summary {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  color: var(--muted);
+  font: 600 11px/1.3 var(--font-mono, monospace);
+  cursor: pointer;
+}
+.snapshot-roster-temp > summary small {
+  color: var(--muted);
+  font: 10px var(--font-sans, inherit);
+}
+.snapshot-roster-temp[open] > summary {
+  border-style: solid;
+  color: var(--text-2);
+}
+.snapshot-roster-temp ul {
+  margin-top: 4px;
+}
+
+/* Grouped actions (02): three tiers — the build's own steps carry a
+   filled marker, survival repairs a hairline, sells a muted one — and
+   the wait last in amber. */
+.snapshot-actions {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.snapshot-actions li {
+  border-left: 2px solid var(--line-strong);
+}
+.snapshot-actions li[data-tier="keystone"],
+.snapshot-actions li[data-tier="package"] {
+  border-color: var(--plan-cyan);
+}
+.snapshot-actions li[data-tier="repair"] {
+  border-color: color-mix(in srgb, var(--plan-cyan) 45%, transparent);
+}
+.snapshot-actions li[data-tier="sell"] {
+  border-color: var(--line-strong);
+}
+.snapshot-actions li[data-tier="wait"] {
+  border-color: var(--plan-amber);
+}
+.snapshot-actions li > button,
+.snapshot-actions li > div {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  font-size: 12px;
+  transition: background 0.16s var(--ease);
+}
+.snapshot-actions li > button:hover,
+.snapshot-actions li > button.is-selected {
+  background: color-mix(in srgb, var(--plan-cyan) 8%, transparent);
+  color: var(--text);
+}
+.snapshot-actions li > button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.snapshot-actions li[data-tier="sell"] > div {
+  color: var(--muted);
+}
+.snapshot-actions li[data-tier="wait"] > div span,
+.snapshot-actions li[data-tier="wait"] > button span {
+  color: var(--plan-amber);
+}
+.snapshot-actions span b {
+  color: var(--text);
+  font: 700 11px var(--font-mono, monospace);
+}
+.snapshot-actions small {
+  color: var(--muted);
+  font: 10px var(--font-mono, monospace);
+}
+.snapshot-action-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.snapshot-actions-more {
+  margin-top: 6px;
+}
+.snapshot-actions-more > summary {
+  padding: 4px 8px;
+  color: var(--muted);
+  font: 600 11px var(--font-mono, monospace);
+  cursor: pointer;
+}
+.snapshot-actions-more > ol {
+  margin-top: 5px;
+}
+
 .phase-snapshot > footer {
   display: flex;
   flex-wrap: wrap;
@@ -7453,9 +7526,6 @@ button.mechanic-chip {
   margin-top: 3px;
   color: var(--muted);
   font: 8px var(--font-mono, monospace);
-}
-.snapshot-commitments ol li.is-sell button b {
-  color: var(--plan-amber);
 }
 .snapshot-survival details {
   margin-top: 10px;
@@ -7882,30 +7952,42 @@ button.mechanic-chip {
   color: var(--muted);
   font-style: normal;
 }
+/* Thirteen windows in a row that wraps rather than scrolls: nothing is
+   ever off the edge, and the boss stage keeps its hairline on the same
+   line or the next. Each chip is the window's tightest verified wave in
+   the engine's own colour — the verdict, not a prettier reading of it. */
 .match-timeline {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(72px, 1fr);
-  overflow-x: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 0;
   padding: 24px clamp(20px, 4vw, 56px) 8px;
 }
 .match-timeline button {
   position: relative;
   display: grid;
-  gap: 3px;
-  min-width: 82px;
-  padding: 12px 7px 10px;
+  gap: 4px;
+  flex: 1 1 84px;
+  min-width: 84px;
+  padding: 12px 8px 10px;
   color: var(--muted);
   background: transparent;
   border: 0;
   border-top: 2px solid var(--line-strong);
   text-align: left;
+  transition: color 160ms var(--ease);
+}
+.match-timeline button:hover {
+  color: var(--text);
+}
+.match-timeline button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 .match-timeline button::before {
   content: "";
   position: absolute;
   top: -5px;
-  left: 7px;
+  left: 8px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -7921,29 +8003,30 @@ button.mechanic-chip {
   border-color: var(--plan-cyan);
   box-shadow: 0 0 14px color-mix(in srgb, var(--plan-cyan) 60%, transparent);
 }
+/* The window id is the label; the tightest wave is the fact. */
 .match-timeline button span {
-  font: 700 12px/1 var(--font-mono, monospace);
+  font: 600 10px/1 var(--font-mono, monospace);
+  letter-spacing: 0.04em;
 }
 .match-timeline button small {
-  font-size: 9px;
+  font: 700 12px/1.1 var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* Severity of the window's tightest verified wave, on the dot and the
-   readout: clear (cyan), thin (amber), short (red), hollow (unverified). */
-.match-timeline button[data-severity="clear"] small {
+.match-timeline button[data-severity="clear"] small,
+.match-timeline button[data-severity="clear"]::before {
   color: var(--plan-cyan);
+  border-color: color-mix(in srgb, var(--plan-cyan) 70%, var(--line-strong));
 }
-.match-timeline button[data-severity="thin"] small {
-  color: var(--plan-amber);
-}
-.match-timeline button[data-severity="short"] small {
-  color: var(--plan-red);
-}
-.match-timeline button[data-severity="short"]::before {
-  border-color: var(--plan-red);
-}
+.match-timeline button[data-severity="thin"] small,
 .match-timeline button[data-severity="thin"]::before {
+  color: var(--plan-amber);
   border-color: var(--plan-amber);
+}
+.match-timeline button[data-severity="short"] small,
+.match-timeline button[data-severity="short"]::before {
+  color: var(--plan-red);
+  border-color: var(--plan-red);
 }
 .match-timeline button[data-severity="hollow"]::before {
   background: transparent;
@@ -7951,12 +8034,13 @@ button.mechanic-chip {
 }
 .match-timeline button[data-severity="hollow"] small {
   color: var(--muted);
+  font-weight: 500;
 }
 /* The boss stage sits after a hairline. */
 .match-timeline-divider {
   align-self: stretch;
   width: 1px;
-  margin: 8px 6px 0;
+  margin: 8px 10px 0;
   background: var(--line-strong);
 }
 .match-phase-heading {
