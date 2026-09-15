@@ -2018,7 +2018,7 @@ export function generateMatchPlan(
           );
           const cost = actionCost(mono.id, 0, level);
           return [{ mono, level, score, cost }];
-        }).sort((a, b) => b.score - a.score || a.cost - b.cost)[0];
+        }).sort((a, b) => b.score - a.score || b.cost - a.cost)[0];
         const spendable = Math.max(0, lower - windowReserve);
         if (repair && cumulativeCost + repair.cost <= spendable) {
           const copyId = stableId(planId, "copy", repair.mono.id, 1);
@@ -2141,6 +2141,163 @@ export function generateMatchPlan(
       }
     };
 
+    // A real player builds what they already committed to before reaching
+    // for a stranger tower: if the queue still holds a copy that is legal
+    // right now (no extra keystone) and does not itself sit weak against a
+    // defender this field is weak or critical against, pull it forward
+    // ahead of its normal turn. Ranked by the matchup it actually carries
+    // first, then by cost — a real tower usually outguns a bare mono, so
+    // more investment wins a tie instead of losing to it, and a neutral
+    // (1x) tower with real damage can be the better repair than a nominal
+    // counter that is too cheap to help (Earth 1 vs Darkness 2 against
+    // Earth armour, both 1x: Darkness 2 is the buy once nothing actually
+    // counters the armour yet). Runs only after survival rescue has already
+    // settled for the window (called below, not from inside
+    // runPackagePurchases): discovered on Quake (Very Hard) that running it
+    // earlier changed what the rescue ranking judged the field still
+    // needed and delayed the anchor's own construction by a full window,
+    // costing three windows that used to clear. Transactional like
+    // retireTemporaries below for the same reason: a repair that makes the
+    // wider stretch worse is not a repair.
+    const runSamePathCoverageRepair = () => {
+      const weakOrCritical = coverageRows(field).filter(
+        (row) => row.status === "critical" || row.status === "weak",
+      );
+      if (!weakOrCritical.length) return;
+      const spendable = Math.max(0, lower - windowReserve);
+      const samePath = remainingQueue()
+        .filter((entry) => !purchased.has(purchaseKey(entry)))
+        .flatMap((entry) => {
+          if (!isLegal(entry.towerId, entry.toLevel, allocation)) return [];
+          const copyId = stableId(
+            planId,
+            "copy",
+            entry.towerId,
+            entry.copyOrdinal,
+          );
+          const existing = field.find((tower) => tower.copyId === copyId);
+          const fromLevel = existing?.level ?? 0;
+          if (fromLevel >= entry.toLevel) return [];
+          if (fromLevel < entry.toLevel - 1) return [];
+          // A buff/debuff provider's own hit barely moves the weighted
+          // coverage average next to its buff value — Blacksmith/Well/
+          // Trickery still classify as "hybrid" (their own damage is
+          // nonzero), so the effect check alone does not catch them.
+          const effect = effectFor(entry.towerId, entry.toLevel);
+          if (effect !== "damage" && effect !== "hybrid") return [];
+          if (isSurvivalBuffProvider(entry.towerId)) return [];
+          const facts = towerFacts(entry.towerId, entry.toLevel);
+          const element = facts.damageElement;
+          if (!element || element === "Composite") return [];
+          if (!facts.baseDps) return [];
+          if (
+            weakOrCritical.some(
+              (row) => ELEMENT_MATCHUPS[element][row.defender] < 1,
+            )
+          )
+            return [];
+          const cost = actionCost(entry.towerId, fromLevel, entry.toLevel);
+          if (cumulativeCost + cost > spendable) return [];
+          // Bounded to a modest slice of this window's own income: a repair
+          // that costs more than half of what this window brings in is not
+          // a nudge, it is redirecting money later windows were counting on.
+          if (cost > incomeThisPhase * 0.5) return [];
+          const matchupScore = weakOrCritical.reduce(
+            (sum, row) => sum + ELEMENT_MATCHUPS[element][row.defender],
+            0,
+          );
+          // A real counter (2x) always outranks a merely-neutral tower
+          // (1x), but among ties — Earth 1 and Darkness 2 are both neutral
+          // against Earth armour — the one with more actual damage moves
+          // the weighted average further, so it wins.
+          const score = matchupScore * facts.baseDps;
+          return [{ entry, fromLevel, cost, score }];
+        })
+        .sort((a, b) => b.score - a.score || b.cost - a.cost)[0];
+      if (!samePath) return;
+      const before = snapshot();
+      const beforeWideShortfall = verifiedShortfall(
+        evaluate(field, undefined, 20),
+      );
+      const { entry, fromLevel, cost } = samePath;
+      const copyId = stableId(planId, "copy", entry.towerId, entry.copyOrdinal);
+      const existing = field.find((tower) => tower.copyId === copyId);
+      const placement = existing?.cell
+        ? { cell: existing.cell, campId: existing.campId ?? "uncamped" }
+        : (overriddenPlacement(
+            overrides,
+            copyId,
+            map,
+            camps,
+            field.flatMap((tower) => (tower.cell ? [tower.cell] : [])),
+          ) ??
+          chooseCell(map, mode, camps, entry.towerId, entry.toLevel, field));
+      const origin = originFor(map);
+      const nextTower: PlannedTowerState = {
+        copyId,
+        towerId: entry.towerId,
+        towerName: entry.towerName,
+        level: entry.toLevel,
+        quantity: 1,
+        purpose: entry.temporaryCarry
+          ? "Temporary early carry"
+          : purposeFor(build, entry.towerId),
+        roles: entry.roles,
+        status:
+          entry.temporaryCarry && !retainTemporary(overrides, copyId)
+            ? "temporary"
+            : "permanent",
+        effect: effectFor(entry.towerId, entry.toLevel),
+        globalBuff: getTowerPlacementFact(entry.towerId).targetsTowers,
+        directHitDebuff: getTowerPlacementFact(entry.towerId).debuff !== null,
+        cell: placement?.cell ?? null,
+        cellLabel: placement ? cellLabel(placement.cell, origin) : null,
+        campId: placement?.campId ?? null,
+      };
+      field = existing
+        ? field.map((tower) => (tower.copyId === copyId ? nextTower : tower))
+        : [...field, nextTower];
+      cumulativeCost += cost;
+      phaseCost += cost;
+      actions.push({
+        id: stableId(
+          planId,
+          definition.id,
+          "coverage-repair-same-path",
+          entry.towerId,
+          entry.toLevel,
+          copyId,
+        ),
+        phaseId: definition.id,
+        order: actionOrder++,
+        type: entry.kind,
+        summary: `${fromLevel ? "Upgrade" : "Build"} ${entry.towerName} ${entry.toLevel}`,
+        reason: `Pulled forward from later in the build: it is already legal and already on this plan's own path, and it does not sit weak against ${weakOrCritical.map((row) => `${row.defender} armour`).join(" and ")} — do this before another package upgrade.`,
+        towerId: entry.towerId,
+        towerName: entry.towerName,
+        copyId,
+        fromLevel,
+        toLevel: entry.toLevel,
+        cost,
+        legal: true,
+        affordable: true,
+        targetWave: earliestAffordableWave(
+          cumulativeCost + windowReserve,
+          definition.start,
+          definition.end,
+        ),
+        cell: placement?.cell,
+        cellLabel: placement ? cellLabel(placement.cell, origin) : undefined,
+        campId: placement?.campId,
+        temporary: !!entry.temporaryCarry,
+      });
+      purchased.add(purchaseKey(entry));
+      const afterWideShortfall = verifiedShortfall(
+        evaluate(field, undefined, 20),
+      );
+      if (afterWideShortfall > beforeWideShortfall + 0.0001) restore(before);
+    };
+
     // Pass A — economy first: the package queue in order, then any rescue.
     const phaseStart = snapshot();
     runPackagePurchases();
@@ -2184,6 +2341,12 @@ export function generateMatchPlan(
         survival = economyFirst.survival;
       }
     }
+
+    // Same-path coverage repair runs after both survival passes above have
+    // settled the window's own real damage/rescue decisions — see the
+    // function's own comment for why running it any earlier is unsafe.
+    runSamePathCoverageRepair();
+    survival = applySurvivalRescue(evaluate(field), "after-package");
 
     // ---- Retirement. A temporary copy carried into this window is sold
     // when the window no longer needs its damage: outright if it no longer
