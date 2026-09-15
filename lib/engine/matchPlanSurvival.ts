@@ -1,4 +1,6 @@
 import combatData from "@/data/earlyTowerCombat.v1.json";
+import engagementData from "@/data/towerEngagement.v1.json";
+import mechanicFacts from "@/data/towerMechanicFacts.v1.json";
 import { ELEMENT_MATCHUPS } from "@/lib/domain/elementMatchupCatalog";
 import type { ElementName } from "@/lib/domain/elements";
 import type { MapConfig, WaveMode } from "@/lib/domain/mapConfig";
@@ -31,6 +33,51 @@ type OpeningTowerFacts = {
 };
 
 const OPENING_FACTS = combatData.towers as Record<string, OpeningTowerFacts>;
+const ENGAGEMENT = engagementData.towers as Record<
+  string,
+  { engagementFactor: number; isolatedEngagementFactor?: number }
+>;
+
+/** Towers whose verified mechanic isolates a target (Rage speeds it out of the pack). */
+const ISOLATION_PROVIDERS = new Set(
+  (mechanicFacts.effects as readonly { towerId: string; signal: string }[])
+    .filter((effect) => effect.signal === "target-isolation")
+    .map((effect) => effect.towerId),
+);
+
+/**
+ * The developer workbook's expected-engagement convention: its DPS column
+ * averages single-target and area damage and, where it gives an average row,
+ * the tower's duty cycle. The single-element rows in the opening-field file
+ * already carry that figure; normal towers get the same treatment here from
+ * the catalog's current damage and the workbook's ratio, so an AoE anchor is
+ * no longer valued as if it hit one creep and a burst tower is not credited
+ * with its active window all the time.
+ */
+export function expectedEngagementDps(
+  towerId: string,
+  level: number,
+  isolated = false,
+): number | null {
+  try {
+    const tower = getTower(towerId);
+    const damage = tower.stats.damage[level - 1];
+    if (damage == null) return null;
+    const entry = ENGAGEMENT[towerId];
+    const factor =
+      (isolated ? entry?.isolatedEngagementFactor : undefined) ??
+      entry?.engagementFactor ??
+      1;
+    return damage * tower.stats.attackSpeed * factor;
+  } catch {
+    return null;
+  }
+}
+
+/** True when this tower's workbook row differs with an isolated target. */
+export function benefitsFromIsolation(towerId: string): boolean {
+  return ENGAGEMENT[towerId]?.isolatedEngagementFactor != null;
+}
 
 /**
  * Damage facts for one copy at one level, or null when the level is not in
@@ -52,9 +99,10 @@ export function combatFacts(towerId: string, level: number): CombatFact | null {
   }
   try {
     const tower = getTower(towerId);
+    const averageDps = expectedEngagementDps(towerId, level);
+    if (averageDps == null) return null;
     return {
-      averageDps:
-        (tower.stats.damage[level - 1] ?? 0) * tower.stats.attackSpeed,
+      averageDps,
       range: tower.stats.range,
       damageElement: tower.damageElement as ElementName,
     };
@@ -69,6 +117,78 @@ function matchup(
 ): number {
   if (attacker === "Composite" || defender === "Composite") return 1;
   return ELEMENT_MATCHUPS[attacker][defender];
+}
+
+type BuffFact = {
+  towerId: string;
+  signal: "attack-damage-buff" | "attack-speed-buff" | "tower-replication";
+  /** Multiplier on a target's damage by buff level (1-indexed via level - 1). */
+  multiplierByLevel: readonly number[];
+  maxTargets: number;
+};
+
+/**
+ * Verified, automatic, effectively-continuous buffs from towerMechanicFacts:
+ * Blacksmith (+10/30/90% damage) and Well (+10/30/90% attack speed) hold a
+ * 60s buff on up to 4 towers, re-applied every 15s; Trickery copies one tower
+ * for 6/18/54s of every 60s. Hand-cast buffs (Life Altar) are excluded — the
+ * survival floor must not assume the player is casting.
+ */
+const BUFF_FACTS: readonly BuffFact[] = (
+  mechanicFacts.effects as readonly {
+    towerId: string;
+    signal: string;
+    magnitude: { unit: string; byLevel: readonly number[] };
+    durationSeconds?: { byLevel: readonly number[] };
+    activationRequirement?: string;
+    maxTargets?: number;
+    resetSeconds?: number;
+  }[]
+).flatMap((effect): BuffFact[] => {
+  if (effect.activationRequirement === "active-cast") return [];
+  if (
+    effect.signal === "attack-damage-buff" ||
+    effect.signal === "attack-speed-buff"
+  )
+    return [
+      {
+        towerId: effect.towerId,
+        signal: effect.signal,
+        multiplierByLevel: effect.magnitude.byLevel.map(
+          (percent) => 1 + percent / 100,
+        ),
+        maxTargets: effect.maxTargets ?? 1,
+      },
+    ];
+  if (effect.signal === "tower-replication") {
+    const reset = effect.resetSeconds ?? 60;
+    return [
+      {
+        towerId: effect.towerId,
+        signal: effect.signal,
+        // A clone deals the original's damage for its duration out of every
+        // reset window: the duty cycle is the credited fraction.
+        multiplierByLevel: (effect.durationSeconds?.byLevel ?? []).map(
+          (seconds) =>
+            (effect.magnitude.byLevel[0] / 100) * Math.min(1, seconds / reset),
+        ),
+        maxTargets: effect.maxTargets ?? 1,
+      },
+    ];
+  }
+  return [];
+});
+const BUFF_BY_TOWER = new Map(BUFF_FACTS.map((fact) => [fact.towerId, fact]));
+
+export function isSurvivalBuffProvider(towerId: string): boolean {
+  return BUFF_BY_TOWER.has(towerId);
+}
+
+function cellsApart(
+  a: { col: number; row: number },
+  b: { col: number; row: number },
+): number {
+  return Math.hypot(a.col - b.col, a.row - b.row);
 }
 
 /** One step of a copy's life inside a window: from this wave it is at this level. */
@@ -145,33 +265,130 @@ export function evaluatePhaseSurvival({
 
     const unknownAbility = benchmark.modelConfidence === "ability-estimate";
     let missingTowerFacts = false;
-    const modeledDamage = towers.reduce((sum, tower) => {
+    const trainSeconds = (benchmark.count - 1) * benchmark.spawnSpacingSeconds;
+    // Isolation providers present this wave, for the consumers that have a
+    // verified isolated damage row (Laser, Incantation). A consumer counts as
+    // isolated when a provider's reach overlaps its own.
+    const isolators = towers.flatMap((tower) => {
+      if (!ISOLATION_PROVIDERS.has(tower.towerId) || !tower.cell) return [];
       const level = levelDuringWave(
         levelTimeline?.get(tower.copyId),
         wave,
         tower.level,
       );
-      if (level == null) return sum;
+      if (level == null) return [];
+      try {
+        return [
+          { cell: tower.cell, range: getTower(tower.towerId).stats.range },
+        ];
+      } catch {
+        return [];
+      }
+    });
+    const isolatedAt = (cell: { col: number; row: number }, range: number) =>
+      isolators.some(
+        (provider) =>
+          cellsApart(cell, provider.cell) *
+            Math.max(1, map.rangeUnitsPerCell) <=
+          provider.range + range,
+      );
+    // Base damage per copy present this wave. Buff providers deal their own
+    // attack damage like anyone else; their buff is layered on below.
+    const present = towers.flatMap((tower) => {
+      const level = levelDuringWave(
+        levelTimeline?.get(tower.copyId),
+        wave,
+        tower.level,
+      );
+      if (level == null) return [];
       if (tower.effect === "global-buff" || tower.effect === "debuff")
-        return sum;
-      const facts = combatFacts(tower.towerId, level);
+        return [{ tower, level, damage: 0, cell: tower.cell }];
+      const baseFacts = combatFacts(tower.towerId, level);
+      const facts =
+        baseFacts &&
+        tower.cell &&
+        benefitsFromIsolation(tower.towerId) &&
+        isolatedAt(tower.cell, baseFacts.range)
+          ? {
+              ...baseFacts,
+              averageDps:
+                expectedEngagementDps(tower.towerId, level, true) ??
+                baseFacts.averageDps,
+            }
+          : baseFacts;
       if (!facts || !tower.cell) {
         missingTowerFacts = true;
-        return sum;
+        return [{ tower, level, damage: 0, cell: tower.cell }];
       }
       const coverage = coverageForMode(map, tower.cell, facts.range, mode);
       const contactSeconds =
         coverage.coveredSeconds / benchmark.speedMultiplier;
-      const trainSeconds =
-        (benchmark.count - 1) * benchmark.spawnSpacingSeconds;
-      return (
-        sum +
-        facts.averageDps *
-          (contactSeconds + trainSeconds) *
-          matchup(facts.damageElement, benchmark.element) *
-          tower.quantity
-      );
-    }, 0);
+      return [
+        {
+          tower,
+          level,
+          cell: tower.cell,
+          damage:
+            facts.averageDps *
+            (contactSeconds + trainSeconds) *
+            matchup(facts.damageElement, benchmark.element) *
+            tower.quantity,
+        },
+      ];
+    });
+    // Buffs: each provider present this wave lifts up to maxTargets of the
+    // strongest non-provider damage copies within its range. Two copies of
+    // the same signal do not stack on one target (the higher applies —
+    // stacking is not a verified fact); damage and attack-speed buffs
+    // multiply. A clone credits its duty-cycle share of its target's damage.
+    const multiplier = new Map<string, { damage: number; speed: number }>();
+    let cloneDamage = 0;
+    for (const provider of present) {
+      const fact = BUFF_BY_TOWER.get(provider.tower.towerId);
+      if (!fact || !provider.cell) continue;
+      let rangeCells: number;
+      try {
+        rangeCells =
+          getTower(provider.tower.towerId).stats.range /
+          Math.max(1, map.rangeUnitsPerCell);
+      } catch {
+        continue;
+      }
+      const factor =
+        fact.multiplierByLevel[provider.level - 1] ??
+        fact.multiplierByLevel.at(-1) ??
+        1;
+      const targets = present
+        .filter(
+          (entry) =>
+            entry !== provider &&
+            entry.damage > 0 &&
+            entry.cell &&
+            !BUFF_BY_TOWER.has(entry.tower.towerId) &&
+            cellsApart(entry.cell, provider.cell!) <= rangeCells,
+        )
+        .sort((a, b) => b.damage - a.damage)
+        .slice(0, fact.maxTargets);
+      for (const target of targets) {
+        if (fact.signal === "tower-replication") {
+          cloneDamage += target.damage * factor;
+          continue;
+        }
+        const current = multiplier.get(target.tower.copyId) ?? {
+          damage: 1,
+          speed: 1,
+        };
+        if (fact.signal === "attack-damage-buff")
+          current.damage = Math.max(current.damage, factor);
+        else current.speed = Math.max(current.speed, factor);
+        multiplier.set(target.tower.copyId, current);
+      }
+    }
+    const modeledDamage =
+      present.reduce((sum, entry) => {
+        const boost = multiplier.get(entry.tower.copyId);
+        return sum + entry.damage * (boost ? boost.damage * boost.speed : 1);
+      }, 0) + cloneDamage;
     const effectiveWaveHp = benchmark.effectiveHpPerCreep * benchmark.count;
     const margin = modeledDamage / effectiveWaveHp;
     // The modeled damage is a floor: a copy whose stat is missing adds nothing
@@ -245,7 +462,8 @@ export function evaluatePhaseSurvival({
     assumptions: [
       `${difficulty} creep HP and per-wave unit counts are benchmark inputs.`,
       "Damage capacity uses each placed tower's traced seconds in range plus wave spawn duration.",
-      "Elemental armour multipliers are applied. Interest, active abilities, buffs and overkill are not credited.",
+      "Elemental armour multipliers are applied; each normal tower's damage uses the developer workbook's expected-engagement ratio (area damage and duty cycle averaged in, isolation not credited).",
+      "Blacksmith, Well and Trickery are credited from their verified magnitudes on the strongest towers in range (same-signal buffs do not stack); Laser and Incantation use their isolated damage row while Rage is fielded in reach. Interest, hand-cast buffs, creep abilities and overkill are not credited.",
       "Every verified wave must reach 100% damage capacity. The planner never spends the 50-life pool as a buffer.",
     ],
   };

@@ -1153,6 +1153,11 @@ export function generateMatchPlan(
     let phaseCost = 0;
     let phaseRefund = 0;
     let survivalFirst = false;
+    // Why the last rescue pass stopped with a wave still short: no legal
+    // step at all (every copy at its cap or max level), or steps that exist
+    // but cannot be paid for inside this window.
+    let rescueExhausted: null | "cap" | "gold" = null;
+    let rescueUnaffordable = 0;
 
     // ---- Survival helpers (shared by both planning passes of this phase) ----
     // Each copy's life inside this window: carried copies start at their
@@ -1244,7 +1249,11 @@ export function generateMatchPlan(
       fromLevel = 0,
       entryReason?: string,
     ): RescueCandidate[] => {
-      if (cost <= 0 || cumulativeCost + cost > gross) return [];
+      if (cost <= 0) return [];
+      if (cumulativeCost + cost > gross) {
+        rescueUnaffordable += 1;
+        return [];
+      }
       const upgrade = fromLevel > 0;
       const placement = upgrade
         ? source.cell
@@ -1327,7 +1336,6 @@ export function generateMatchPlan(
           const effect = effectFor(entry.towerId, level);
           if (effect !== "damage" && effect !== "hybrid") return [];
           const placementFact = getTowerPlacementFact(entry.towerId);
-          if (placementFact.targetsTowers) return [];
           if (!combatFacts(entry.towerId, level)) return [];
           const source: PlannedTowerState = existing
             ? { ...existing, level, effect }
@@ -1375,7 +1383,6 @@ export function generateMatchPlan(
       const damageTowers = field.filter(
         (tower) =>
           (tower.effect === "damage" || tower.effect === "hybrid") &&
-          !tower.globalBuff &&
           combatFacts(tower.towerId, tower.level) != null &&
           isLegal(tower.towerId, tower.level, allocation) &&
           !(anchorEstablished && isBasicTowerId(tower.towerId)),
@@ -1490,11 +1497,15 @@ export function generateMatchPlan(
       for (let rescueStep = 0; rescueStep < 24; rescueStep += 1) {
         const currentShortfall = verifiedShortfall(survival);
         if (currentShortfall <= 0) break;
+        rescueUnaffordable = 0;
         const best = [
           ...buildPathCandidates(currentShortfall),
           ...fleetCopyCandidates(currentShortfall),
         ].sort(rankRescue(firstFailingWave(survival), policy))[0];
-        if (!best) break;
+        if (!best) {
+          rescueExhausted = rescueUnaffordable > 0 ? "gold" : "cap";
+          break;
+        }
         field = best.fromLevel
           ? field.map((tower) =>
               tower.copyId === best.tower.copyId ? best.tower : tower,
@@ -1587,6 +1598,7 @@ export function generateMatchPlan(
       actionOrder,
       phaseCost,
       phaseRefund,
+      rescueExhausted,
       rescueOrdinals: new Map(rescueOrdinalByTower),
     });
     const restore = (state: ReturnType<typeof snapshot>) => {
@@ -1598,6 +1610,7 @@ export function generateMatchPlan(
       actionOrder = state.actionOrder;
       phaseCost = state.phaseCost;
       phaseRefund = state.phaseRefund;
+      rescueExhausted = state.rescueExhausted;
       rescueOrdinalByTower.clear();
       for (const [towerId, ordinal] of state.rescueOrdinals)
         rescueOrdinalByTower.set(towerId, ordinal);
@@ -2072,6 +2085,27 @@ export function generateMatchPlan(
               `Wave ${reported.worstWave ?? definition.start} has less than the 15% modeled safety margin.`,
             ]
           : []),
+      ...(reported.status === "fails" && rescueExhausted
+        ? [
+            (() => {
+              const next = remainingQueue().find(
+                (entry) =>
+                  !entry.temporaryCarry ||
+                  !field.some((t) => t.towerId === build.anchorTowerId),
+              );
+              const needs = next ? missingKeystones(next, allocation) : [];
+              const lever = next
+                ? needs.length
+                  ? `${next.towerName} ${next.toLevel} (needs the ${needs.join(" and ")} keystone${needs.length > 1 ? "s" : ""})`
+                  : `${next.towerName} ${next.toLevel} (${actionCost(next.towerId, 0, next.toLevel).toLocaleString()}g)`
+                : "the End Game essence layer, which this plan does not model yet";
+              const leak = reported.worstWave ?? definition.start;
+              return rescueExhausted === "gold"
+                ? `Out of gold in time: every step that would lift wave ${leak} lands after it, because the window's remaining income arrives later. The next lever is ${lever}.`
+                : `Nothing more can be bought that lifts this window: every fielded tower is at its copy cap or maximum level for the elements held. The next lever is ${lever}.`;
+            })(),
+          ]
+        : []),
       ...(lookaheadLeak
         ? [
             `Wave ${lookaheadLeak.wave} (first of the next window) is at ${Math.round((lookaheadLeak.margin ?? 0) * 100)}% of its HP on this field; nothing bought after wave ${definition.end} can land before it.`,

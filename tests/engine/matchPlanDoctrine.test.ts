@@ -66,15 +66,12 @@ describe("Match Plan doctrine — survival over economy", () => {
   });
 
   it("only known-weak anchors fail before wave 21, and none for lack of trying", () => {
-    // Measured 2026-09-15, after the fleet-copy saturation cap landed. This
-    // set is larger than the one recorded right after the survival audit:
-    // some windows were previously scraping past 100% only by piling on
-    // another cheap Arrow/mono copy well past what any real camp plan would
-    // use (see runic W16, resolved at 94% instead of a papered-over pass
-    // once that spam was capped). Shrink as data lands; never grow without
-    // saying why.
+    // Measured 2026-09-16, after expected-engagement damage (AoE, duty
+    // cycle, isolation) and Blacksmith/Well/Trickery crediting landed.
+    // howitzer left the set (its first failure moved from W16 to W31 once
+    // its area damage was credited). Shrink as data lands — sell rate,
+    // essence timing, ability numbers — and never grow without saying why.
     const allowed = new Set([
-      "howitzer",
       "impulse",
       "poison",
       "solar",

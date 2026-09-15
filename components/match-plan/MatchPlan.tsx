@@ -1198,6 +1198,11 @@ function CopilotDecision({ phase }: { phase: MatchPlan["phases"][number] }) {
               ?.limitingFactor ??
             "The modeled field does not clear this window.",
           reason:
+            phase.risks.find(
+              (risk) =>
+                risk.startsWith("Out of gold in time") ||
+                risk.startsWith("Nothing more can be bought"),
+            ) ??
             "Do not advance the long-term package until the five-wave survival check passes.",
         }
       : blocked
@@ -1414,260 +1419,267 @@ function PlanMap({
   return (
     <div className="match-map-board">
       <div className="match-map-column">
-      <div className="match-map-wrap">
-        <svg
-          viewBox={`${minCol} ${minRow} ${maxCol - minCol} ${maxRow - minRow}`}
-          role="img"
-          aria-label={`${map.name} placement snapshot for ${phase.label}`}
-        >
-          <defs>
-            <pattern
-              id="match-map-grid"
-              width="1"
-              height="1"
-              patternUnits="userSpaceOnUse"
-            >
-              <path d="M 1 0 L 0 0 0 1" className="match-grid-line" />
-            </pattern>
-            <clipPath id="match-tower-clip">
-              <circle r=".36" />
-            </clipPath>
-          </defs>
-          <rect
-            x={minCol}
-            y={minRow}
-            width={maxCol - minCol}
-            height={maxRow - minRow}
-            className="match-map-ground"
-          />
-          <rect
-            x={minCol}
-            y={minRow}
-            width={maxCol - minCol}
-            height={maxRow - minRow}
-            fill="url(#match-map-grid)"
-          />
-
-          {viableCamps.map((camp) => {
-            // Anchor the label just above the top edge of the camp zone so it
-            // never sits under a tower token placed inside the camp.
-            const labelCol =
-              camp.cells.reduce((sum, cell) => sum + cell.col, 0) /
-              camp.cells.length;
-            const labelRow =
-              Math.min(...camp.cells.map((cell) => cell.row)) - 0.62;
-            const active =
-              hoveredCampId === camp.id || preferredCamp?.id === camp.id;
-            return (
-              <g
-                key={camp.id}
-                className="match-camp-zone"
-                data-active={active || undefined}
-                data-preferred={preferredCamp?.id === camp.id || undefined}
+        <div className="match-map-wrap">
+          <svg
+            viewBox={`${minCol} ${minRow} ${maxCol - minCol} ${maxRow - minRow}`}
+            role="img"
+            aria-label={`${map.name} placement snapshot for ${phase.label}`}
+          >
+            <defs>
+              <pattern
+                id="match-map-grid"
+                width="1"
+                height="1"
+                patternUnits="userSpaceOnUse"
               >
-                <polygon points={campPolygon(camp.cells)} />
-                <g transform={`translate(${labelCol} ${labelRow})`}>
-                  <rect x="-.68" y="-.28" width="1.36" height=".56" rx=".12" />
-                  <text y=".09" textAnchor="middle">
-                    {campCode(camp)}
+                <path d="M 1 0 L 0 0 0 1" className="match-grid-line" />
+              </pattern>
+              <clipPath id="match-tower-clip">
+                <circle r=".36" />
+              </clipPath>
+            </defs>
+            <rect
+              x={minCol}
+              y={minRow}
+              width={maxCol - minCol}
+              height={maxRow - minRow}
+              className="match-map-ground"
+            />
+            <rect
+              x={minCol}
+              y={minRow}
+              width={maxCol - minCol}
+              height={maxRow - minRow}
+              fill="url(#match-map-grid)"
+            />
+
+            {viableCamps.map((camp) => {
+              // Anchor the label just above the top edge of the camp zone so it
+              // never sits under a tower token placed inside the camp.
+              const labelCol =
+                camp.cells.reduce((sum, cell) => sum + cell.col, 0) /
+                camp.cells.length;
+              const labelRow =
+                Math.min(...camp.cells.map((cell) => cell.row)) - 0.62;
+              const active =
+                hoveredCampId === camp.id || preferredCamp?.id === camp.id;
+              return (
+                <g
+                  key={camp.id}
+                  className="match-camp-zone"
+                  data-active={active || undefined}
+                  data-preferred={preferredCamp?.id === camp.id || undefined}
+                >
+                  <polygon points={campPolygon(camp.cells)} />
+                  <g transform={`translate(${labelCol} ${labelRow})`}>
+                    <rect
+                      x="-.68"
+                      y="-.28"
+                      width="1.36"
+                      height=".56"
+                      rx=".12"
+                    />
+                    <text y=".09" textAnchor="middle">
+                      {campCode(camp)}
+                    </text>
+                  </g>
+                </g>
+              );
+            })}
+
+            {activePaths.map((path) => (
+              <g key={path.id}>
+                <polyline
+                  points={path.points
+                    .map((point) => `${point.col},${point.row}`)
+                    .join(" ")}
+                  className="match-route-bed"
+                />
+                <polyline
+                  points={path.points
+                    .map((point) => `${point.col},${point.row}`)
+                    .join(" ")}
+                  className="match-route"
+                />
+                {routeArrows(path.points).map((arrow, index) => (
+                  <path
+                    key={index}
+                    d="M -.12,-.13 L .14,0 L -.12,.13 Z"
+                    transform={`translate(${arrow.col} ${arrow.row}) rotate(${arrow.angle})`}
+                    className="match-route-arrow"
+                  />
+                ))}
+                {path.points.length > 1 && (
+                  <>
+                    <g
+                      className="match-route-terminal"
+                      transform={`translate(${path.points[0].col} ${path.points[0].row})`}
+                    >
+                      <circle r=".28" />
+                      <text y="-.47" textAnchor="middle">
+                        IN
+                      </text>
+                    </g>
+                    <g
+                      className="match-route-terminal is-out"
+                      transform={`translate(${path.points.at(-1)!.col} ${path.points.at(-1)!.row})`}
+                    >
+                      <circle r=".28" />
+                      <text y="-.47" textAnchor="middle">
+                        OUT
+                      </text>
+                    </g>
+                  </>
+                )}
+              </g>
+            ))}
+
+            {map.buildableCells.map((cell) => {
+              const key = `${cell.col}:${cell.row}`;
+              const camp = plan.camps.find((entry) =>
+                entry.cells.some(
+                  (candidate) =>
+                    candidate.col === cell.col && candidate.row === cell.row,
+                ),
+              );
+              const occupied = occupiedByCell.has(key);
+              const assign = () => {
+                if (selectedCopyId) onAssignCell(cell, camp?.id);
+              };
+              return (
+                <g key={key} className="match-cell-slot">
+                  <rect
+                    x={cell.col - 0.34}
+                    y={cell.row - 0.34}
+                    width=".68"
+                    height=".68"
+                    rx=".1"
+                    className={`match-cell ${selectedCopyId ? "is-selectable" : ""} ${occupied ? "is-occupied" : ""}`}
+                    role={selectedCopyId ? "button" : undefined}
+                    tabIndex={selectedCopyId ? 0 : undefined}
+                    aria-label={
+                      selectedCopyId
+                        ? `Reserve selected tower at ${cellLabel(cell, labelOrigin)}`
+                        : undefined
+                    }
+                    onClick={assign}
+                    onKeyDown={(event) => {
+                      if (
+                        selectedCopyId &&
+                        (event.key === "Enter" || event.key === " ")
+                      ) {
+                        event.preventDefault();
+                        assign();
+                      }
+                    }}
+                  >
+                    <title>{cellLabel(cell, labelOrigin)}</title>
+                  </rect>
+                </g>
+              );
+            })}
+
+            {phase.endTowers.flatMap((tower, index) => {
+              const before = prior.get(tower.copyId);
+              const changeState = !before
+                ? "is-new"
+                : before.level < tower.level
+                  ? "is-upgraded"
+                  : "is-carried";
+              return tower.cell
+                ? [
+                    <g
+                      key={tower.copyId}
+                      transform={`translate(${tower.cell.col} ${tower.cell.row})`}
+                      className={`match-tower ${changeState} is-${tower.status} is-${tower.effect} ${tower.globalBuff ? "has-global-buff" : ""} ${tower.directHitDebuff ? "has-debuff" : ""} ${tower.copyId === selectedCopyId ? "is-selected" : ""} ${tower.copyId === hoveredCopyId ? "is-hovered" : ""}`}
+                      onMouseEnter={() => setHoveredCopyId(tower.copyId)}
+                      onMouseLeave={() =>
+                        setHoveredCopyId((current) =>
+                          current === tower.copyId ? null : current,
+                        )
+                      }
+                    >
+                      <title>
+                        {tower.towerName} {tower.level} ·{" "}
+                        {towerMetaLine(tower, index)}
+                      </title>
+                      <circle r=".42" />
+                      <TowerToken
+                        icon={iconFor(tower.towerId)}
+                        name={tower.towerName}
+                      />
+                    </g>,
+                  ]
+                : [];
+            })}
+
+            {futurePlacements.map(({ tower, phaseId }) => (
+              <g
+                key={`future-${tower.copyId}`}
+                transform={`translate(${tower.cell!.col} ${tower.cell!.row})`}
+                className="match-tower is-future"
+                data-future-placement={tower.copyId}
+              >
+                <title>
+                  {tower.towerName} {tower.level} · waves {phaseId} ·{" "}
+                  {tower.campId
+                    ? (campLabelById.get(tower.campId) ?? tower.campId)
+                    : "planned"}
+                </title>
+                <circle r=".42" />
+                <TowerToken
+                  icon={iconFor(tower.towerId)}
+                  name={tower.towerName}
+                />
+                <text className="match-future-wave" y=".76" textAnchor="middle">
+                  {phaseId}
+                </text>
+              </g>
+            ))}
+
+            {/* Detail callout for the active tower only — drawn last so it paints
+              above every token and can never clip a neighbouring label. */}
+            {(() => {
+              const activeCopyId = hoveredCopyId ?? selectedCopyId;
+              if (!activeCopyId) return null;
+              const activeIndex = phase.endTowers.findIndex(
+                (tower) => tower.copyId === activeCopyId && tower.cell,
+              );
+              if (activeIndex === -1) return null;
+              const tower = phase.endTowers[activeIndex];
+              const cell = tower.cell!;
+              // Flip the callout to the left of the token near the right edge so
+              // it stays inside the board.
+              const flip = cell.col + 3.2 > maxCol;
+              const boxX = flip ? -3.0 : 0.55;
+              const textX = boxX + 0.16;
+              return (
+                <g
+                  className="match-tower-callout"
+                  transform={`translate(${cell.col} ${cell.row})`}
+                  pointerEvents="none"
+                >
+                  <rect x={boxX} y="-.32" width="2.45" height=".64" rx=".1" />
+                  <text x={textX} y="-.07">
+                    {tower.towerName} {tower.level}
+                  </text>
+                  <text x={textX} y=".17" className="match-tower-meta">
+                    {towerMetaLine(tower, activeIndex)}
                   </text>
                 </g>
-              </g>
-            );
-          })}
-
-          {activePaths.map((path) => (
-            <g key={path.id}>
-              <polyline
-                points={path.points
-                  .map((point) => `${point.col},${point.row}`)
-                  .join(" ")}
-                className="match-route-bed"
-              />
-              <polyline
-                points={path.points
-                  .map((point) => `${point.col},${point.row}`)
-                  .join(" ")}
-                className="match-route"
-              />
-              {routeArrows(path.points).map((arrow, index) => (
-                <path
-                  key={index}
-                  d="M -.12,-.13 L .14,0 L -.12,.13 Z"
-                  transform={`translate(${arrow.col} ${arrow.row}) rotate(${arrow.angle})`}
-                  className="match-route-arrow"
-                />
-              ))}
-              {path.points.length > 1 && (
-                <>
-                  <g
-                    className="match-route-terminal"
-                    transform={`translate(${path.points[0].col} ${path.points[0].row})`}
-                  >
-                    <circle r=".28" />
-                    <text y="-.47" textAnchor="middle">
-                      IN
-                    </text>
-                  </g>
-                  <g
-                    className="match-route-terminal is-out"
-                    transform={`translate(${path.points.at(-1)!.col} ${path.points.at(-1)!.row})`}
-                  >
-                    <circle r=".28" />
-                    <text y="-.47" textAnchor="middle">
-                      OUT
-                    </text>
-                  </g>
-                </>
-              )}
-            </g>
-          ))}
-
-          {map.buildableCells.map((cell) => {
-            const key = `${cell.col}:${cell.row}`;
-            const camp = plan.camps.find((entry) =>
-              entry.cells.some(
-                (candidate) =>
-                  candidate.col === cell.col && candidate.row === cell.row,
-              ),
-            );
-            const occupied = occupiedByCell.has(key);
-            const assign = () => {
-              if (selectedCopyId) onAssignCell(cell, camp?.id);
-            };
-            return (
-              <g key={key} className="match-cell-slot">
-                <rect
-                  x={cell.col - 0.34}
-                  y={cell.row - 0.34}
-                  width=".68"
-                  height=".68"
-                  rx=".1"
-                  className={`match-cell ${selectedCopyId ? "is-selectable" : ""} ${occupied ? "is-occupied" : ""}`}
-                  role={selectedCopyId ? "button" : undefined}
-                  tabIndex={selectedCopyId ? 0 : undefined}
-                  aria-label={
-                    selectedCopyId
-                      ? `Reserve selected tower at ${cellLabel(cell, labelOrigin)}`
-                      : undefined
-                  }
-                  onClick={assign}
-                  onKeyDown={(event) => {
-                    if (
-                      selectedCopyId &&
-                      (event.key === "Enter" || event.key === " ")
-                    ) {
-                      event.preventDefault();
-                      assign();
-                    }
-                  }}
-                >
-                  <title>{cellLabel(cell, labelOrigin)}</title>
-                </rect>
-              </g>
-            );
-          })}
-
-          {phase.endTowers.flatMap((tower, index) => {
-            const before = prior.get(tower.copyId);
-            const changeState = !before
-              ? "is-new"
-              : before.level < tower.level
-                ? "is-upgraded"
-                : "is-carried";
-            return tower.cell
-              ? [
-                  <g
-                    key={tower.copyId}
-                    transform={`translate(${tower.cell.col} ${tower.cell.row})`}
-                    className={`match-tower ${changeState} is-${tower.status} is-${tower.effect} ${tower.globalBuff ? "has-global-buff" : ""} ${tower.directHitDebuff ? "has-debuff" : ""} ${tower.copyId === selectedCopyId ? "is-selected" : ""} ${tower.copyId === hoveredCopyId ? "is-hovered" : ""}`}
-                    onMouseEnter={() => setHoveredCopyId(tower.copyId)}
-                    onMouseLeave={() =>
-                      setHoveredCopyId((current) =>
-                        current === tower.copyId ? null : current,
-                      )
-                    }
-                  >
-                    <title>
-                      {tower.towerName} {tower.level} ·{" "}
-                      {towerMetaLine(tower, index)}
-                    </title>
-                    <circle r=".42" />
-                    <TowerToken
-                      icon={iconFor(tower.towerId)}
-                      name={tower.towerName}
-                    />
-                  </g>,
-                ]
-              : [];
-          })}
-
-          {futurePlacements.map(({ tower, phaseId }) => (
-            <g
-              key={`future-${tower.copyId}`}
-              transform={`translate(${tower.cell!.col} ${tower.cell!.row})`}
-              className="match-tower is-future"
-              data-future-placement={tower.copyId}
-            >
-              <title>
-                {tower.towerName} {tower.level} · waves {phaseId} ·{" "}
-                {tower.campId
-                  ? (campLabelById.get(tower.campId) ?? tower.campId)
-                  : "planned"}
-              </title>
-              <circle r=".42" />
-              <TowerToken
-                icon={iconFor(tower.towerId)}
-                name={tower.towerName}
-              />
-              <text className="match-future-wave" y=".76" textAnchor="middle">
-                {phaseId}
-              </text>
-            </g>
-          ))}
-
-          {/* Detail callout for the active tower only — drawn last so it paints
-              above every token and can never clip a neighbouring label. */}
-          {(() => {
-            const activeCopyId = hoveredCopyId ?? selectedCopyId;
-            if (!activeCopyId) return null;
-            const activeIndex = phase.endTowers.findIndex(
-              (tower) => tower.copyId === activeCopyId && tower.cell,
-            );
-            if (activeIndex === -1) return null;
-            const tower = phase.endTowers[activeIndex];
-            const cell = tower.cell!;
-            // Flip the callout to the left of the token near the right edge so
-            // it stays inside the board.
-            const flip = cell.col + 3.2 > maxCol;
-            const boxX = flip ? -3.0 : 0.55;
-            const textX = boxX + 0.16;
-            return (
-              <g
-                className="match-tower-callout"
-                transform={`translate(${cell.col} ${cell.row})`}
-                pointerEvents="none"
-              >
-                <rect x={boxX} y="-.32" width="2.45" height=".64" rx=".1" />
-                <text x={textX} y="-.07">
-                  {tower.towerName} {tower.level}
-                </text>
-                <text x={textX} y=".17" className="match-tower-meta">
-                  {towerMetaLine(tower, activeIndex)}
-                </text>
-              </g>
-            );
-          })()}
-        </svg>
-      </div>
-      <div className="match-map-readout">
-        <span>
-          {activePaths.length} active route{activePaths.length === 1 ? "" : "s"}
-        </span>
-        <span>{viableCamps.length} viable camps</span>
-        <span>{phase.endTowers.length} towers on the field</span>
-        <span>{futurePlacements.length} queued for later</span>
-      </div>
+              );
+            })()}
+          </svg>
+        </div>
+        <div className="match-map-readout">
+          <span>
+            {activePaths.length} active route
+            {activePaths.length === 1 ? "" : "s"}
+          </span>
+          <span>{viableCamps.length} viable camps</span>
+          <span>{phase.endTowers.length} towers on the field</span>
+          <span>{futurePlacements.length} queued for later</span>
+        </div>
       </div>
 
       <aside className="match-camp-rail" aria-label="Camp allocation">

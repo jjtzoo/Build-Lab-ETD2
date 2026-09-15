@@ -1,0 +1,638 @@
+{
+  "schemaVersion": 1,
+  "verifiedThrough": "2026-09-16",
+  "note": "Expected-engagement factor per normal tower, transcribed from the developer-linked Element TD 2 DPS/Gold workbook. factor = (chosen row's DPS) ÷ (base row's SDPS). The workbook's DPS column already averages single-target and area damage (SDPS × (1 + AoE Mult) / 2) and, on an '(Average)' row, the tower's duty cycle (Golem's average row carries a third of its active damage). The base row is the plain row when present, else the variant whose SDPS is closest to the catalog's damage × attack speed (Golem's '(Active)', Laser's '(Max)'), so the ratio is measured against the stat line the catalog actually carries. Taking the ratio inside the workbook keeps data/towers.v2.json as the authority for current damage and attack speed (the workbook's absolute damage predates 1.9.4 for some towers). Row policy: '(Average)' when present, else the plain row, else the variant with the LOWEST ratio (conservative — Laser is credited at its non-isolated '(Min)' damage; isolation providers are not credited yet). This is the same convention data/earlyTowerCombat.v1.json already carries for single-element towers. All rows are listed for audit. isolatedEngagementFactor (Laser, Incantation only): the workbook row for the isolated case — Laser '(Max)', Incantation '(With Full Amp)' — over the same base SDPS; the survival model uses it only while a verified target-isolation provider (Rage) is fielded within reach of the tower.",
+  "sources": [
+    "https://docs.google.com/spreadsheets/d/1GdfCqVeudiNHhxHF1XYSUMqkyNRRkCx-loXJiNQqv4s/edit?usp=sharing"
+  ],
+  "convention": "averageDps = damage × attacksPerSecond × engagementFactor",
+  "towers": {
+    "trickery": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Trickery 1",
+      "baseRow": "Trickery 1",
+      "catalogSingleTargetDps": 675,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": ["Trickery 1: sdps 488, mult 1, dps 488"]
+    },
+    "ice": {
+      "engagementFactor": 1.25,
+      "aoeMultiplier": 1.5,
+      "row": "Ice 1",
+      "baseRow": "Ice 1",
+      "catalogSingleTargetDps": 700,
+      "tab": "900 Range Towers",
+      "policy": "base-row",
+      "variants": ["Ice 1: sdps 825, mult 1.5, dps 1031"]
+    },
+    "lightning": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Lightning 1",
+      "baseRow": "Lightning 1",
+      "catalogSingleTargetDps": 270,
+      "tab": "1150 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Lightning 1: sdps 285, mult 1, dps 285",
+        "Lightning 1 (3 Bounces): sdps 908, mult 1, dps 908"
+      ]
+    },
+    "bloom": {
+      "engagementFactor": 1.5,
+      "aoeMultiplier": 2,
+      "row": "Bloom 1",
+      "baseRow": "Bloom 1",
+      "catalogSingleTargetDps": 532.5,
+      "tab": "700 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Bloom 1: sdps 540, mult 2, dps 810",
+        "Bloom 1 (Max Speed): sdps 1620, mult 2, dps 2430"
+      ]
+    },
+    "atom": {
+      "engagementFactor": 1.498,
+      "aoeMultiplier": 2,
+      "row": "Atom 1",
+      "baseRow": "Atom 1",
+      "catalogSingleTargetDps": 472.5,
+      "tab": "900 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Atom 1: sdps 488, mult 2, dps 731",
+        "Atom 1 (6 Stacks): sdps 1128, mult 2, dps 1691",
+        "Atom 1 (11 Stacks): sdps 2268, mult 2, dps 3402"
+      ]
+    },
+    "poison": {
+      "engagementFactor": 2,
+      "aoeMultiplier": 3,
+      "row": "Poison 1 (Impact)",
+      "baseRow": "Poison 1 (Impact)",
+      "catalogSingleTargetDps": 85.8,
+      "tab": "900 Range Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Poison 1 (Impact): sdps 86, mult 3, dps 172",
+        "Poison 1 (Full Duration): sdps 772, mult 3, dps 1544"
+      ]
+    },
+    "infernal": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Infernal 1",
+      "baseRow": "Infernal 1",
+      "catalogSingleTargetDps": 1200,
+      "tab": "700 Range Towers",
+      "policy": "base-row",
+      "variants": ["Infernal 1: sdps 1050, mult 1, dps 1050"]
+    },
+    "disease": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Disease 1 (100%)",
+      "baseRow": "Disease 1 (100%)",
+      "catalogSingleTargetDps": 450,
+      "tab": "900 Range Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Disease 1 (100%): sdps 450, mult 1, dps 450",
+        "Disease 1 (50%): sdps 450, mult 2.3, dps 731",
+        "Disease 1 (25%): sdps 450, mult 2.9, dps 872",
+        "Disease 1 (10%): sdps 450, mult 3.3, dps 956"
+      ]
+    },
+    "howitzer": {
+      "engagementFactor": 3,
+      "aoeMultiplier": 2,
+      "row": "Howitzer 1 (Short)",
+      "baseRow": "Howitzer 1 (Long)",
+      "catalogSingleTargetDps": 175,
+      "tab": "1500 Range Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Howitzer 1 (Short): sdps 390, mult 2, dps 585",
+        "Howitzer 1 (Long): sdps 195, mult 5, dps 585"
+      ]
+    },
+    "vapor": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Vapor 1",
+      "baseRow": "Vapor 1",
+      "catalogSingleTargetDps": 759,
+      "tab": "900 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Vapor 1: sdps 759, mult 1, dps 759",
+        "Vapor 1 (5 Creeps): sdps 880, mult 1, dps 880",
+        "Vapor 1 (10 Creeps): sdps 1020, mult 1, dps 1020",
+        "Vapor 1 (15 Creeps): sdps 1182, mult 1, dps 1182",
+        "Vapor 1 (20 Creeps): sdps 1371, mult 1, dps 1371"
+      ]
+    },
+    "well": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Well 1",
+      "baseRow": "Well 1",
+      "catalogSingleTargetDps": 675,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": ["Well 1: sdps 675, mult 1, dps 675"]
+    },
+    "geyser": {
+      "engagementFactor": 1.375,
+      "aoeMultiplier": 1.8,
+      "row": "Geyser 1 (Average)",
+      "baseRow": "Geyser 1",
+      "catalogSingleTargetDps": 1100,
+      "tab": "700 Range Towers",
+      "policy": "average-row",
+      "variants": [
+        "Geyser 1: sdps 1050, mult 1, dps 1050",
+        "Geyser 1 (AoE): sdps 1050, mult 3, dps 2100",
+        "Geyser 1 (Average): sdps 1050, mult 1.8, dps 1444"
+      ]
+    },
+    "blacksmith": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Blacksmith 1",
+      "baseRow": "Blacksmith 1",
+      "catalogSingleTargetDps": 675,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": ["Blacksmith 1: sdps 675, mult 1, dps 675"]
+    },
+    "solar": {
+      "engagementFactor": 1.5,
+      "aoeMultiplier": 2,
+      "row": "Solar 1 (1 sec)",
+      "baseRow": "Solar 1 (1 sec)",
+      "catalogSingleTargetDps": 240,
+      "tab": "700 Range Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Solar 1 (1 sec): sdps 120, mult 2, dps 180",
+        "Solar 1 (5 sec): sdps 600, mult 2, dps 900"
+      ]
+    },
+    "mushroom": {
+      "engagementFactor": 2,
+      "aoeMultiplier": 3,
+      "row": "Mushroom 1",
+      "baseRow": "Mushroom 1",
+      "catalogSingleTargetDps": 490,
+      "tab": "700 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Mushroom 1: sdps 500, mult 3, dps 1000",
+        "Mushroom 1 (75% Speed): sdps 667, mult 3, dps 1333",
+        "Mushroom 1 (50% Speed): sdps 1000, mult 3, dps 2000"
+      ]
+    },
+    "astral": {
+      "engagementFactor": 1.31,
+      "aoeMultiplier": 1.8,
+      "row": "Astral 1 (Average)",
+      "baseRow": "Astral 1",
+      "catalogSingleTargetDps": 2300,
+      "tab": "1500 Range Towers",
+      "policy": "average-row",
+      "variants": [
+        "Astral 1: sdps 2100, mult 1, dps 2100",
+        "Astral 1 (Ability): sdps 2000, mult 4, dps 5000",
+        "Astral 1 (Average): sdps 2000, mult 1.8, dps 2750"
+      ]
+    },
+    "runic": {
+      "engagementFactor": 2.167,
+      "aoeMultiplier": 3.3,
+      "row": "Runic 1 (Average)",
+      "baseRow": "Runic 1",
+      "catalogSingleTargetDps": 925,
+      "tab": "1150 Range Towers",
+      "policy": "average-row",
+      "variants": [
+        "Runic 1: sdps 1200, mult 2, dps 1800",
+        "Runic 1 (Ability on 3): sdps 1200, mult 6, dps 4200",
+        "Runic 1 (Average): sdps 1200, mult 3.3, dps 2600"
+      ]
+    },
+    "jinx": {
+      "engagementFactor": 1.5,
+      "aoeMultiplier": 2,
+      "row": "Jinx 1",
+      "baseRow": "Jinx 1",
+      "catalogSingleTargetDps": 825,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": [
+        "Jinx 1: sdps 1650, mult 2, dps 2475",
+        "Jinx 1 (After 7.5 Seconds): sdps 2079, mult 2, dps 3118"
+      ]
+    },
+    "laser": {
+      "engagementFactor": 0.5,
+      "aoeMultiplier": 1,
+      "row": "Laser 1 (Min)",
+      "baseRow": "Laser 1 (Max)",
+      "catalogSingleTargetDps": 7000,
+      "tab": "900 Range Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Laser 1 (Max): sdps 6000, mult 1, dps 6000",
+        "Laser 1 (Min): sdps 3000, mult 1, dps 3000"
+      ],
+      "isolatedEngagementFactor": 1,
+      "isolatedRow": "Laser 1 (Max)"
+    },
+    "windstorm": {
+      "engagementFactor": 2.5,
+      "aoeMultiplier": 4,
+      "row": "Windstorm 1 (Full Duration)",
+      "baseRow": "Windstorm 1 (Full Duration)",
+      "catalogSingleTargetDps": 70,
+      "tab": "Support Towers",
+      "policy": "lowest-variant",
+      "variants": ["Windstorm 1 (Full Duration): sdps 700, mult 4, dps 1750"]
+    },
+    "wisp": {
+      "engagementFactor": 3,
+      "aoeMultiplier": 5,
+      "row": "Wisp 1",
+      "baseRow": "Wisp 1",
+      "catalogSingleTargetDps": 950,
+      "tab": "900 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Wisp 1: sdps 750, mult 5, dps 2250",
+        "Wisp 1 (10 seconds): sdps 1222, mult 4, dps 3054",
+        "Wisp 1 (20 seconds): sdps 1990, mult 3, dps 3980",
+        "Wisp 1 (30 seconds): sdps 3225, mult 2, dps 4838"
+      ]
+    },
+    "polar": {
+      "engagementFactor": 2,
+      "aoeMultiplier": 3,
+      "row": "Polar 1",
+      "baseRow": "Polar 1",
+      "catalogSingleTargetDps": 750,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": ["Polar 1: sdps 1500, mult 3, dps 3000"]
+    },
+    "nova": {
+      "engagementFactor": 7.994,
+      "aoeMultiplier": 15,
+      "row": "Nova 1",
+      "baseRow": "Nova 1",
+      "catalogSingleTargetDps": 198,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": ["Nova 1: sdps 467, mult 15, dps 3733"]
+    },
+    "money": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Money 1",
+      "baseRow": "Money 1",
+      "catalogSingleTargetDps": 3300,
+      "tab": "1150 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Money 1: sdps 3200, mult 1, dps 3200",
+        "Money 1 (x1.3): sdps 4160, mult 1, dps 4160",
+        "Money 1 (x1.6): sdps 5120, mult 1, dps 5120"
+      ]
+    },
+    "incantation": {
+      "engagementFactor": 1.5,
+      "aoeMultiplier": 2,
+      "row": "Incantation 1",
+      "baseRow": "Incantation 1",
+      "catalogSingleTargetDps": 855,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": [
+        "Incantation 1: sdps 1200, mult 2, dps 1800",
+        "Incantation 1 (With Amp): sdps 1296, mult 2, dps 1944",
+        "Incantation 1 (With Full Amp): sdps 1584, mult 2, dps 2376"
+      ],
+      "isolatedEngagementFactor": 1.98,
+      "isolatedRow": "Incantation 1 (With Full Amp)"
+    },
+    "corrosion": {
+      "engagementFactor": 2.5,
+      "aoeMultiplier": 4,
+      "row": "Corrosion 1 (Full Duration)",
+      "baseRow": "Corrosion 1 (Full Duration)",
+      "catalogSingleTargetDps": 90,
+      "tab": "Support Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Corrosion 1 (Full Duration): sdps 900, mult 4, dps 2250",
+        "Corrosion 1 (With Amp): sdps 1080, mult 4, dps 2700"
+      ]
+    },
+    "flooding": {
+      "engagementFactor": 2,
+      "aoeMultiplier": 3,
+      "row": "Flooding 1",
+      "baseRow": "Flooding 1",
+      "catalogSingleTargetDps": 1410,
+      "tab": "1150 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Flooding 1: sdps 1260, mult 3, dps 2520",
+        "Flooding 1 (600 AoE): sdps 1260, mult 6, dps 4410",
+        "Flooding 1 (900 AoE): sdps 1260, mult 9, dps 6300"
+      ]
+    },
+    "muck": {
+      "engagementFactor": 2,
+      "aoeMultiplier": 3,
+      "row": "Muck 1",
+      "baseRow": "Muck 1",
+      "catalogSingleTargetDps": 675,
+      "tab": "Support Towers",
+      "policy": "base-row",
+      "variants": ["Muck 1: sdps 1500, mult 3, dps 3000"]
+    },
+    "ethereal": {
+      "engagementFactor": 1.25,
+      "aoeMultiplier": 1.5,
+      "row": "Ethereal 1",
+      "baseRow": "Ethereal 1",
+      "catalogSingleTargetDps": 2700,
+      "tab": "1500 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Ethereal 1: sdps 2550, mult 1.5, dps 3188",
+        "Ethereal 1 (3 Stacks): sdps 3225, mult 1.5, dps 4031",
+        "Ethereal 1 (6 Stacks): sdps 3900, mult 1.5, dps 4875"
+      ]
+    },
+    "flamethrower": {
+      "engagementFactor": 3,
+      "aoeMultiplier": 5,
+      "row": "Flamethrower 1 (Attack)",
+      "baseRow": "Flamethrower 1 (Attack)",
+      "catalogSingleTargetDps": 600,
+      "tab": "700 Range Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Flamethrower 1 (Attack): sdps 600, mult 5, dps 1800",
+        "Flamethrower 1 (Napalm): sdps 300, mult 20, dps 3150"
+      ]
+    },
+    "root": {
+      "engagementFactor": 3.5,
+      "aoeMultiplier": 6,
+      "row": "Roots 1 (Full Duration)",
+      "baseRow": "Roots 1 (Full Duration)",
+      "catalogSingleTargetDps": 75,
+      "tab": "Support Towers",
+      "policy": "lowest-variant",
+      "variants": ["Roots 1 (Full Duration): sdps 750, mult 6, dps 2625"]
+    },
+    "impulse": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Impulse 1",
+      "baseRow": "Impulse 1",
+      "catalogSingleTargetDps": 3000,
+      "tab": "1500 Range Towers",
+      "policy": "base-row",
+      "variants": [
+        "Impulse 1: sdps 3300, mult 1, dps 3300",
+        "Impulse 1 (Max): sdps 4950, mult 1, dps 4950"
+      ]
+    },
+    "haste": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Haste 1 (Min Speed)",
+      "baseRow": "Haste 1 (Min Speed)",
+      "catalogSingleTargetDps": 1500,
+      "tab": "900 Range Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Haste 1 (Min Speed): sdps 1500, mult 1, dps 1500",
+        "Haste 1 (Max Speed): sdps 5500, mult 1, dps 5500"
+      ]
+    },
+    "golem": {
+      "engagementFactor": 0.333,
+      "aoeMultiplier": 1,
+      "row": "Golem 1 (Average)",
+      "baseRow": "Golem 1 (Active)",
+      "catalogSingleTargetDps": 8400,
+      "tab": "1150 Range Towers",
+      "policy": "average-row",
+      "variants": [
+        "Golem 1 (Active): sdps 8100, mult 1, dps 8100",
+        "Golem 1 (Average): sdps 2700, mult 1, dps 2700"
+      ]
+    },
+    "quake": {
+      "engagementFactor": 1.641,
+      "aoeMultiplier": 3.4,
+      "row": "Quake 1 (Average)",
+      "baseRow": "Quake 1",
+      "catalogSingleTargetDps": 3000,
+      "tab": "700 Range Towers",
+      "policy": "average-row",
+      "variants": [
+        "Quake 1: sdps 3000, mult 1.5, dps 3750",
+        "Quake 1 (w/ proc): sdps 488, mult 15, dps 3900",
+        "Quake 1 (Average): sdps 2250, mult 3.4, dps 4922"
+      ]
+    },
+    "singularity": {
+      "engagementFactor": 2.5,
+      "aoeMultiplier": 4,
+      "row": "Singularity",
+      "baseRow": "Singularity",
+      "catalogSingleTargetDps": 3960,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Singularity: sdps 4620, mult 4, dps 11550"]
+    },
+    "railgun": {
+      "engagementFactor": 5.75,
+      "aoeMultiplier": 1,
+      "row": "Railgun (Main Gun)",
+      "baseRow": "Railgun (Static)",
+      "catalogSingleTargetDps": 1000,
+      "tab": "Quad Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Railgun (Static): sdps 1000, mult 15, dps 8000",
+        "Railgun (Main Gun): sdps 5750, mult 1, dps 5750"
+      ]
+    },
+    "phantom-zone": {
+      "engagementFactor": 2,
+      "aoeMultiplier": 3,
+      "row": "Phantom Zone",
+      "baseRow": "Phantom Zone",
+      "catalogSingleTargetDps": 4620,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Phantom Zone: sdps 5280, mult 3, dps 10560"]
+    },
+    "doom": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Doom",
+      "baseRow": "Doom",
+      "catalogSingleTargetDps": 3000,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Doom: sdps 10000, mult 1, dps 10000"]
+    },
+    "rage": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Rage (1 sec)",
+      "baseRow": "Rage (1 sec)",
+      "catalogSingleTargetDps": 4500,
+      "tab": "Quad Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Rage (1 sec): sdps 4500, mult 1, dps 4500",
+        "Rage (5 sec): sdps 22500, mult 1, dps 22500"
+      ]
+    },
+    "nuclear": {
+      "engagementFactor": 1.263,
+      "aoeMultiplier": 1.5,
+      "row": "Nuclear (Base DPS)",
+      "baseRow": "Nuclear (AoE)",
+      "catalogSingleTargetDps": 2640,
+      "tab": "Quad Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Nuclear (AoE): sdps 4950, mult 4, dps 12375",
+        "Nuclear (Base DPS): sdps 5000, mult 1.5, dps 6250",
+        "Nuclear (Max DPS Wave 56): sdps 7500, mult 1.5, dps 9375",
+        "Nuclear (Max DPS Wave 61): sdps 12500, mult 1.5, dps 15625"
+      ]
+    },
+    "tesla-tree": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Tesla Tree",
+      "baseRow": "Tesla Tree",
+      "catalogSingleTargetDps": 12000,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": [
+        "Tesla Tree: sdps 13200, mult 1, dps 13200",
+        "Tesla Tree (2 Towers): sdps 26400, mult 1, dps 26400",
+        "Tesla Tree (3 Towers): sdps 39600, mult 1, dps 39600",
+        "Tesla Tree (4 Towers): sdps 52800, mult 1, dps 52800"
+      ]
+    },
+    "obelisk": {
+      "engagementFactor": 1,
+      "aoeMultiplier": 1,
+      "row": "Obelisk",
+      "baseRow": "Obelisk",
+      "catalogSingleTargetDps": 7500,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Obelisk: sdps 12000, mult 1, dps 12000"]
+    },
+    "life-altar": {
+      "engagementFactor": 1.5,
+      "aoeMultiplier": 2,
+      "row": "Life Altar",
+      "baseRow": "Life Altar",
+      "catalogSingleTargetDps": 8000,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": [
+        "Life Altar: sdps 8500, mult 2, dps 12750",
+        "Life Altar (Active): sdps 18488, mult 2, dps 27731"
+      ]
+    },
+    "archdruid": {
+      "engagementFactor": 2,
+      "aoeMultiplier": 3,
+      "row": "Archdruid",
+      "baseRow": "Archdruid",
+      "catalogSingleTargetDps": 4950,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Archdruid: sdps 8250, mult 3, dps 16500"]
+    },
+    "plague": {
+      "engagementFactor": 1.25,
+      "aoeMultiplier": 1.5,
+      "row": "Plague",
+      "baseRow": "Plague",
+      "catalogSingleTargetDps": 800,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": [
+        "Plague: sdps 700, mult 1.5, dps 875",
+        "Plague (5 sec): sdps 3500, mult 1.5, dps 4375",
+        "Plague (10 sec): sdps 7000, mult 1.5, dps 8750",
+        "Plague (15 sec): sdps 10500, mult 1.5, dps 13125",
+        "Plague (20 sec): sdps 14000, mult 1.5, dps 17500"
+      ]
+    },
+    "crystal-spire": {
+      "engagementFactor": 1.25,
+      "aoeMultiplier": 1.5,
+      "row": "Crystal Spire",
+      "baseRow": "Crystal Spire",
+      "catalogSingleTargetDps": 18000,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Crystal Spire: sdps 15000, mult 1.5, dps 18750"]
+    },
+    "gravity-cannon": {
+      "engagementFactor": 1.25,
+      "aoeMultiplier": 1.5,
+      "row": "Gravity Cannon",
+      "baseRow": "Gravity Cannon",
+      "catalogSingleTargetDps": 8000,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Gravity Cannon: sdps 12000, mult 1.5, dps 15000"]
+    },
+    "shredder": {
+      "engagementFactor": 1.5,
+      "aoeMultiplier": 2,
+      "row": "Shredder",
+      "baseRow": "Shredder",
+      "catalogSingleTargetDps": 6600,
+      "tab": "Quad Towers",
+      "policy": "base-row",
+      "variants": ["Shredder: sdps 6500, mult 2, dps 9750"]
+    },
+    "tsunami": {
+      "engagementFactor": 0.827,
+      "aoeMultiplier": 30,
+      "row": "Tsunami (25 Charge)",
+      "baseRow": "Tsunami (Attack)",
+      "catalogSingleTargetDps": 7500,
+      "tab": "Quad Towers",
+      "policy": "lowest-variant",
+      "variants": [
+        "Tsunami (Attack): sdps 7500, mult 1, dps 7500",
+        "Tsunami (25 Charge): sdps 400, mult 30, dps 6200",
+        "Tsunami (50 Charge): sdps 440, mult 30, dps 6820",
+        "Tsunami (75 Charge): sdps 547, mult 30, dps 8473",
+        "Tsunami (100 Charge): sdps 650, mult 30, dps 10075"
+      ]
+    }
+  }
+}
