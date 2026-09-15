@@ -1291,7 +1291,7 @@ function Roster({
 
 type ActionRow = {
   key: string;
-  tier: "keystone" | "package" | "repair" | "sell" | "wait";
+  tier: "keystone" | "package" | "repair" | "sell" | "wait" | "evolve";
   verb: string;
   subject: string;
   count: number;
@@ -1316,27 +1316,33 @@ function actionRows(actions: readonly MatchPlanAction[]): ActionRow[] {
         ? "keystone"
         : action.type === "sell"
           ? "sell"
-          : !action.affordable
-            ? "wait"
-            : /:(survival|coverage)-repair:/.test(action.id)
-              ? "repair"
-              : "package";
+          : action.type === "evolve"
+            ? "evolve"
+            : !action.affordable
+              ? "wait"
+              : /:(survival|coverage)-repair:/.test(action.id)
+                ? "repair"
+                : "package";
     const verb =
       tier === "keystone"
         ? "Allocate"
         : tier === "sell"
           ? "Sell"
-          : tier === "wait"
-            ? "Wait on"
-            : action.fromLevel
-              ? "Upgrade"
-              : "Build";
+          : tier === "evolve"
+            ? "Evolve"
+            : tier === "wait"
+              ? "Wait on"
+              : action.fromLevel
+                ? "Upgrade"
+                : "Build";
     const level =
       tier === "sell" ? action.fromLevel : action.toLevel || action.fromLevel;
     const subject =
       tier === "keystone"
         ? `${action.element} ${action.elementLevel}`
-        : `${action.towerName ?? action.summary} ${level ?? ""}`.trim();
+        : tier === "evolve"
+          ? `${action.fromTowerName ?? "starter"} into ${action.towerName ?? action.summary} ${level ?? ""}`.trim()
+          : `${action.towerName ?? action.summary} ${level ?? ""}`.trim();
     const key = `${tier}:${verb}:${subject}`;
     const row = rows.get(key) ?? {
       key,
@@ -1359,7 +1365,14 @@ function actionRows(actions: readonly MatchPlanAction[]): ActionRow[] {
     if (action.copyId) row.copyIds.push(action.copyId);
     rows.set(key, row);
   }
-  const tierOrder = { keystone: 0, package: 1, repair: 2, sell: 3, wait: 4 };
+  const tierOrder = {
+    keystone: 0,
+    package: 1,
+    repair: 2,
+    evolve: 3,
+    sell: 4,
+    wait: 5,
+  };
   return [...rows.values()].sort(
     (a, b) =>
       tierOrder[a.tier] - tierOrder[b.tier] ||

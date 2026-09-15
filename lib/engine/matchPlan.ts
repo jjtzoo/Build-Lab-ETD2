@@ -2536,6 +2536,7 @@ export function generateMatchPlan(
           (step) => step.towerId,
         ),
       );
+      const spendable = Math.max(0, lower - windowReserve);
       const entry = remainingQueue().find(
         (candidate) =>
           targets.has(candidate.towerId) &&
@@ -2548,36 +2549,129 @@ export function generateMatchPlan(
               stableId(planId, "copy", candidate.towerId, candidate.copyOrdinal),
           ),
       );
-      if (!entry) return false;
-      const cost = evolutionCost(
-        { towerId: tower.towerId, level: tower.level },
-        { towerId: entry.towerId, level: entry.toLevel },
-      );
-      const spendable = Math.max(0, lower - windowReserve);
-      if (cumulativeCost + cost > spendable) return false;
-      const officialCopyId = stableId(
-        planId,
-        "copy",
-        entry.towerId,
-        entry.copyOrdinal,
-      );
+      if (entry) {
+        const cost = evolutionCost(
+          { towerId: tower.towerId, level: tower.level },
+          { towerId: entry.towerId, level: entry.toLevel },
+        );
+        if (cumulativeCost + cost > spendable) return false;
+        const officialCopyId = stableId(
+          planId,
+          "copy",
+          entry.towerId,
+          entry.copyOrdinal,
+        );
+        const evolved: PlannedTowerState = {
+          copyId: officialCopyId,
+          towerId: entry.towerId,
+          towerName: entry.towerName,
+          level: entry.toLevel,
+          quantity: 1,
+          purpose: entry.temporaryCarry
+            ? "Temporary early carry"
+            : purposeFor(build, entry.towerId),
+          roles: entry.roles,
+          status:
+            entry.temporaryCarry && !retainTemporary(overrides, officialCopyId)
+              ? "temporary"
+              : "permanent",
+          effect: effectFor(entry.towerId, entry.toLevel),
+          globalBuff: getTowerPlacementFact(entry.towerId).targetsTowers,
+          directHitDebuff:
+            getTowerPlacementFact(entry.towerId).debuff !== null,
+          cell: tower.cell,
+          cellLabel: tower.cellLabel,
+          campId: tower.campId,
+        };
+        field = [...field.filter((t) => t.copyId !== tower.copyId), evolved];
+        cumulativeCost += cost;
+        phaseCost += cost;
+        actions.push({
+          id: stableId(
+            planId,
+            definition.id,
+            "evolve",
+            tower.copyId,
+            entry.towerId,
+          ),
+          phaseId: definition.id,
+          order: actionOrder++,
+          type: "evolve",
+          summary: `Evolve ${tower.towerName} into ${entry.towerName} ${entry.toLevel}`,
+          reason: `${tower.towerName} no longer moves a wave here, but the build's own queue calls for ${entry.towerName} next and this exact tower can become it — ${cost.toLocaleString()}g net of the gold already spent on it, cheaper than selling for an unmeasured refund and building fresh elsewhere.`,
+          towerId: entry.towerId,
+          towerName: entry.towerName,
+          fromTowerId: tower.towerId,
+          fromTowerName: tower.towerName,
+          copyId: officialCopyId,
+          fromLevel: tower.level,
+          toLevel: entry.toLevel,
+          cost,
+          legal: true,
+          affordable: true,
+          targetWave: definition.start,
+          cell: tower.cell ?? undefined,
+          cellLabel: tower.cellLabel ?? undefined,
+          campId: tower.campId ?? undefined,
+          temporary: evolved.status === "temporary",
+        });
+        purchased.add(purchaseKey(entry));
+        return true;
+      }
+      // Nothing on the build's own queue can still absorb it — the early
+      // monos it lists were already built elsewhere. That does not mean
+      // there is nothing to evolve into: any element this build's own
+      // allocation already holds legally supports its mono, and a real
+      // player facing "sell for nothing" or "spend a little more and keep
+      // a working tower" takes the tower. Scored the same way the
+      // emergency coverage repair already picks a mono — by how much it
+      // moves the field's own weighted armour coverage — and capped by the
+      // same fleet saturation every other rescue copy respects, so this
+      // never opportunistically overbuilds.
+      const coverage = coverageRows(field);
+      const opportunistic = evolutionTargets(tower.towerId, tower.level)
+        .filter((step) => isLegal(step.towerId, step.level, allocation))
+        .flatMap((step) => {
+          const existingCopies = field.filter(
+            (t) => t.towerId === step.towerId,
+          ).length;
+          if (existingCopies >= fleetCopySaturationFor(step.towerId))
+            return [];
+          const facts = towerFacts(step.towerId, step.level);
+          const element = facts.damageElement;
+          if (!element || element === "Composite" || !facts.baseDps)
+            return [];
+          const cost = evolutionCost(
+            { towerId: tower.towerId, level: tower.level },
+            step,
+          );
+          if (cumulativeCost + cost > spendable) return [];
+          const score = coverage.reduce(
+            (sum, row) =>
+              sum +
+              ELEMENT_MATCHUPS[element][row.defender] *
+                (row.status === "critical" || row.status === "weak" ? 2 : 1),
+            0,
+          );
+          return [{ step, cost, score, existingCopies }];
+        })
+        .sort((a, b) => b.score - a.score || a.cost - b.cost)[0];
+      if (!opportunistic) return false;
+      const { step, cost, existingCopies } = opportunistic;
+      const towerName = liveTowerName(step.towerId);
+      const copyId = stableId(planId, "copy", step.towerId, existingCopies + 1);
       const evolved: PlannedTowerState = {
-        copyId: officialCopyId,
-        towerId: entry.towerId,
-        towerName: entry.towerName,
-        level: entry.toLevel,
+        copyId,
+        towerId: step.towerId,
+        towerName,
+        level: step.level,
         quantity: 1,
-        purpose: entry.temporaryCarry
-          ? "Temporary early carry"
-          : purposeFor(build, entry.towerId),
-        roles: entry.roles,
-        status:
-          entry.temporaryCarry && !retainTemporary(overrides, officialCopyId)
-            ? "temporary"
-            : "permanent",
-        effect: effectFor(entry.towerId, entry.toLevel),
-        globalBuff: getTowerPlacementFact(entry.towerId).targetsTowers,
-        directHitDebuff: getTowerPlacementFact(entry.towerId).debuff !== null,
+        purpose: purposeFor(build, step.towerId),
+        roles: ["coverage"],
+        status: "permanent",
+        effect: effectFor(step.towerId, step.level),
+        globalBuff: getTowerPlacementFact(step.towerId).targetsTowers,
+        directHitDebuff: getTowerPlacementFact(step.towerId).debuff !== null,
         cell: tower.cell,
         cellLabel: tower.cellLabel,
         campId: tower.campId,
@@ -2586,25 +2680,19 @@ export function generateMatchPlan(
       cumulativeCost += cost;
       phaseCost += cost;
       actions.push({
-        id: stableId(
-          planId,
-          definition.id,
-          "evolve",
-          tower.copyId,
-          entry.towerId,
-        ),
+        id: stableId(planId, definition.id, "evolve", tower.copyId, step.towerId),
         phaseId: definition.id,
         order: actionOrder++,
         type: "evolve",
-        summary: `Evolve ${tower.towerName} into ${entry.towerName} ${entry.toLevel}`,
-        reason: `${tower.towerName} no longer moves a wave here, but the build's own queue calls for ${entry.towerName} next and this exact tower can become it — ${cost.toLocaleString()}g net of the gold already spent on it, cheaper than selling for an unmeasured refund and building fresh elsewhere.`,
-        towerId: entry.towerId,
-        towerName: entry.towerName,
+        summary: `Evolve ${tower.towerName} into ${towerName} ${step.level}`,
+        reason: `${tower.towerName} no longer moves a wave here, and nothing later in the build's own queue can still use it, but ${towerName} is legal on this allocation and helps this field's own armour coverage — ${cost.toLocaleString()}g net of the gold already spent on it, cheaper than selling for an unmeasured refund and building fresh elsewhere.`,
+        towerId: step.towerId,
+        towerName,
         fromTowerId: tower.towerId,
         fromTowerName: tower.towerName,
-        copyId: officialCopyId,
+        copyId,
         fromLevel: tower.level,
-        toLevel: entry.toLevel,
+        toLevel: step.level,
         cost,
         legal: true,
         affordable: true,
@@ -2612,9 +2700,8 @@ export function generateMatchPlan(
         cell: tower.cell ?? undefined,
         cellLabel: tower.cellLabel ?? undefined,
         campId: tower.campId ?? undefined,
-        temporary: evolved.status === "temporary",
+        temporary: false,
       });
-      purchased.add(purchaseKey(entry));
       return true;
     };
 

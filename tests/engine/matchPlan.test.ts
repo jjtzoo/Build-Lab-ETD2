@@ -300,6 +300,33 @@ describe("Match Plan", () => {
     );
   });
 
+  it("evolves stale starters into whatever legal mono helps coverage, when the build's own queue has already moved past them", () => {
+    // laserBuild's opening Arrows go stale well before the queue ever asks
+    // for a fresh mono again (the anchor's own upgrades dominate by then) —
+    // this is the real, organic case the exact-queue-match path can never
+    // reach on its own, and the one the owner's real game hit.
+    const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
+    const evolves = plan.phases.flatMap((phase) =>
+      phase.actions.filter((action) => action.type === "evolve"),
+    );
+    expect(evolves.length).toBeGreaterThan(0);
+    expect(
+      evolves.every(
+        (action) =>
+          (action.fromTowerId === "arrow" || action.fromTowerId === "cannon") &&
+          action.towerId !== action.fromTowerId,
+      ),
+    ).toBe(true);
+    const sells = plan.phases.flatMap((phase) =>
+      phase.actions.filter(
+        (action) =>
+          action.type === "sell" &&
+          (action.towerId === "arrow" || action.towerId === "cannon"),
+      ),
+    );
+    expect(sells).toEqual([]);
+  });
+
   it("serializes an evolve action with its own tower identity, distinct from a fresh build", () => {
     const plan = generateMatchPlan(laserBuild, {
       mapId: "forest",
