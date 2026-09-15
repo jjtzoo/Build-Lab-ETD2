@@ -3,12 +3,18 @@ import engagementData from "@/data/towerEngagement.v1.json";
 import mechanicFacts from "@/data/towerMechanicFacts.v1.json";
 import { ELEMENT_MATCHUPS } from "@/lib/domain/elementMatchupCatalog";
 import type { ElementName } from "@/lib/domain/elements";
+import type { EndGameTowerId } from "@/lib/domain/endGameTower";
+import {
+  END_GAME_TOWER_FACT_CATALOG,
+  getEndGameTowerFact,
+} from "@/lib/domain/endGameTowerFacts";
 import type { MapConfig, WaveMode } from "@/lib/domain/mapConfig";
 import type {
   MatchPlanSurvival,
   PlannedTowerState,
 } from "@/lib/domain/matchPlan";
 import { getTower } from "@/lib/domain/towerCatalog";
+import { sustainedEngagementDps } from "@/lib/engine/endGamePackageEvaluation";
 import { coverageForMode } from "@/lib/engine/mapPlacement";
 import {
   type MatchPlanDifficulty,
@@ -19,7 +25,15 @@ type CombatFact = {
   averageDps: number;
   range: number;
   damageElement: ElementName | "Composite";
+  /** Open assumptions in the damage figure above (e.g. Overkill's spread
+   * value needs unverified creep HP) — present only for End Game towers. */
+  unresolvedFactors?: readonly string[];
 };
+
+/** Pure/Periodic towers — a flat purchase, not a levelled one. */
+const END_GAME_TOWER_IDS: ReadonlySet<string> = new Set(
+  END_GAME_TOWER_FACT_CATALOG.facts.map((fact) => fact.towerId),
+);
 
 type OpeningTowerFacts = {
   range: number;
@@ -86,6 +100,23 @@ export function benefitsFromIsolation(towerId: string): boolean {
  * it must never be filled with a guess.
  */
 export function combatFacts(towerId: string, level: number): CombatFact | null {
+  // Pure/Periodic: a single flat purchase, not a level — the level argument
+  // is not meaningful for these ids. sustainedEngagementDps already
+  // integrates each tower's verified ability (ramp/stack/burst) from its
+  // own facts; where a factor cannot be derived without an unverified
+  // number (Overkill's on-kill spread, an unconfirmed duplicate-copy
+  // interaction) it contributes 0 and is named in unresolvedFactors rather
+  // than guessed.
+  if (END_GAME_TOWER_IDS.has(towerId)) {
+    const fact = getEndGameTowerFact(towerId as EndGameTowerId);
+    const engagement = sustainedEngagementDps(fact);
+    return {
+      averageDps: engagement.sustainedDps,
+      range: fact.range,
+      damageElement: fact.element,
+      unresolvedFactors: engagement.unresolvedFactors,
+    };
+  }
   const opening = OPENING_FACTS[towerId];
   if (opening) {
     const row = opening.levels.find((entry) => entry.level === level);
@@ -381,6 +412,11 @@ export function evaluatePhaseSurvival({
       };
     const unknownAbility = benchmark.modelConfidence === "ability-estimate";
     let missingTowerFacts = false;
+    // An End Game tower on the field with an open assumption in its own
+    // damage figure (Overkill's creep-HP dependency, an unconfirmed
+    // duplicate-copy interaction) — the modeled damage is a floor, so the
+    // wave cannot read as a clean "survives" even if it clears on paper.
+    let essenceUnresolved = false;
     const trainSeconds = (benchmark.count - 1) * benchmark.spawnSpacingSeconds;
     // Isolation providers present this wave, for the consumers that have a
     // verified isolated damage row (Laser, Incantation). A consumer counts as
@@ -454,6 +490,7 @@ export function evaluatePhaseSurvival({
           },
         ];
       }
+      if (facts.unresolvedFactors?.length) essenceUnresolved = true;
       const coverage = coverageForMode(map, tower.cell, facts.range, mode);
       const contactSeconds =
         coverage.coveredSeconds / benchmark.speedMultiplier;
@@ -616,7 +653,7 @@ export function evaluatePhaseSurvival({
     // unmodeled" and "clear, but the ability is unknown" stay unverified.
     const status =
       margin >= 1
-        ? unknownAbility
+        ? unknownAbility || essenceUnresolved
           ? ("unverified" as const)
           : ("survives" as const)
         : missingTowerFacts
@@ -654,7 +691,9 @@ export function evaluatePhaseSurvival({
           : status === "unverified"
             ? unknownAbility && !missingTowerFacts
               ? `Clears the base HP, but ${benchmark.ability} is not quantified yet.`
-              : "A placed copy has no combat stat at this level, so the modeled damage is only a floor."
+              : essenceUnresolved && !missingTowerFacts
+                ? "Clears the base HP, but an End Game tower's damage carries an open assumption — see its own unresolved factor."
+                : "A placed copy has no combat stat at this level, so the modeled damage is only a floor."
             : missingTowerFacts
               ? "Clears the wave on the modeled copies alone; one copy has no combat stat at this level."
               : null,
@@ -683,6 +722,7 @@ export function evaluatePhaseSurvival({
       "Blacksmith, Well and Trickery are credited from their verified magnitudes on the strongest towers in range (same-signal buffs do not stack); Laser and Incantation use their isolated damage row while Rage is fielded in reach.",
       "Corrosion, Incantation and Rage amplify the damage every tower in overlapping reach deals, for the share of that tower's contact during which the creep still carries the debuff (highest amplifier applies). Nova, Muck, Root and Windstorm extend the contact time of every tower in overlapping reach the same way, for the share of that tower's contact during which the creep is still slowed. Interest, hand-cast buffs, creep abilities, creep displacement and overkill are not credited.",
       "Every verified wave must reach 100% damage capacity. The planner never spends the 50-life pool as a buffer.",
+      "End Game towers (Pure, Periodic) are credited over a 20-second sustained engagement from their own verified facts, ability included where it can be derived without a guess (Overkill's on-kill spread cannot, and stays uncredited); a wave with an open factor on its field never reads as a clean pass.",
     ],
   };
 }

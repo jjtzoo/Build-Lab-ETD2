@@ -130,9 +130,11 @@ describe("Match Plan doctrine — survival over economy", () => {
     // does not translate into any credited buff on the rest of the field
     // (buffs are not modeled at all yet), so upgrading them moves the
     // verified floor by exactly nothing; the rescue cascade is right to
-    // refuse them. That is Match Plan's own documented scope gap (it also
-    // does not model the End Game essence layer), not a planner bug — see
-    // the survival-over-economy-fallback note on crediting buffs.
+    // refuse them. That is Match Plan's own documented scope gap, not a
+    // planner bug — see the survival-over-economy-fallback note on
+    // crediting buffs. (The two boss windows after it do have a real
+    // outlet now — the End Game essence layer, under the wave-56
+    // assumption — see the boss-window tests below.)
     const idle = plans.flatMap(({ anchor, matchPlan }) =>
       matchPlan.phases.slice(0, -3).flatMap((phase) => {
         if (phase.endWave == null) return [];
@@ -176,5 +178,36 @@ describe("Match Plan doctrine — survival over economy", () => {
       }),
     );
     expect(silent).toEqual([]);
+  });
+
+  /**
+   * The two boss windows (56–60, 61–70) — excluded above because they carry
+   * HP per creep but no measured creep count for the "never banks gold" and
+   * "surfaces what every window is waiting on" checks. What still holds for
+   * them specifically: the essence layer is real now, not a silent gap.
+   */
+  it("never spends more than two End Game essence uses across the whole plan", () => {
+    const overspent = plans.flatMap(({ anchor, matchPlan }) => {
+      const picks = matchPlan.phases.flatMap((phase) =>
+        phase.actions.filter((action) =>
+          action.reason?.startsWith("Essence pick"),
+        ),
+      );
+      return picks.length > 2 ? [`${anchor} used ${picks.length}`] : [];
+    });
+    expect(overspent).toEqual([]);
+  });
+
+  it("boss windows never fall back to the old 'does not model yet' essence text", () => {
+    const stale = plans.flatMap(({ anchor, matchPlan }) =>
+      matchPlan.phases
+        .filter((phase) => phase.id === "56-60" || phase.id === "61-70")
+        .flatMap((phase) =>
+          phase.risks.some((risk) => risk.includes("does not model yet"))
+            ? [`${anchor} ${phase.label}`]
+            : [],
+        ),
+    );
+    expect(stale).toEqual([]);
   });
 }, 300_000);

@@ -39,5 +39,9 @@
       "notes": "Theory Craft Doom build, followed the Match Plan guide exactly. Elements at death L1 D3 F3 N1 E2. Field: Doom, Life Altar, Shredder, Darkness mono, Infernal, Jinx, Root, Blacksmith, Arrow. Owner: gold left in the bank; the right-side double pass was under-used by the guide. An earlier guide-following game (no screenshots) also ended before wave 55."
     }
   ],
-  "waves": []
+  "waves": [],
+  "endGameEssenceAccess": {
+    "firstLegalWave": null,
+    "note": "Unmeasured — the wave the two End Game essence purchases actually unlock in a real match. Until measured, the engine assumes wave 56 (LAST_NORMAL_WAVE + 1 in lib/engine/waveBenchmarks.ts) as the earliest defensible floor, since that is the wave the boss stage's own HP curve first needs them."
+  }
 }

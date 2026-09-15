@@ -380,3 +380,82 @@ describe("Match Plan", () => {
     expect(overriddenCarry?.status).toBe("permanent");
   });
 });
+
+describe("End Game essence queue", () => {
+  const essenceActions = (plan: ReturnType<typeof generateMatchPlan>) =>
+    plan.phases.flatMap((phase) =>
+      phase.actions.filter((action) =>
+        action.reason?.startsWith("Essence pick"),
+      ),
+    );
+
+  it("uses the build's own recommended End Game selection when present", () => {
+    // Pure Light is legal for laserBuild (Light 3); the build's own endGame
+    // selection is used as-is rather than re-ranked against the fallback.
+    const plan = generateMatchPlan(
+      { ...laserBuild, endGame: [{ name: "Pure Light", quantity: 2 }] },
+      { mapId: "forest", difficulty: "hard" },
+    );
+    const picks = essenceActions(plan);
+    expect(picks.length).toBeGreaterThan(0);
+    for (const action of picks) expect(action.towerId).toBe("pure-light");
+  });
+
+  it("falls back to the highest sustained-DPS legal candidate when no endGame selection is recorded", () => {
+    // laserBuild carries no `endGame` (a Theory-Craft-shaped build): Light 3 /
+    // Darkness 3 / Earth 3 clear Pure access for those three elements; Water 1 /
+    // Fire 1 / Nature 0 do not, and Periodic needs every element at 1+.
+    const plan = generateMatchPlan(laserBuild, {
+      mapId: "forest",
+      difficulty: "hard",
+    });
+    const picks = essenceActions(plan);
+    expect(picks.length).toBeGreaterThan(0);
+    const towerIds = new Set(picks.map((action) => action.towerId));
+    expect(towerIds.size).toBe(1);
+    expect([...towerIds][0]).toMatch(/^pure-(light|darkness|earth)$/);
+  });
+
+  it("never offers an essence purchase before wave 56", () => {
+    const plan = generateMatchPlan(laserBuild, {
+      mapId: "forest",
+      difficulty: "hard",
+    });
+    const early = plan.phases.filter(
+      (phase) => phase.id !== "56-60" && phase.id !== "61-70",
+    );
+    for (const phase of early)
+      expect(
+        phase.actions.some((action) =>
+          action.reason?.startsWith("Essence pick"),
+        ),
+      ).toBe(false);
+  });
+
+  it("never exceeds the two-use essence ceiling across the whole plan", () => {
+    const plan = generateMatchPlan(
+      { ...laserBuild, endGame: [{ name: "Periodic", quantity: 5 }] },
+      { mapId: "forest", difficulty: "hard" },
+    );
+    expect(essenceActions(plan).length).toBeLessThanOrEqual(2);
+  });
+
+  it("offers nothing when the build's allocation never reaches a legal Pure or Periodic pick", () => {
+    const noAccess: PortableBuild = {
+      ...laserBuild,
+      allocation: {
+        Light: 2,
+        Darkness: 2,
+        Earth: 2,
+        Water: 0,
+        Fire: 0,
+        Nature: 0,
+      },
+    };
+    const plan = generateMatchPlan(noAccess, {
+      mapId: "forest",
+      difficulty: "hard",
+    });
+    expect(essenceActions(plan)).toEqual([]);
+  });
+});

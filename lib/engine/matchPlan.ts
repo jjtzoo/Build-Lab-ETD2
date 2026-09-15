@@ -36,6 +36,16 @@ import { getTower, TOWERS } from "@/lib/domain/towerCatalog";
 import { getTowerMechanicFacts } from "@/lib/domain/towerMechanicFacts";
 import { getTowerPlacementFact } from "@/lib/domain/towerPlacementFacts";
 import { getTowerProfile } from "@/lib/domain/towerProfileCatalog";
+import type { EndGameTowerId } from "@/lib/domain/endGameTower";
+import {
+  END_GAME_TOWER_FACT_CATALOG,
+  getEndGameTowerFact,
+} from "@/lib/domain/endGameTowerFacts";
+import {
+  evaluateEndGameAccess,
+  TRADITIONAL_END_GAME_ESSENCE_USES,
+} from "@/lib/engine/endGameAccess";
+import { sustainedEngagementDps } from "@/lib/engine/endGamePackageEvaluation";
 import {
   benchmarkGoldAtEndWave,
   economyCheckpoint,
@@ -51,11 +61,16 @@ import {
   bountyThroughWave,
   DEFAULT_MATCH_PLAN_DIFFICULTY,
   LAST_BENCHMARK_WAVE,
+  LAST_NORMAL_WAVE,
   type MatchPlanDifficulty,
   waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
 import { sellRefundFraction } from "@/lib/domain/towerEconomics";
-import { liveTowerName, resolveLiveTowerCost } from "@/lib/engine/liveGame";
+import {
+  isEndGameTowerId,
+  liveTowerName,
+  resolveLiveTowerCost,
+} from "@/lib/engine/liveGame";
 import {
   contactIntervals,
   coverageForMode,
@@ -1187,6 +1202,55 @@ function coverageRows(
   });
 }
 
+/**
+ * The two End Game essence picks this build would make, in order — never
+ * more than `TRADITIONAL_END_GAME_ESSENCE_USES`. When the build already
+ * carries a real, ranked selection (`PortableBuild.endGame`, populated for
+ * every Build-Lab-recommended plan by `evaluateEndGamePackage`/
+ * `rankEndGamePackages`), that selection is used as-is — it already weighs
+ * anchor-weakness coverage, AoE/Composite breadth and range, which this
+ * function does not have the search state to reproduce. Only when a build
+ * carries no `endGame` at all (a hand-built Theory Craft plan) does this
+ * fall back to a deliberately simplified stand-in: rank the legal
+ * candidates by raw sustained damage, preferring the anchor's own element
+ * on a tie.
+ */
+function buildEssenceQueue(build: PortableBuild): readonly EndGameTowerId[] {
+  const fromBuild = (build.endGame ?? []).flatMap((choice) => {
+    const fact = END_GAME_TOWER_FACT_CATALOG.facts.find(
+      (entry) => entry.name === choice.name,
+    );
+    return fact
+      ? Array<EndGameTowerId>(Math.max(0, choice.quantity)).fill(fact.towerId)
+      : [];
+  });
+  if (fromBuild.length)
+    return fromBuild.slice(0, TRADITIONAL_END_GAME_ESSENCE_USES);
+  const access = evaluateEndGameAccess(build.allocation);
+  if (!access.candidates.length) return [];
+  const anchorElement = (() => {
+    try {
+      return getTower(build.anchorTowerId).damageElement;
+    } catch {
+      return null;
+    }
+  })();
+  const best = [...access.candidates].sort((a, b) => {
+    const dpsDiff =
+      sustainedEngagementDps(getEndGameTowerFact(b.towerId)).sustainedDps -
+      sustainedEngagementDps(getEndGameTowerFact(a.towerId)).sustainedDps;
+    if (dpsDiff) return dpsDiff;
+    const aMatch = a.element === anchorElement ? 0 : 1;
+    const bMatch = b.element === anchorElement ? 0 : 1;
+    return aMatch - bMatch || a.towerId.localeCompare(b.towerId);
+  })[0];
+  return best
+    ? Array<EndGameTowerId>(TRADITIONAL_END_GAME_ESSENCE_USES).fill(
+        best.towerId,
+      )
+    : [];
+}
+
 export function generateMatchPlan(
   build: PortableBuild,
   settings: MatchPlanSettings = {},
@@ -1214,6 +1278,7 @@ export function generateMatchPlan(
       : settings.sellRefundFraction;
   const order = allocationOrder(build, overrides, map, mode);
   const queue = purchases(build, order, map, mode);
+  const essenceQueue = buildEssenceQueue(build);
   const requiresEarlyCoverage = queue.some(
     (entry) => entry.priority === 115 && isMonoTowerId(entry.towerId),
   );
@@ -1240,6 +1305,9 @@ export function generateMatchPlan(
   const allocation = EMPTY_ALLOCATION();
   let field: PlannedTowerState[] = [];
   let cumulativeCost = 0;
+  // Not per-tower — the match grants exactly this many essence uses total,
+  // shared across whichever Pure/Periodic towers get picked.
+  let essenceUsesRemaining = TRADITIONAL_END_GAME_ESSENCE_USES;
   const purchased = new Set<string>();
   const remainingQueue = () =>
     queue.filter((entry) => !purchased.has(purchaseKey(entry)));
@@ -1412,7 +1480,7 @@ export function generateMatchPlan(
       survival: MatchPlanPhase["survival"];
       shortfall: number;
       efficiency: number;
-      source: "build-path" | "fleet-copy";
+      source: "build-path" | "fleet-copy" | "essence";
       /** Level the copy is at before this step; > 0 means an upgrade in place. */
       fromLevel: number;
       /** The package's own reason for the step, when it has one. */
@@ -1572,7 +1640,10 @@ export function generateMatchPlan(
           (tower.effect === "damage" || tower.effect === "hybrid") &&
           combatFacts(tower.towerId, tower.level) != null &&
           isLegal(tower.towerId, tower.level, allocation) &&
-          !(anchorEstablished && isBasicTowerId(tower.towerId)),
+          !(anchorEstablished && isBasicTowerId(tower.towerId)) &&
+          // End Game towers copy and upgrade through essenceCandidates only
+          // — its own essence-use budget, not the camp-based fleet cap.
+          !isEndGameTowerId(tower.towerId),
       );
       // A tower already at the plan's saturation cap for this build may
       // still be upgraded (no new cell), but never copied again.
@@ -1682,6 +1753,51 @@ export function generateMatchPlan(
       });
       return [...copies, ...upgrades];
     };
+    // Stage 3 — the next End Game essence pick, once the normal-tier field
+    // is saturated. No capture records the wave the two essence picks
+    // actually unlock (owner item 0.4), so this is a stated, overridable
+    // assumption rather than a fact: legal only from the boss stage's own
+    // start (wave 56), the earliest point the field structurally needs it.
+    // Legality is re-checked against the plan's own live allocation (not
+    // the build's final target), so an essence tower is never offered
+    // before its keystones are actually held in-game.
+    const essenceCandidates = (currentShortfall: number) => {
+      if (definition.start <= LAST_NORMAL_WAVE || essenceUsesRemaining <= 0)
+        return [];
+      const pickIndex =
+        TRADITIONAL_END_GAME_ESSENCE_USES - essenceUsesRemaining;
+      const towerId = essenceQueue[pickIndex];
+      if (!towerId) return [];
+      const access = evaluateEndGameAccess(allocation);
+      if (!access.candidates.some((entry) => entry.towerId === towerId))
+        return [];
+      const fact = getEndGameTowerFact(towerId);
+      const source: PlannedTowerState = {
+        copyId: stableId(planId, "copy", towerId, pickIndex + 1),
+        towerId,
+        towerName: fact.name,
+        level: 1,
+        quantity: 1,
+        purpose: "End Game essence pick",
+        roles: ["main-dps"],
+        status: "permanent",
+        effect: "damage",
+        globalBuff: false,
+        directHitDebuff: false,
+        cell: null,
+        cellLabel: null,
+        campId: null,
+      };
+      return rescueCandidate(
+        source,
+        resolveLiveTowerCost(towerId, 1),
+        null,
+        "essence",
+        currentShortfall,
+        0,
+        `Essence pick ${pickIndex + 1} of ${TRADITIONAL_END_GAME_ESSENCE_USES}: ${fact.name}, ${fact.minimumFieldCost.toLocaleString()}g flat, no keystone. Assumed available from wave ${LAST_NORMAL_WAVE + 1} (the boss stage's own start) — the real pick wave is not measured, so it may legally land earlier once that is known.`,
+      );
+    };
     // Earliest leak first: a step that lands after the first failing wave
     // cannot stop that leak, so any step that lands in time outranks it. Among
     // steps that land in time the doctrine cascade applies — a build-path
@@ -1694,7 +1810,7 @@ export function generateMatchPlan(
         const late = (c: RescueCandidate) =>
           firstLeak == null || c.targetWave <= firstLeak ? 0 : 1;
         const stage = (c: RescueCandidate) =>
-          c.source === "build-path" ? 0 : 1;
+          c.source === "build-path" ? 0 : c.source === "fleet-copy" ? 1 : 2;
         const upgradeFirst = (c: RescueCandidate) => (c.fromLevel ? 0 : 1);
         // The anchor's first copy outranks efficiency: it is the build's
         // damage backbone and lifts every window after this one, which a
@@ -1742,6 +1858,7 @@ export function generateMatchPlan(
         const best = [
           ...buildPathCandidates(currentShortfall),
           ...fleetCopyCandidates(currentShortfall),
+          ...essenceCandidates(currentShortfall),
         ].sort(rankRescue(firstFailingWave(survival), policy))[0];
         if (!best) {
           rescueExhausted = rescueUnaffordable > 0 ? "gold" : "cap";
@@ -1754,6 +1871,7 @@ export function generateMatchPlan(
           : [...field, best.tower];
         cumulativeCost += best.cost;
         phaseCost += best.cost;
+        if (best.source === "essence") essenceUsesRemaining -= 1;
         if (best.ordinal != null)
           rescueOrdinalByTower.set(best.tower.towerId, best.ordinal);
         const repairedWaves = best.survival.waves
@@ -1784,9 +1902,11 @@ export function generateMatchPlan(
           reason:
             best.source === "build-path"
               ? `${best.entryReason ? `${best.entryReason} ` : ""}${repairedWaves || "This window"} is below the 100% damage floor. This step is already part of the build, so it is bought now as damage instead of banking. ${priority}`
-              : best.fromLevel
-                ? `${repairedWaves || "This window"} is below the 100% damage floor. Upgrading this fielded copy is the strongest legal damage step on the build's own elements. ${priority}`
-                : `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. ${priority}`,
+              : best.source === "essence"
+                ? (best.entryReason ?? "")
+                : best.fromLevel
+                  ? `${repairedWaves || "This window"} is below the 100% damage floor. Upgrading this fielded copy is the strongest legal damage step on the build's own elements. ${priority}`
+                  : `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. ${priority}`,
           towerId: best.tower.towerId,
           towerName: best.tower.towerName,
           copyId: best.tower.copyId,
@@ -1843,6 +1963,7 @@ export function generateMatchPlan(
     const snapshot = () => ({
       field: [...field],
       cumulativeCost,
+      essenceUsesRemaining,
       purchased: new Set(purchased),
       actions: [...actions],
       actionOrder,
@@ -1854,6 +1975,7 @@ export function generateMatchPlan(
     const restore = (state: ReturnType<typeof snapshot>) => {
       field = [...state.field];
       cumulativeCost = state.cumulativeCost;
+      essenceUsesRemaining = state.essenceUsesRemaining;
       purchased.clear();
       for (const key of state.purchased) purchased.add(key);
       actions.splice(0, actions.length, ...state.actions);
@@ -2564,6 +2686,7 @@ export function generateMatchPlan(
               const best = [
                 ...buildPathCandidates(shortfall),
                 ...fleetCopyCandidates(shortfall),
+                ...essenceCandidates(shortfall),
               ].sort((a, b) => a.shortfall - b.shortfall || a.cost - b.cost)[0];
               leverMode = false;
               const next = remainingQueue().find(
@@ -2586,7 +2709,11 @@ export function generateMatchPlan(
                   ? needs.length
                     ? `${next.towerName} ${next.toLevel} (needs the ${needs.join(" and ")} keystone${needs.length > 1 ? "s" : ""})`
                     : `${next.towerName} ${next.toLevel} (${actionCost(next.towerId, 0, next.toLevel).toLocaleString()}g)`
-                  : "the End Game essence layer, which this plan does not model yet";
+                  : essenceUsesRemaining <= 0
+                    ? "nothing — both End Game essence uses are already on the field"
+                    : definition.start <= LAST_NORMAL_WAVE
+                      ? `the End Game essence layer, not legal before wave ${LAST_NORMAL_WAVE + 1} (the boss stage's own start — the real pick wave is unmeasured)`
+                      : "the End Game essence layer, once this build's allocation reaches a legal Pure or Periodic pick";
               const leak = reported.worstWave ?? definition.start;
               return rescueExhausted === "gold"
                 ? `Out of gold in time: every step that would lift wave ${leak} lands after it, because the window's remaining income arrives later. The next lever is ${lever}.`
@@ -2619,8 +2746,16 @@ export function generateMatchPlan(
                 definition.start,
                 definition.end ?? definition.start,
               );
+              const essenceOnField = field.filter((tower) =>
+                isEndGameTowerId(tower.towerId),
+              );
+              const essenceNote = essenceOnField.length
+                ? `This field carries ${essenceOnField.map((t) => t.towerName).join(" and ")} (End Game essence, assumed legal from wave ${LAST_NORMAL_WAVE + 1} — the real pick wave is unmeasured, so it may have unlocked earlier).`
+                : essenceUsesRemaining <= 0
+                  ? "Both End Game essence uses are already spent elsewhere on the field."
+                  : "No End Game tower is legal yet for this build's allocation; the essence layer is the outlet once one is.";
               lines.push(
-                `Boss waves ${first.wave}–${last.wave} carry ${Math.round(first.hpPerCreep).toLocaleString()}–${Math.round(last.hpPerCreep).toLocaleString()} HP per creep at ${first.count} creeps a wave (workbook, confirmed constant across the match); the ${first.ability ?? "Mixed"} ability composition is not quantified, so a clear here is a floor, not a guarantee. This window pays ${income.toLocaleString()}g and the package is spent: the End Game essence layer (Pure / Periodic) is the outlet this plan does not model yet.`,
+                `Boss waves ${first.wave}–${last.wave} carry ${Math.round(first.hpPerCreep).toLocaleString()}–${Math.round(last.hpPerCreep).toLocaleString()} HP per creep at ${first.count} creeps a wave (workbook, confirmed constant across the match); the ${first.ability ?? "Mixed"} ability composition is not quantified, so a clear here is a floor, not a guarantee. This window pays ${income.toLocaleString()}g. ${essenceNote}`,
               );
             }
             if (ability.length)

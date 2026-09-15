@@ -47,7 +47,12 @@ for (const game of observations.games ?? []) {
   if (!game.source) errors.push(`${tag}: source (screenshot) is required`);
   if (!["win", "loss"].includes(game.result))
     errors.push(`${tag}: result must be win or loss`);
-  for (const field of ["wavesCleared", "networth", "totalDamageDealt", "leaks"]) {
+  for (const field of [
+    "wavesCleared",
+    "networth",
+    "totalDamageDealt",
+    "leaks",
+  ]) {
     if (!positive(game[field]))
       errors.push(`${tag}: ${field} must be a non-negative number or null`);
   }
@@ -68,20 +73,34 @@ for (const wave of observations.waves ?? []) {
   }
 }
 
+// ---- end game essence access
+if (observations.endGameEssenceAccess !== undefined) {
+  const access = observations.endGameEssenceAccess;
+  const wave = access.firstLegalWave;
+  if (wave !== null && (!Number.isInteger(wave) || wave < 1 || wave > 70))
+    errors.push(
+      "waveObservations.endGameEssenceAccess.firstLegalWave must be null or an integer 1-70",
+    );
+  if (!access.note)
+    errors.push("waveObservations.endGameEssenceAccess.note is required");
+}
+
 // ---- economy
-if (economy.schemaVersion !== 1) errors.push("economy: schemaVersion must be 1");
+if (economy.schemaVersion !== 1)
+  errors.push("economy: schemaVersion must be 1");
 if (economy.interest !== null) {
   const interest = economy.interest;
-  if (typeof interest.ratePercent !== "number" || !positive(interest.ratePercent))
-    errors.push("economy.interest.ratePercent must be a number");
   if (
-    !(
-      interest.interval === "per-wave" ||
-      (interest.interval &&
-        typeof interest.interval.seconds === "number" &&
-        interest.interval.seconds > 0)
-    )
+    typeof interest.ratePercent !== "number" ||
+    !positive(interest.ratePercent)
   )
+    errors.push("economy.interest.ratePercent must be a number");
+  if (!(
+    interest.interval === "per-wave" ||
+    (interest.interval &&
+      typeof interest.interval.seconds === "number" &&
+      interest.interval.seconds > 0)
+  ))
     errors.push("economy.interest.interval must be per-wave or { seconds }");
   if (!["gold", "networth"].includes(interest.base))
     errors.push("economy.interest.base must be gold or networth");
@@ -102,7 +121,9 @@ for (const name of ABILITIES) {
       `waveAbilityFacts.${name}: effectiveHpMultiplier must be a number or null`,
     );
   if (entry.effectiveHpMultiplier !== null && !entry.source)
-    errors.push(`waveAbilityFacts.${name}: a measured multiplier needs a source`);
+    errors.push(
+      `waveAbilityFacts.${name}: a measured multiplier needs a source`,
+    );
 }
 for (const name of Object.keys(abilities.abilities ?? {})) {
   if (!ABILITIES.has(name))
