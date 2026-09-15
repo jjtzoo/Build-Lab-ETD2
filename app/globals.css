@@ -8469,22 +8469,25 @@ button.mechanic-chip {
 /* A literal pointer above the one active tower — the ring on the token
    reads as "this one is different" only once you already know to look;
    the arrow says "here" at a glance across a board of near-identical
-   icons. */
+   icons. Floats clear of the token (never touching the circle or the
+   callout box) and blinks on/off rather than gently fading, so it never
+   reads as decoration. */
 .match-tower-pointer {
-  fill: #fff;
+  fill: #ffce56;
   stroke: #0a0d0c;
-  stroke-width: 1;
+  stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 2px rgb(10 13 12 / 0.65));
-  animation: match-pointer-pulse 1100ms ease-in-out infinite;
+  filter: drop-shadow(0 0 4px rgb(255 206 86 / 0.85));
+  animation: match-pointer-blink 800ms steps(1, jump-none) infinite;
 }
-@keyframes match-pointer-pulse {
+@keyframes match-pointer-blink {
   0%,
-  100% {
+  49% {
     opacity: 1;
   }
-  50% {
-    opacity: 0.55;
+  50%,
+  100% {
+    opacity: 0.08;
   }
 }
 @media (prefers-reduced-motion: reduce) {

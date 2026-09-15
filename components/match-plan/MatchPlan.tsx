@@ -2335,10 +2335,10 @@ function PlanMap({
                   <text x={textX} y=".17" className="match-tower-meta">
                     {towerMetaLine(tower, activeIndex)}
                   </text>
-                  <g className="match-tower-pointer">
-                    <circle cx="0" cy="-1.08" r=".18" />
-                    <path d="M -.15,-1.0 L .15,-1.0 L 0,-.47 Z" />
-                  </g>
+                  <path
+                    className="match-tower-pointer"
+                    d="M -.22,-1.35 L .22,-1.35 L 0,-.68 Z"
+                  />
                 </g>
               );
             })()}
@@ -2352,14 +2352,12 @@ function PlanMap({
               const cell = entry?.tower.cell;
               if (!cell) return null;
               return (
-                <g
+                <path
                   className="match-tower-pointer"
                   transform={`translate(${cell.col} ${cell.row})`}
                   pointerEvents="none"
-                >
-                  <circle cx="0" cy="-1.08" r=".18" />
-                  <path d="M -.15,-1.0 L .15,-1.0 L 0,-.47 Z" />
-                </g>
+                  d="M -.22,-1.35 L .22,-1.35 L 0,-.68 Z"
+                />
               );
             })()}
           </svg>
