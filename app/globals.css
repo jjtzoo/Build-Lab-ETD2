@@ -7613,7 +7613,8 @@ button.mechanic-chip {
 }
 .match-action-list li button.is-selected {
   background: color-mix(in srgb, var(--plan-cyan) 9%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--plan-cyan) 55%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--plan-cyan) 55%, transparent);
 }
 .match-action-list li button:focus-visible {
   outline: 2px solid var(--focus);
@@ -8464,6 +8465,32 @@ button.mechanic-chip {
   fill: #8e9a94;
   font-size: 0.15px;
   font-weight: 520;
+}
+/* A literal pointer above the one active tower — the ring on the token
+   reads as "this one is different" only once you already know to look;
+   the arrow says "here" at a glance across a board of near-identical
+   icons. */
+.match-tower-pointer {
+  fill: #fff;
+  stroke: #0a0d0c;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 2px rgb(10 13 12 / 0.65));
+  animation: match-pointer-pulse 1100ms ease-in-out infinite;
+}
+@keyframes match-pointer-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-tower-pointer {
+    animation: none;
+  }
 }
 /* Field readout sits under the board, never over the route. */
 .match-map-readout {
