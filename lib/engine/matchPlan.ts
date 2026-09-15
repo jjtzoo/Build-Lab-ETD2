@@ -44,6 +44,7 @@ import {
 import {
   combatFacts,
   evaluatePhaseSurvival,
+  isSurvivalBuffProvider,
   type LevelStep,
 } from "@/lib/engine/matchPlanSurvival";
 import {
@@ -1278,6 +1279,17 @@ export function generateMatchPlan(
 
   for (let phaseIndex = 0; phaseIndex < PHASES.length; phaseIndex += 1) {
     const definition = PHASES[phaseIndex];
+    // A flat 300g reserve is a rounding error once a window pays 20,000g.
+    // From wave 21 the reserve is one wave's bounty of the window's first
+    // wave — enough to answer a leak with a real purchase — and survival
+    // spending still overrides it, as it always did.
+    const windowReserve =
+      definition.start >= 21
+        ? Math.max(
+            reserveGold,
+            waveBenchmark(definition.start, difficulty)?.waveBounty ?? 0,
+          )
+        : reserveGold;
     const startAllocation = { ...allocation };
     const startTowers = field.map((tower) => ({ ...tower }));
     const actions: MatchPlanAction[] = [];
@@ -1409,6 +1421,10 @@ export function generateMatchPlan(
     // Prices and places one prospective step — a new copy, or an upgrade of a
     // copy already on the field — keeping it only if it lifts the verified
     // damage floor. Survival may spend the reserve, never beyond gross.
+    // When set, candidates are judged as if gold were no object and landed
+    // at the window's first wave — the "what would have lifted this" view
+    // used only to name the next lever once the real rescue is exhausted.
+    let leverMode = false;
     const rescueCandidate = (
       source: PlannedTowerState,
       cost: number,
@@ -1419,7 +1435,7 @@ export function generateMatchPlan(
       entryReason?: string,
     ): RescueCandidate[] => {
       if (cost <= 0) return [];
-      if (cumulativeCost + cost > gross) {
+      if (!leverMode && cumulativeCost + cost > gross) {
         rescueUnaffordable += 1;
         return [];
       }
@@ -1430,11 +1446,13 @@ export function generateMatchPlan(
           : null
         : chooseCell(map, mode, camps, source.towerId, source.level, field);
       if (!placement) return [];
-      const targetWave = earliestAffordableWave(
-        cumulativeCost + cost,
-        definition.start,
-        definition.end,
-      );
+      const targetWave = leverMode
+        ? definition.start
+        : earliestAffordableWave(
+            cumulativeCost + cost,
+            definition.start,
+            definition.end,
+          );
       const tower: PlannedTowerState = {
         ...source,
         quantity: 1,
@@ -1564,8 +1582,37 @@ export function generateMatchPlan(
           tower.towerId,
           (copyCountByTower.get(tower.towerId) ?? 0) + 1,
         );
+      // A buff provider only earns another copy while there are damage
+      // copies left for it to buff: Blacksmith and Well each hold four
+      // targets, so ceil(damage copies / 4) of them saturate the field, and
+      // a Trickery clone always has a target, so one is the cap. A fourth
+      // Blacksmith with nothing left to buff is not a purchase.
+      const damageCopies = field.filter(
+        (tower) =>
+          (tower.effect === "damage" || tower.effect === "hybrid") &&
+          !isSurvivalBuffProvider(tower.towerId),
+      ).length;
+      const buffCap = (towerId: string) => {
+        const facts = getTowerMechanicFacts(towerId);
+        if (facts.some((effect) => effect.signal === "tower-replication"))
+          return 1;
+        const targets = Math.max(
+          1,
+          ...facts
+            .filter(
+              (effect) =>
+                effect.signal === "attack-damage-buff" ||
+                effect.signal === "attack-speed-buff",
+            )
+            .map((effect) => effect.maxTargets ?? 1),
+        );
+        return Math.max(1, Math.ceil(damageCopies / targets));
+      };
       const belowSaturation = (towerId: string) =>
-        (copyCountByTower.get(towerId) ?? 0) < fleetCopySaturationFor(towerId);
+        (copyCountByTower.get(towerId) ?? 0) <
+        (isSurvivalBuffProvider(towerId)
+          ? Math.min(fleetCopySaturationFor(towerId), buffCap(towerId))
+          : fleetCopySaturationFor(towerId));
       // A fielded tower can be copied at its current level or any lower
       // one: a fresh level-1 copy of the anchor is often the best damage per
       // gold on the field once the original has been upgraded.
@@ -1863,7 +1910,7 @@ export function generateMatchPlan(
         const openingIsSafe =
           hasEstablishedDamage &&
           (!requiresEarlyCoverage || establishedElements.size >= 2);
-        const purchaseReserve = openingIsSafe ? reserveGold : 0;
+        const purchaseReserve = openingIsSafe ? windowReserve : 0;
         const spendable = Math.max(0, lower - purchaseReserve);
         if (cumulativeCost + cost > spendable) {
           blocked = { entry, why: "gold" };
@@ -1963,7 +2010,7 @@ export function generateMatchPlan(
           const cost = actionCost(mono.id, 0, level);
           return [{ mono, level, score, cost }];
         }).sort((a, b) => b.score - a.score || a.cost - b.cost)[0];
-        const spendable = Math.max(0, lower - reserveGold);
+        const spendable = Math.max(0, lower - windowReserve);
         if (repair && cumulativeCost + repair.cost <= spendable) {
           const copyId = stableId(planId, "copy", repair.mono.id, 1);
           const placement = chooseCell(
@@ -2018,7 +2065,7 @@ export function generateMatchPlan(
             legal: true,
             affordable: true,
             targetWave: earliestAffordableWave(
-              cumulativeCost + reserveGold,
+              cumulativeCost + windowReserve,
               definition.start,
               definition.end,
             ),
@@ -2065,7 +2112,7 @@ export function generateMatchPlan(
             ? `Not legal yet: it needs the ${missing.join(" and ")} keystone${missing.length > 1 ? "s" : ""}. Nothing earlier in the build order can be bought in this window either.`
             : survivalFirst
               ? `Legal now, but it could not be bought before this window's failing wave. Survival purchases come first; this waits for the gold they used.`
-              : `Legal now, but buying it would breach the ${reserveGold.toLocaleString()} gold emergency reserve.`,
+              : `Legal now, but buying it would breach the ${windowReserve.toLocaleString()} gold emergency reserve.`,
           towerId: pending.towerId,
           towerName: pending.towerName,
           // The copy this wait resolves into — the same id its later-window
@@ -2077,7 +2124,7 @@ export function generateMatchPlan(
           legal,
           affordable: false,
           waitForGold: legal
-            ? Math.max(0, cumulativeCost + cost + reserveGold - lower)
+            ? Math.max(0, cumulativeCost + cost + windowReserve - lower)
             : undefined,
           targetWave: Math.max(definition.start, pending.targetWave ?? 0),
           temporary: !!pending.temporaryCarry,
@@ -2330,17 +2377,37 @@ export function generateMatchPlan(
       ...(reported.status === "fails" && rescueExhausted
         ? [
             (() => {
+              // The lever is the single step that would lift the leaking
+              // wave most if gold allowed — judged against this window's
+              // own waves, with its real landing wave at this income.
+              const shortfall = verifiedShortfall(reported);
+              leverMode = true;
+              const best = [
+                ...buildPathCandidates(shortfall),
+                ...fleetCopyCandidates(shortfall),
+              ].sort((a, b) => a.shortfall - b.shortfall || a.cost - b.cost)[0];
+              leverMode = false;
               const next = remainingQueue().find(
                 (entry) =>
                   !entry.temporaryCarry ||
                   !field.some((t) => t.towerId === build.anchorTowerId),
               );
               const needs = next ? missingKeystones(next, allocation) : [];
-              const lever = next
-                ? needs.length
-                  ? `${next.towerName} ${next.toLevel} (needs the ${needs.join(" and ")} keystone${needs.length > 1 ? "s" : ""})`
-                  : `${next.towerName} ${next.toLevel} (${actionCost(next.towerId, 0, next.toLevel).toLocaleString()}g)`
-                : "the End Game essence layer, which this plan does not model yet";
+              const lever = best
+                ? (() => {
+                    const lands = earliestAffordableWave(
+                      cumulativeCost + best.cost,
+                      definition.start,
+                      (definition.end ?? definition.start) + 5,
+                    );
+                    const lift = Math.round((shortfall - best.shortfall) * 100);
+                    return `${best.fromLevel ? "upgrading" : "adding"} ${best.tower.towerName} ${best.tower.level} (${best.cost.toLocaleString()}g, +${lift}% of a wave across this window; at this income it lands at wave ${lands})`;
+                  })()
+                : next
+                  ? needs.length
+                    ? `${next.towerName} ${next.toLevel} (needs the ${needs.join(" and ")} keystone${needs.length > 1 ? "s" : ""})`
+                    : `${next.towerName} ${next.toLevel} (${actionCost(next.towerId, 0, next.toLevel).toLocaleString()}g)`
+                  : "the End Game essence layer, which this plan does not model yet";
               const leak = reported.worstWave ?? definition.start;
               return rescueExhausted === "gold"
                 ? `Out of gold in time: every step that would lift wave ${leak} lands after it, because the window's remaining income arrives later. The next lever is ${lever}.`
@@ -2421,7 +2488,7 @@ export function generateMatchPlan(
         : []),
     ];
     const bankAtLowerBound = Math.max(0, lower - cumulativeCost);
-    const protectedReserve = Math.min(reserveGold, bankAtLowerBound);
+    const protectedReserve = Math.min(windowReserve, bankAtLowerBound);
     const spendableLowerBound = Math.max(0, lower - protectedReserve);
     phases.push({
       id: definition.id,
