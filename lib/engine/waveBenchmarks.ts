@@ -184,7 +184,10 @@ export function waveBenchmark(
   const index = wave - 1;
   const ability = ABILITIES[index];
   const hpPerCreep = normalHp(wave) * DIFFICULTY_MULTIPLIERS[difficulty];
-  const count = ability === "Bulky" ? 16 : 30;
+  // "This wave has half the creeps ... gives double bounty": the workbook's
+  // wave bounty over its doubled per-creep bounty is 15 on every Bulky wave
+  // (W12 180/12, W18 270/18, W25 540/36), and 30 elsewhere (W1 60/2).
+  const count = ability === "Bulky" ? 15 : 30;
   const abilityHpMultiplier =
     ability === "Bulky" ? 2.5 : ability === "Undead" ? 1.5 : 1;
   return {
