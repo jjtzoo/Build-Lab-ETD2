@@ -2438,12 +2438,15 @@ export function generateMatchPlan(
         : []),
       ...(reported.status === "unverified"
         ? (() => {
-            const boss = reported.waves.filter((wave) => wave.count == null);
+            const boss = reported.waves.filter(
+              (wave) => wave.element === "Boss",
+            );
             const ability = reported.waves.filter(
               (wave) =>
                 wave.status === "unverified" &&
                 wave.ability &&
-                wave.count != null,
+                wave.count != null &&
+                wave.element !== "Boss",
             );
             const lines: string[] = [];
             if (boss.length) {
@@ -2454,7 +2457,7 @@ export function generateMatchPlan(
                 definition.end ?? definition.start,
               );
               lines.push(
-                `Boss waves ${first.wave}–${last.wave} carry ${Math.round(first.hpPerCreep).toLocaleString()}–${Math.round(last.hpPerCreep).toLocaleString()} HP per creep (workbook); the creep count is not measured, so nothing here is verified. This window pays ${income.toLocaleString()}g and the package is spent: the End Game essence layer (Pure / Periodic) is the outlet this plan does not model yet.`,
+                `Boss waves ${first.wave}–${last.wave} carry ${Math.round(first.hpPerCreep).toLocaleString()}–${Math.round(last.hpPerCreep).toLocaleString()} HP per creep at ${first.count} creeps a wave (workbook, confirmed constant across the match); the ${first.ability ?? "Mixed"} ability composition is not quantified, so a clear here is a floor, not a guarantee. This window pays ${income.toLocaleString()}g and the package is spent: the End Game essence layer (Pure / Periodic) is the outlet this plan does not model yet.`,
               );
             }
             if (ability.length)

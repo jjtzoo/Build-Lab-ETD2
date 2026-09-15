@@ -864,7 +864,9 @@ export function MatchPlanView({
           // the row never looks better than the verdict. A window with no
           // verified wave (a boss window today) is hollow; a coverage
           // problem is named only when there is no tighter fact to show.
-          const boss = entry.survival.waves.some((wave) => wave.count == null);
+          const boss = entry.survival.waves.some(
+            (wave) => wave.element === "Boss",
+          );
           const margin = entry.survival.margin;
           const severity =
             margin == null
@@ -883,7 +885,7 @@ export function MatchPlanView({
             margin != null && entry.survival.worstWave != null
               ? `W${entry.survival.worstWave} · ${Math.floor(margin * 100)}%`
               : boss
-                ? "boss · unmeasured"
+                ? "boss · ability unknown"
                 : critical
                   ? "coverage risk"
                   : "unverified";
@@ -892,7 +894,7 @@ export function MatchPlanView({
             !plan.phases
               .slice(0, index)
               .some((earlier) =>
-                earlier.survival.waves.some((wave) => wave.count == null),
+                earlier.survival.waves.some((wave) => wave.element === "Boss"),
               );
           return (
             <Fragment key={entry.id}>
@@ -1480,10 +1482,15 @@ function PhaseSnapshot({
   const unmodeledAbilityWaves = phase.survival.waves
     .filter(
       (wave) =>
-        wave.status === "unverified" && wave.ability && wave.count != null,
+        wave.status === "unverified" &&
+        wave.ability &&
+        wave.count != null &&
+        wave.element !== "Boss",
     )
     .map((wave) => `W${wave.wave}`);
-  const bossWaves = phase.survival.waves.filter((wave) => wave.count == null);
+  const bossWaves = phase.survival.waves.filter(
+    (wave) => wave.element === "Boss",
+  );
   const missingStatWaves = phase.survival.waves.filter(
     (wave) =>
       wave.status === "unverified" &&
@@ -1496,8 +1503,8 @@ function PhaseSnapshot({
         ? `Thin margin · wave ${phase.survival.worstWave}`
         : phase.survival.status === "fails"
           ? `Leaks at wave ${phase.survival.worstWave} · ${Math.floor((phase.survival.margin ?? 0) * 100)}% of its HP`
-          : bossWaves.length && !unmodeledAbilityWaves.length
-            ? `Boss stage · ${Math.round(bossWaves[0].hpPerCreep).toLocaleString()}–${Math.round(bossWaves[bossWaves.length - 1].hpPerCreep).toLocaleString()} HP per creep, count unmeasured`
+          : bossWaves.length
+            ? `Boss stage · ${Math.round(bossWaves[0].hpPerCreep).toLocaleString()}–${Math.round(bossWaves[bossWaves.length - 1].hpPerCreep).toLocaleString()} HP per creep, ${bossWaves[0].ability ?? "Mixed"} ability composition not modeled`
             : missingStatWaves.length
               ? "Cannot verify · a placed tower has no combat stat at this level"
               : `Clears base HP · ${unmodeledAbilityWaves.join(", ")} abilit${unmodeledAbilityWaves.length === 1 ? "y" : "ies"} not modeled`;
@@ -1598,8 +1605,10 @@ function PhaseSnapshot({
               {phase.survival.status === "fails"
                 ? "This field leaks: modeled damage is short of the wave HP"
                 : phase.survival.status === "unverified"
-                  ? phase.survival.waves.every((wave) => wave.count == null)
-                    ? "Boss waves: the workbook gives HP per creep but no creep count, so nothing here is verified yet"
+                  ? phase.survival.waves.every(
+                      (wave) => wave.element === "Boss",
+                    )
+                    ? "Boss waves: HP per creep and creep count are known; the ability composition is not, so a clear here is not proven safe"
                     : missingStatWaves.length
                       ? "A placed tower has no combat stat at this level, so the damage shown is only a floor"
                       : "Base HP clears; wave abilities are not modeled yet, so these waves are not proven safe"
@@ -1645,8 +1654,8 @@ function PhaseSnapshot({
                 </strong>
                 {wave.status === "unverified" && (
                   <small>
-                    {wave.count == null
-                      ? "boss wave · workbook HP only"
+                    {wave.element === "Boss"
+                      ? `boss wave · ${wave.ability ?? "ability"} composition not modeled`
                       : wave.limitingFactor?.includes("no combat stat")
                         ? "stat missing"
                         : `${wave.ability} not modeled`}

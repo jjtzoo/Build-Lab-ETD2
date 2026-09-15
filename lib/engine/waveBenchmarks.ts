@@ -173,20 +173,27 @@ export const LAST_NORMAL_WAVE = 55;
 /**
  * Boss stage, from the workbook's wave table (rows 56–70): element "Boss",
  * ability "Mixed", Normal HP 500,000 growing ×1.25 per wave, 300 bounty per
- * creep and 9,000 per wave. The table does not say how many creeps a boss
- * wave carries, so no wave total can be verified until a capture supplies
- * the count; the benchmark carries HP per creep and says so.
+ * creep and 9,000 per wave. The owner confirms creep quantity does not
+ * change across the match — wave 1 and a boss wave carry the same count;
+ * only HP, element/armour and abilities differ — and the workbook's own
+ * numbers agree: 9,000 wave bounty ÷ 300 per-creep bounty is 30, the same
+ * count every non-Bulky normal wave uses. What the workbook does not give
+ * is the boss stage's ability composition ("Mixed"), so — per the owner,
+ * abilities stay out of scope for now — a boss wave is modeled at base HP
+ * with the same ability-estimate confidence as any other wave whose
+ * ability multiplier is unknown: a clear is a floor, not a guarantee.
  */
 const BOSS_BASE_HP = 500_000;
 const BOSS_HP_GROWTH = 1.25;
 const BOSS_BOUNTY_PER_CREEP = 300;
 const BOSS_WAVE_BOUNTY = 9_000;
+const BOSS_COUNT = BOSS_WAVE_BOUNTY / BOSS_BOUNTY_PER_CREEP;
 
 export type WaveBenchmark = {
   wave: number;
   element: ElementName | "Composite" | "Boss";
   ability: (typeof ABILITIES)[number] | "Mixed";
-  /** Creeps in the wave. Unmeasured on boss waves (see modelConfidence). */
+  /** Creeps in the wave — constant across the match, boss waves included. */
   count: number | null;
   spawnSpacingSeconds: number;
   hpPerCreep: number;
@@ -194,7 +201,7 @@ export type WaveBenchmark = {
   bountyPerCreep: number;
   waveBounty: number;
   speedMultiplier: number;
-  modelConfidence: "verified" | "ability-estimate" | "boss-count-unmeasured";
+  modelConfidence: "verified" | "ability-estimate";
 };
 
 function normalHp(wave: number): number {
@@ -214,14 +221,14 @@ export function waveBenchmark(
       wave,
       element: "Boss",
       ability: "Mixed",
-      count: null,
+      count: BOSS_COUNT,
       spawnSpacingSeconds: 0.5,
       hpPerCreep,
       effectiveHpPerCreep: hpPerCreep,
       bountyPerCreep: BOSS_BOUNTY_PER_CREEP,
       waveBounty: BOSS_WAVE_BOUNTY,
       speedMultiplier: 1,
-      modelConfidence: "boss-count-unmeasured",
+      modelConfidence: "ability-estimate",
     };
   }
   const index = wave - 1;
