@@ -7642,11 +7642,63 @@ button.mechanic-chip {
   color: var(--text-2);
   font-size: 16px;
 }
-.match-export-actions,
 .match-empty-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+/* The Co-pilot stream is a utility, not the page's call to action: a quiet
+   segmented control that sits on the subtext's baseline, count first. */
+.match-export-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+.match-export-meta {
+  color: var(--muted);
+  font: 11px var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.match-export-meta b {
+  color: var(--text);
+  font-weight: 600;
+}
+.match-export-group {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+.match-export-group button {
+  min-width: 108px;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color 160ms var(--ease),
+    transform 140ms var(--ease);
+}
+.match-export-group button + button {
+  border-left: 1px solid var(--line-strong);
+}
+.match-export-group button:hover {
+  background: var(--surface-raised);
+}
+.match-export-group button:active {
+  transform: translateY(1px);
+}
+.match-export-group button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 .match-controls {
   display: grid;
@@ -8640,8 +8692,13 @@ button.mechanic-chip {
   }
   .match-export-actions {
     width: 100%;
+    flex-wrap: wrap;
+    padding-bottom: 0;
   }
-  .match-export-actions button {
+  .match-export-group {
+    width: 100%;
+  }
+  .match-export-group button {
     flex: 1;
   }
   .match-controls {

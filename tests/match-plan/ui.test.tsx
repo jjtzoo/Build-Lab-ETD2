@@ -108,7 +108,7 @@ describe("Match Plan UI", () => {
   it("exports the deterministic Co-pilot action stream", async () => {
     render(<MatchPlanView initialPlan={build} />);
     const button = await screen.findByRole("button", {
-      name: "Copy Co-pilot JSON",
+      name: "Copy JSON",
     });
     fireEvent.click(button);
     await waitFor(() =>

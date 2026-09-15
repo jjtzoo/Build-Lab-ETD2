@@ -527,21 +527,21 @@ export function MatchPlanView({
             moves off plan.
           </p>
         </div>
-        <div className="match-export-actions">
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={copyActions}
-          >
-            {copied ? "Copied" : "Copy Co-pilot JSON"}
-          </button>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={downloadActions}
-          >
-            Export {actions.length} actions
-          </button>
+        <div
+          className="match-export-actions"
+          aria-label="Co-pilot action stream"
+        >
+          <span className="match-export-meta">
+            <b>{actions.length}</b> Co-pilot actions
+          </span>
+          <div className="match-export-group" role="group">
+            <button type="button" onClick={copyActions} aria-live="polite">
+              {copied ? "Copied" : "Copy JSON"}
+            </button>
+            <button type="button" onClick={downloadActions}>
+              Download
+            </button>
+          </div>
         </div>
       </header>
 
