@@ -105,6 +105,62 @@ describe("Match Plan UI", () => {
     );
   });
 
+  it("steps between windows from the map panel and reports the field state", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    const stepper = screen.getByRole("group", {
+      name: "Step between windows",
+    });
+    expect(
+      within(stepper).getByRole("button", { name: "No earlier window" }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Field state")).toHaveTextContent(
+      /End of wave 5 · \d+ towers? standing · \d+ new/,
+    );
+    fireEvent.click(
+      within(stepper).getByRole("button", { name: "Next window: Waves 6–10" }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Waves 6–10" }),
+    ).toBeInTheDocument();
+    expect(stepper).toHaveTextContent("End of wave 10");
+    expect(screen.getByLabelText("Field state")).toHaveTextContent(
+      "End of wave 10",
+    );
+    // Towers already standing are folded away, but still one click away.
+    const held = document.querySelector("details.match-lineup-held");
+    expect(held).not.toBeNull();
+    expect(held).not.toHaveAttribute("open");
+    expect(held!.querySelector("summary")).toHaveTextContent(
+      /[0-9]+ already on the field/,
+    );
+    expect(
+      held!.querySelectorAll('li[data-change="carried"]').length,
+    ).toBeGreaterThan(0);
+    fireEvent.click(
+      within(stepper).getByRole("button", {
+        name: "Previous window: Waves 1–5",
+      }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Waves 1–5" }),
+    ).toBeInTheDocument();
+    // An action row is a reference: clicking it selects that copy on the
+    // board and in the lineup.
+    const reference = screen.getAllByRole("button", {
+      name: /show on the map/i,
+    })[0];
+    fireEvent.click(reference);
+    expect(reference).toHaveAttribute("aria-pressed", "true");
+    expect(
+      document.querySelectorAll(".match-tower.is-selected").length,
+    ).toBe(1);
+    // Every token on the board carries its level as a roman numeral pip.
+    const pips = document.querySelectorAll(".match-tower-level text");
+    expect(pips.length).toBeGreaterThan(0);
+    for (const pip of pips) expect(pip.textContent).toMatch(/^(I|II|III)$/);
+  });
+
   it("exports the deterministic Co-pilot action stream", async () => {
     render(<MatchPlanView initialPlan={build} />);
     const button = await screen.findByRole("button", {

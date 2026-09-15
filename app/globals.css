@@ -7532,6 +7532,23 @@ button.mechanic-chip {
 .match-action-list li button:disabled {
   cursor: default;
 }
+.match-action-list li.is-wait:has(button) {
+  border-color: var(--plan-amber);
+}
+.match-action-list li button {
+  border-radius: 5px;
+  transition:
+    background-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
+}
+.match-action-list li button.is-selected {
+  background: color-mix(in srgb, var(--plan-cyan) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--plan-cyan) 55%, transparent);
+}
+.match-action-list li button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
 .match-lower-grid {
   gap: 20px;
   border: 0;
@@ -7954,6 +7971,67 @@ button.mechanic-chip {
   color: var(--muted);
   font: 11px var(--font-mono, monospace);
 }
+/* Window stepper on the map panel: the same quiet, bordered control as the
+   hero's export group, so the reader steps through windows without leaving
+   the board. */
+.match-phase-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+.match-phase-stepper > span {
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  color: var(--muted);
+  font: 11px var(--font-mono, monospace);
+  white-space: nowrap;
+}
+.match-phase-stepper button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  transition:
+    background-color 160ms var(--ease),
+    transform 140ms var(--ease);
+}
+.match-phase-stepper button + span,
+.match-phase-stepper span + button {
+  border-left: 1px solid var(--line-strong);
+}
+.match-phase-stepper button svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.match-phase-stepper button:not(:disabled):hover {
+  background: var(--surface-raised);
+}
+.match-phase-stepper button:not(:disabled):active {
+  transform: translateY(1px);
+}
+.match-phase-stepper button:disabled {
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: default;
+}
+.match-phase-stepper button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
 .match-panel-deck {
   max-width: 58ch;
   margin: 7px 0 0;
@@ -8123,6 +8201,22 @@ button.mechanic-chip {
 .match-tower-icon {
   pointer-events: none;
 }
+/* Level pip: I / II / III at the token's lower-right, dark on light so it
+   reads on every token fill and survives the future-token grayscale. */
+.match-tower-level {
+  pointer-events: none;
+}
+.match-tower-level rect {
+  fill: #0a0d0c;
+  stroke: #e3e8e5;
+  stroke-width: 0.9;
+  vector-effect: non-scaling-stroke;
+}
+.match-tower-level text {
+  fill: #f0f3f1;
+  font: 800 0.21px var(--font-mono, monospace);
+  letter-spacing: 0.01em;
+}
 .match-tower.is-temporary circle {
   fill: #c0a476;
   stroke-dasharray: 0.11 0.07;
@@ -8171,6 +8265,15 @@ button.mechanic-chip {
 }
 .match-tower.is-future circle {
   r: 0.36;
+}
+.match-tower.is-future.is-selected {
+  opacity: 0.85;
+  filter: none;
+}
+.match-tower.is-future.is-selected circle {
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-dasharray: none;
 }
 .match-tower.is-future .match-tower-mark,
 .match-tower.is-future .match-tower-callout text {
@@ -8388,6 +8491,16 @@ button.mechanic-chip {
   border-radius: 50%;
   background: transparent;
 }
+.match-map-legend i.is-level {
+  width: auto;
+  height: auto;
+  padding: 1px 4px;
+  border-color: #e3e8e5;
+  background: #0a0d0c;
+  color: #f0f3f1;
+  font: 800 8px/1 var(--font-mono, monospace);
+  font-style: normal;
+}
 .match-brief {
   padding: 22px;
 }
@@ -8552,6 +8665,71 @@ button.mechanic-chip {
 .match-lineup small {
   color: var(--muted);
 }
+/* "Where am I": the field-state line above the list, then what changed in
+   this window first, the held-over towers under a divider, and sells last.
+   Change tags use the map's own colours — cyan for bought/upgraded here,
+   muted for held — so list and board agree. */
+.match-lineup-state {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font: 11px/1.5 var(--font-mono, monospace);
+  letter-spacing: 0.02em;
+}
+.match-lineup-state b {
+  color: var(--text);
+  font-weight: 600;
+}
+.match-lineup i {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+.match-lineup li[data-change="new"] i,
+.match-lineup li[data-change="upgraded"] i {
+  color: var(--plan-cyan);
+}
+.match-lineup li[data-change="new"] i::before,
+.match-lineup li[data-change="upgraded"] i::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--plan-cyan);
+  vertical-align: 1px;
+}
+.match-lineup li[data-change="carried"] button {
+  opacity: 0.78;
+}
+.match-lineup li[data-change="carried"] button:hover,
+.match-lineup li[data-change="carried"] button.is-selected {
+  opacity: 1;
+}
+.match-lineup-divider {
+  margin-top: 6px;
+  padding: 6px 7px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.match-lineup li[data-change="sold"] {
+  padding: 4px 7px;
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+.match-lineup li[data-change="sold"] small {
+  text-decoration: none;
+}
 .match-keystones {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -8712,6 +8890,16 @@ button.mechanic-chip {
     align-items: start;
     flex-direction: column;
   }
+  .match-panel-title {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .match-phase-stepper {
+    width: 100%;
+  }
+  .match-phase-stepper > span {
+    flex: 1;
+  }
   .match-storyboard,
   .match-lower-grid {
     margin-left: 12px;
@@ -8727,4 +8915,34 @@ button.mechanic-chip {
   .match-coverage-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+/* The held-over fold inside the lineup: a quiet inline disclosure, not a
+   brief section — so it must not inherit the section spacing/border that
+   .match-brief details carries. */
+.match-brief details.match-lineup-held {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.match-brief details.match-lineup-held > summary {
+  padding: 6px 7px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  color: var(--muted);
+  font: 600 11px/1.3 var(--font-mono, monospace);
+  letter-spacing: 0.02em;
+  transition:
+    color 140ms var(--ease),
+    border-color 140ms var(--ease);
+}
+.match-brief details.match-lineup-held > summary:hover,
+.match-brief details.match-lineup-held[open] > summary {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.match-brief details.match-lineup-held[open] > summary {
+  border-style: solid;
+}
+.match-lineup-held .match-lineup {
+  margin-top: 6px;
 }

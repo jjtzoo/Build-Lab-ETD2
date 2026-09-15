@@ -23,6 +23,7 @@ import {
   parseMatchPlan,
   type MatchPlan,
   type MatchPlanCamp,
+  type MatchPlanPhase,
   type PlannedTowerState,
 } from "@/lib/domain/matchPlan";
 import { getMap, tracedMaps } from "@/lib/domain/mapCatalog";
@@ -68,31 +69,77 @@ function towerMark(name: string): string {
     : name.slice(0, 2).toUpperCase();
 }
 
+/** Tower level as the game shows it on the tower itself: I, II, III. */
+function romanLevel(level: number): string {
+  return ["I", "II", "III", "IV", "V"][level - 1] ?? String(level);
+}
+
+/**
+ * How a copy on this window's field relates to the previous window: bought
+ * here, upgraded here, or held over unchanged. Drives the map token stroke
+ * and the lineup's "where am I" grouping.
+ */
+type TowerChange = "new" | "upgraded" | "carried";
+
+function towerChange(
+  phase: MatchPlanPhase,
+  tower: PlannedTowerState,
+): TowerChange {
+  const before = phase.startTowers.find(
+    (entry) => entry.copyId === tower.copyId,
+  );
+  if (!before) return "new";
+  return before.level < tower.level ? "upgraded" : "carried";
+}
+
 function TowerToken({
   icon,
   name,
+  level,
 }: {
   icon: string | null | undefined;
   name: string;
+  level: number;
 }) {
-  if (icon) {
-    return (
-      <image
-        className="match-tower-icon"
-        href={icon}
-        x={-0.36}
-        y={-0.36}
-        width={0.72}
-        height={0.72}
-        clipPath="url(#match-tower-clip)"
-        preserveAspectRatio="xMidYMid slice"
-      />
-    );
-  }
+  const numeral = romanLevel(level);
+  // A small pip at the token's lower-right corner, the way the game marks a
+  // tower's level on its model. Width follows the numeral so "III" fits.
+  const pipWidth = 0.14 + numeral.length * 0.13;
   return (
-    <text className="match-tower-mark" y=".1" textAnchor="middle">
-      {towerMark(name)}
-    </text>
+    <>
+      {icon ? (
+        <image
+          className="match-tower-icon"
+          href={icon}
+          x={-0.36}
+          y={-0.36}
+          width={0.72}
+          height={0.72}
+          clipPath="url(#match-tower-clip)"
+          preserveAspectRatio="xMidYMid slice"
+        />
+      ) : (
+        <text className="match-tower-mark" y=".1" textAnchor="middle">
+          {towerMark(name)}
+        </text>
+      )}
+      <g
+        className="match-tower-level"
+        transform={`translate(${0.42 - pipWidth / 2} .36)`}
+        aria-hidden="true"
+      >
+        <rect
+          x={-pipWidth / 2}
+          y="-.15"
+          width={pipWidth}
+          height=".3"
+          rx=".06"
+        />
+        <text y=".075" textAnchor="middle">
+          {numeral}
+        </text>
+      </g>
+    </>
   );
 }
 
@@ -437,6 +484,18 @@ export function MatchPlanView({
   const actions = serializeCopilotActions(plan);
   const selectedTower =
     phase.endTowers.find((tower) => tower.copyId === selectedCopyId) ?? null;
+  // A selection that is not on this window's field yet (a "Wait on" action
+  // clicked as a reference) resolves to its first later-window appearance.
+  const selectedLater = (() => {
+    if (!plan || selectedTower || !selectedCopyId) return null;
+    for (const later of plan.phases.slice(phaseIndex + 1)) {
+      const tower = later.endTowers.find(
+        (entry) => entry.copyId === selectedCopyId,
+      );
+      if (tower) return { tower, phase: later };
+    }
+    return null;
+  })();
 
   function selectPhase(index: number) {
     setPhaseIndex(index);
@@ -747,12 +806,47 @@ export function MatchPlanView({
                 more than one of them—not filling the nearest cluster.
               </p>
             </div>
-            <span>End of wave {phase.endWave ?? "56+"}</span>
+            <div
+              className="match-phase-stepper"
+              role="group"
+              aria-label="Step between windows"
+            >
+              <button
+                type="button"
+                disabled={phaseIndex === 0}
+                aria-label={
+                  plan.phases[phaseIndex - 1]
+                    ? `Previous window: ${plan.phases[phaseIndex - 1].label}`
+                    : "No earlier window"
+                }
+                onClick={() => selectPhase(phaseIndex - 1)}
+              >
+                <svg viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M6.4 1.6 3 5l3.4 3.4" />
+                </svg>
+              </button>
+              <span>End of wave {phase.endWave ?? "56+"}</span>
+              <button
+                type="button"
+                disabled={phaseIndex === plan.phases.length - 1}
+                aria-label={
+                  plan.phases[phaseIndex + 1]
+                    ? `Next window: ${plan.phases[phaseIndex + 1].label}`
+                    : "No later window"
+                }
+                onClick={() => selectPhase(phaseIndex + 1)}
+              >
+                <svg viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M3.6 1.6 7 5 3.6 8.4" />
+                </svg>
+              </button>
+            </div>
           </div>
           <PlanMap
             plan={plan}
             phase={phase}
             selectedCopyId={selectedCopyId}
+            placing={selectedTower != null}
             onAssignCell={assignCell}
             iconFor={iconForTower}
           />
@@ -760,7 +854,9 @@ export function MatchPlanView({
             {notice ??
               (selectedTower
                 ? `Placement mode: choose an open cell for ${selectedTower.towerName} ${selectedTower.level}.`
-                : "The engine assigned every tower shown. Select a lineup tower only to override its placement.")}
+                : selectedLater
+                  ? `${selectedLater.tower.towerName} ${selectedLater.tower.level} is not on the field yet — it lands in ${selectedLater.phase.label}${selectedLater.tower.cellLabel ? ` at ${selectedLater.tower.cellLabel}` : ""}, shown faint on the board.`
+                  : "The engine assigned every tower shown. Select a lineup tower only to override its placement.")}
           </output>
           <div className="match-map-legend" aria-label="Map legend">
             <span>
@@ -778,40 +874,25 @@ export function MatchPlanView({
             <span>
               <i className="is-temp" /> temporary carry
             </span>
+            <span>
+              <i className="is-level">II</i> tower level
+            </span>
           </div>
         </section>
 
         <aside className="match-brief" aria-label={`${phase.label} brief`}>
-          <CopilotDecision phase={phase} />
+          <CopilotDecision
+            phase={phase}
+            selectedCopyId={selectedCopyId}
+            onSelectTower={setSelectedCopyId}
+          />
           <details open>
             <summary>Lineup snapshot</summary>
-            <ul className="match-lineup">
-              {phase.endTowers.map((tower) => (
-                <li key={tower.copyId}>
-                  <button
-                    type="button"
-                    className={
-                      tower.copyId === selectedCopyId ? "is-selected" : ""
-                    }
-                    aria-pressed={tower.copyId === selectedCopyId}
-                    onClick={() => setSelectedCopyId(tower.copyId)}
-                  >
-                    <span>
-                      {tower.towerName} {tower.level} <em>{tower.status}</em>
-                    </span>
-                    <small>
-                      {tower.cellLabel ?? "unplaced"} ·{" "}
-                      {tower.campId ?? "no camp"} ·{" "}
-                      {tower.globalBuff
-                        ? "global buff; proximity irrelevant"
-                        : tower.directHitDebuff
-                          ? "direct-hit debuff; route contact required"
-                          : tower.effect.replace("-", " ")}
-                    </small>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <LineupSnapshot
+              phase={phase}
+              selectedCopyId={selectedCopyId}
+              onSelectTower={setSelectedCopyId}
+            />
           </details>
           <details>
             <summary>Keystones</summary>
@@ -1185,7 +1266,131 @@ function PhaseSnapshot({
   );
 }
 
-function CopilotDecision({ phase }: { phase: MatchPlan["phases"][number] }) {
+const TOWER_CHANGE_LABEL: Record<TowerChange, string> = {
+  new: "new this window",
+  upgraded: "upgraded here",
+  carried: "held",
+};
+
+/**
+ * The field at the end of this window, read as "where am I": what was bought
+ * or upgraded inside the window comes first, what was already standing is
+ * grouped under it, and anything sold on the way is listed last so the
+ * player can reconcile the list against the game screen in one pass.
+ */
+function LineupSnapshot({
+  phase,
+  selectedCopyId,
+  onSelectTower,
+}: {
+  phase: MatchPlanPhase;
+  selectedCopyId: string | null;
+  onSelectTower: (copyId: string) => void;
+}) {
+  const rows = phase.endTowers.map((tower) => ({
+    tower,
+    change: towerChange(phase, tower),
+  }));
+  const changed = rows.filter((row) => row.change !== "carried");
+  const held = rows.filter((row) => row.change === "carried");
+  const endIds = new Set(phase.endTowers.map((tower) => tower.copyId));
+  const sold = phase.startTowers.filter((tower) => !endIds.has(tower.copyId));
+  const counts = {
+    new: changed.filter((row) => row.change === "new").length,
+    upgraded: changed.filter((row) => row.change === "upgraded").length,
+  };
+  const summary = [
+    `${phase.endTowers.length} tower${phase.endTowers.length === 1 ? "" : "s"} standing`,
+    counts.new ? `${counts.new} new` : null,
+    counts.upgraded ? `${counts.upgraded} upgraded` : null,
+    sold.length ? `${sold.length} sold` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const renderRow = ({
+    tower,
+    change,
+  }: {
+    tower: PlannedTowerState;
+    change: TowerChange;
+  }) => (
+    <li key={tower.copyId} data-change={change}>
+      <button
+        type="button"
+        className={tower.copyId === selectedCopyId ? "is-selected" : ""}
+        aria-pressed={tower.copyId === selectedCopyId}
+        onClick={() => onSelectTower(tower.copyId)}
+      >
+        <span>
+          {tower.towerName} {tower.level} <em>{tower.status}</em>
+          <i>{TOWER_CHANGE_LABEL[change]}</i>
+        </span>
+        <small>
+          {tower.cellLabel ?? "unplaced"} · {tower.campId ?? "no camp"} ·{" "}
+          {tower.globalBuff
+            ? "global buff; proximity irrelevant"
+            : tower.directHitDebuff
+              ? "direct-hit debuff; route contact required"
+              : tower.effect.replace("-", " ")}
+        </small>
+      </button>
+    </li>
+  );
+
+  return (
+    <>
+      <p className="match-lineup-state" aria-label="Field state">
+        <b>End of wave {phase.endWave ?? "56+"}</b> · {summary}
+      </p>
+      {changed.length > 0 && (
+        <ul className="match-lineup">{changed.map(renderRow)}</ul>
+      )}
+      {held.length > 0 && (
+        // Towers that were already standing are done work: folded away by
+        // default so the list reads as "what to do in this window", but one
+        // click brings the full field back. When nothing changed in the
+        // window the fold is all there is, so it opens.
+        <details
+          key={phase.id}
+          className="match-lineup-held"
+          open={changed.length === 0 || undefined}
+        >
+          <summary>
+            {held.length} already on the field
+            {changed.length === 0 ? " · nothing changes this window" : ""}
+          </summary>
+          <ul className="match-lineup">{held.map(renderRow)}</ul>
+        </details>
+      )}
+      {sold.length > 0 && (
+        <ul className="match-lineup" aria-label="Sold this window">
+          <li className="match-lineup-divider" aria-hidden="true">
+            Sold this window
+          </li>
+          {sold.map((tower) => (
+            <li key={`sold-${tower.copyId}`} data-change="sold">
+              <span>
+                {tower.towerName} {tower.level}
+              </span>
+              <small>{tower.cellLabel ?? "unplaced"} · gone</small>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function CopilotDecision({
+  phase,
+  selectedCopyId,
+  onSelectTower,
+}: {
+  phase: MatchPlan["phases"][number];
+  selectedCopyId: string | null;
+  onSelectTower: (copyId: string) => void;
+}) {
   const affordable = phase.actions.filter((action) => action.affordable);
   const blocked = phase.actions.find((action) => !action.affordable);
   const decision =
@@ -1255,28 +1460,53 @@ function CopilotDecision({ phase }: { phase: MatchPlan["phases"][number] }) {
         <details>
           <summary>Exact action sequence</summary>
           <ol className="match-action-list">
-            {phase.actions.map((action) => (
-              <li
-                key={action.id}
-                className={
-                  action.type === "sell"
-                    ? "is-sell"
-                    : !action.affordable
-                      ? "is-wait"
-                      : ""
-                }
-              >
-                <span>{action.summary}</span>
-                <small>
-                  {action.type === "sell"
-                    ? `+${(action.refund ?? 0).toLocaleString()}g back`
-                    : action.cost
-                      ? `${action.cost.toLocaleString()}g`
-                      : "keystone"}
-                  {action.targetWave ? ` · before W${action.targetWave}` : ""}
-                </small>
-              </li>
-            ))}
+            {phase.actions.map((action) => {
+              const meta = [
+                action.type === "sell"
+                  ? `+${(action.refund ?? 0).toLocaleString()}g back`
+                  : action.cost
+                    ? `${action.cost.toLocaleString()}g`
+                    : "keystone",
+                action.cellLabel ?? null,
+                action.targetWave ? `before W${action.targetWave}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              const locatable =
+                action.copyId != null && action.type !== "sell";
+              return (
+                <li
+                  key={action.id}
+                  className={
+                    action.type === "sell"
+                      ? "is-sell"
+                      : !action.affordable
+                        ? "is-wait"
+                        : ""
+                  }
+                >
+                  {locatable ? (
+                    <button
+                      type="button"
+                      className={
+                        action.copyId === selectedCopyId ? "is-selected" : ""
+                      }
+                      aria-pressed={action.copyId === selectedCopyId}
+                      aria-label={`${action.summary} — show on the map`}
+                      onClick={() => onSelectTower(action.copyId!)}
+                    >
+                      <span>{action.summary}</span>
+                      <small>{meta}</small>
+                    </button>
+                  ) : (
+                    <>
+                      <span>{action.summary}</span>
+                      <small>{meta}</small>
+                    </>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </details>
       )}
@@ -1288,12 +1518,15 @@ function PlanMap({
   plan,
   phase,
   selectedCopyId,
+  placing,
   onAssignCell,
   iconFor,
 }: {
   plan: MatchPlan;
   phase: MatchPlan["phases"][number];
   selectedCopyId: string | null;
+  /** True only while a fielded copy is selected and cells may be reassigned. */
+  placing: boolean;
   onAssignCell: (cell: { col: number; row: number }, campId?: string) => void;
   iconFor: (towerId: string) => string | null | undefined;
 }) {
@@ -1311,9 +1544,6 @@ function PlanMap({
   const maxCol = Math.max(...points.map((point) => point.col)) + 1;
   const minRow = Math.min(...points.map((point) => point.row)) - 1;
   const maxRow = Math.max(...points.map((point) => point.row)) + 1;
-  const prior = new Map(
-    phase.startTowers.map((tower) => [tower.copyId, tower]),
-  );
   const currentCopyIds = new Set(phase.endTowers.map((tower) => tower.copyId));
   const futureByCopy = new Map<
     string,
@@ -1544,7 +1774,7 @@ function PlanMap({
               );
               const occupied = occupiedByCell.has(key);
               const assign = () => {
-                if (selectedCopyId) onAssignCell(cell, camp?.id);
+                if (placing) onAssignCell(cell, camp?.id);
               };
               return (
                 <g key={key} className="match-cell-slot">
@@ -1554,18 +1784,18 @@ function PlanMap({
                     width=".68"
                     height=".68"
                     rx=".1"
-                    className={`match-cell ${selectedCopyId ? "is-selectable" : ""} ${occupied ? "is-occupied" : ""}`}
-                    role={selectedCopyId ? "button" : undefined}
-                    tabIndex={selectedCopyId ? 0 : undefined}
+                    className={`match-cell ${placing ? "is-selectable" : ""} ${occupied ? "is-occupied" : ""}`}
+                    role={placing ? "button" : undefined}
+                    tabIndex={placing ? 0 : undefined}
                     aria-label={
-                      selectedCopyId
+                      placing
                         ? `Reserve selected tower at ${cellLabel(cell, labelOrigin)}`
                         : undefined
                     }
                     onClick={assign}
                     onKeyDown={(event) => {
                       if (
-                        selectedCopyId &&
+                        placing &&
                         (event.key === "Enter" || event.key === " ")
                       ) {
                         event.preventDefault();
@@ -1580,12 +1810,7 @@ function PlanMap({
             })}
 
             {phase.endTowers.flatMap((tower, index) => {
-              const before = prior.get(tower.copyId);
-              const changeState = !before
-                ? "is-new"
-                : before.level < tower.level
-                  ? "is-upgraded"
-                  : "is-carried";
+              const changeState = `is-${towerChange(phase, tower)}`;
               return tower.cell
                 ? [
                     <g
@@ -1600,13 +1825,14 @@ function PlanMap({
                       }
                     >
                       <title>
-                        {tower.towerName} {tower.level} ·{" "}
+                        {tower.towerName} {romanLevel(tower.level)} ·{" "}
                         {towerMetaLine(tower, index)}
                       </title>
                       <circle r=".42" />
                       <TowerToken
                         icon={iconFor(tower.towerId)}
                         name={tower.towerName}
+                        level={tower.level}
                       />
                     </g>,
                   ]
@@ -1617,11 +1843,12 @@ function PlanMap({
               <g
                 key={`future-${tower.copyId}`}
                 transform={`translate(${tower.cell!.col} ${tower.cell!.row})`}
-                className="match-tower is-future"
+                className={`match-tower is-future ${tower.copyId === selectedCopyId ? "is-selected" : ""}`}
                 data-future-placement={tower.copyId}
               >
                 <title>
-                  {tower.towerName} {tower.level} · waves {phaseId} ·{" "}
+                  {tower.towerName} {romanLevel(tower.level)} · waves{" "}
+                  {phaseId} ·{" "}
                   {tower.campId
                     ? (campLabelById.get(tower.campId) ?? tower.campId)
                     : "planned"}
@@ -1630,6 +1857,7 @@ function PlanMap({
                 <TowerToken
                   icon={iconFor(tower.towerId)}
                   name={tower.towerName}
+                  level={tower.level}
                 />
                 <text className="match-future-wave" y=".76" textAnchor="middle">
                   {phaseId}
@@ -1661,7 +1889,7 @@ function PlanMap({
                 >
                   <rect x={boxX} y="-.32" width="2.45" height=".64" rx=".1" />
                   <text x={textX} y="-.07">
-                    {tower.towerName} {tower.level}
+                    {tower.towerName} {romanLevel(tower.level)}
                   </text>
                   <text x={textX} y=".17" className="match-tower-meta">
                     {towerMetaLine(tower, activeIndex)}

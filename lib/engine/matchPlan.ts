@@ -1874,6 +1874,9 @@ export function generateMatchPlan(
               : `Legal now, but buying it would breach the ${reserveGold.toLocaleString()} gold emergency reserve.`,
           towerId: pending.towerId,
           towerName: pending.towerName,
+          // The copy this wait resolves into — the same id its later-window
+          // placement carries, so the UI can point at where it will stand.
+          copyId: pendingCopyId,
           fromLevel,
           toLevel: pending.toLevel,
           cost,
