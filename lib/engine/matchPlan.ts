@@ -1608,11 +1608,20 @@ export function generateMatchPlan(
         );
         return Math.max(1, Math.ceil(damageCopies / targets));
       };
+      // A tower whose ability spends lives (Life Altar) is built once: its
+      // attack is real, but a second copy is a second drain on the pool
+      // the plan never spends, and no measured field carried two.
+      const spendsLives = (towerId: string) =>
+        getTowerMechanicFacts(towerId).some(
+          (effect) => effect.resourceBurden?.resource === "lives",
+        );
       const belowSaturation = (towerId: string) =>
         (copyCountByTower.get(towerId) ?? 0) <
-        (isSurvivalBuffProvider(towerId)
-          ? Math.min(fleetCopySaturationFor(towerId), buffCap(towerId))
-          : fleetCopySaturationFor(towerId));
+        (spendsLives(towerId)
+          ? 1
+          : isSurvivalBuffProvider(towerId)
+            ? Math.min(fleetCopySaturationFor(towerId), buffCap(towerId))
+            : fleetCopySaturationFor(towerId));
       // A fielded tower can be copied at its current level or any lower
       // one: a fresh level-1 copy of the anchor is often the best damage per
       // gold on the field once the original has been upgraded.
