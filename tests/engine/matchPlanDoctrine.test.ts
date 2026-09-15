@@ -66,31 +66,16 @@ describe("Match Plan doctrine — survival over economy", () => {
   });
 
   it("only known-weak anchors fail before wave 21, and none for lack of trying", () => {
-    // Measured 2026-09-16, after expected-engagement damage (AoE, duty
-    // cycle, isolation) and Blacksmith/Well/Trickery crediting landed.
-    // howitzer left the set (its first failure moved from W16 to W31 once
-    // its area damage was credited). Shrink as data lands — sell rate,
-    // essence timing, ability numbers — and never grow without saying why.
-    //
-    // atom joined 2026-09-15 with the placement rework (starters no longer
-    // take the cell the anchor will want; camps are route-pass moments):
-    // its Waves 11–15 rescue now buys four level-1 monos that land in time
-    // for W13 and W16 instead of the one Light 2 that used to carry W18, so
-    // W18 sits at 85% with Atom 2 landing at W20. The timing-first tier is
-    // doing what it says; whether W18 is really short is a calibration
-    // question (the wave model is ~2× a measured zero-leak win).
-    const allowed = new Set([
-      "atom",
-      "impulse",
-      "poison",
-      "solar",
-      "vapor",
-      "disease",
-      "flooding",
-      "mushroom",
-      "quake",
-      "runic",
-    ]);
+    // The plans above run on the default difficulty. Since 2026-09-15 that
+    // is Hard (the owner's archived zero-leak wins and the calibration
+    // captures are Hard games), and on Hard only four curated anchors still
+    // fail a window before W21 — down from ten on Very Hard. Shrink as data
+    // lands (sell rate, essence timing, ability numbers) and never grow
+    // without saying why. The four: solar and disease fail W16 at 62% / 75%
+    // with the anchor already up, flooding W18–20 in the high 80s, mushroom
+    // W16 at 99% — every one a candidate to leave once the wave model is
+    // calibrated (it is ~2× a measured zero-leak win).
+    const allowed = new Set(["solar", "disease", "flooding", "mushroom"]);
     const unexpected = plans.flatMap(({ anchor, matchPlan }) =>
       matchPlan.phases
         .slice(0, 4)

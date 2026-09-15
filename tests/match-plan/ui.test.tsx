@@ -56,9 +56,7 @@ describe("Match Plan UI", () => {
     );
     expect(screen.getByText("Plan skeleton")).toBeInTheDocument();
     expect(screen.getByText("COPILOT DECISION")).toBeInTheDocument();
-    expect(screen.getByLabelText("Difficulty baseline")).toHaveValue(
-      "veryHard",
-    );
+    expect(screen.getByLabelText("Difficulty baseline")).toHaveValue("hard");
     expect(screen.getByLabelText("Gold allocation")).toHaveTextContent(
       "Wave income",
     );
@@ -152,9 +150,9 @@ describe("Match Plan UI", () => {
     })[0];
     fireEvent.click(reference);
     expect(reference).toHaveAttribute("aria-pressed", "true");
-    expect(
-      document.querySelectorAll(".match-tower.is-selected").length,
-    ).toBe(1);
+    expect(document.querySelectorAll(".match-tower.is-selected").length).toBe(
+      1,
+    );
     // Every token on the board carries its level as a roman numeral pip.
     const pips = document.querySelectorAll(".match-tower-level text");
     expect(pips.length).toBeGreaterThan(0);

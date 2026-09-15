@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "note": "Measured play, transcribed from the owner's screenshots - never estimated. `games` holds end-screen facts per match; `waves` holds per-wave captures (creep count at wave start, hovered HP per creep, the damage panel's PREVIOUS tab after the wave, bounty). Any field left null is unmeasured and stays sheet-derived in the engine.",
+  "games": [
+    {
+      "id": "game-1-bloom-hard",
+      "difficulty": "hard",
+      "capturedAt": "2026-09",
+      "source": "archive games/test-1-results.png",
+      "result": "win",
+      "wavesCleared": 61,
+      "networth": 145077,
+      "totalDamageDealt": 66000000,
+      "leaks": 0,
+      "notes": "Bloom anchor; Nature mono 15.3M, Light mono 9.6M of the total."
+    },
+    {
+      "id": "game-2-wisp-hard",
+      "difficulty": "hard",
+      "capturedAt": "2026-09",
+      "source": "archive games/test-2-results.png",
+      "result": "win",
+      "wavesCleared": 59,
+      "networth": 136756,
+      "totalDamageDealt": 50100000,
+      "leaks": 0,
+      "notes": "38 towers: 6 Wisp, 2 Periodic (34% of damage), 3 Railgun, 3 Archdruid, 2 Golem, 2 Jinx, 2 Shredder, 4 Windstorm, 2 Polar, 5 Well."
+    },
+    {
+      "id": "game-3-doom-veryhard",
+      "difficulty": "veryHard",
+      "capturedAt": "2026-09-15",
+      "source": "owner screenshot in chat, 2026-09-15 (Game Over screen)",
+      "result": "loss",
+      "wavesCleared": 49,
+      "networth": 62652,
+      "totalDamageDealt": null,
+      "leaks": null,
+      "notes": "Theory Craft Doom build, followed the Match Plan guide exactly. Elements at death L1 D3 F3 N1 E2. Field: Doom, Life Altar, Shredder, Darkness mono, Infernal, Jinx, Root, Blacksmith, Arrow. Owner: gold left in the bank; the right-side double pass was under-used by the guide. An earlier guide-following game (no screenshots) also ended before wave 55."
+    }
+  ],
+  "waves": []
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "note": "Gold facts measured from play. `interest` stays null until the gold counter has been read at the start and end of waves with no purchase. The HUD shows 2.0%, yet the bounty ledger alone already lands on the observed networth (Game 2: 136,830 vs 136,756; Game 3: about 63,000 vs 62,652), so whether interest is paid on top, folded into the bounties, or not paid at all is unmeasured.",
+  "interest": null,
+  "interestSchema": {
+    "ratePercent": "number",
+    "interval": "\"per-wave\" | { \"seconds\": number }",
+    "base": "\"gold\" | \"networth\"",
+    "cap": "number | null",
+    "source": "screenshot reference"
+  }
+}

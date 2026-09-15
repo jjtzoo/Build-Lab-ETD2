@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "note": "Effective HP multiplier of each wave ability, measured as (damage dealt on the wave, PREVIOUS tab, zero leaks) / (sheet base HP x creep count). Null = unmeasured; the engine keeps the wave as ability-estimate and the Match Plan says the ability is not modeled.",
+  "abilities": {
+    "Fast": { "effectiveHpMultiplier": null, "source": null },
+    "Cursed": { "effectiveHpMultiplier": null, "source": null },
+    "Healing": { "effectiveHpMultiplier": null, "source": null },
+    "Temporal": { "effectiveHpMultiplier": null, "source": null },
+    "Undead": { "effectiveHpMultiplier": null, "source": null },
+    "Bulky": { "effectiveHpMultiplier": null, "source": null },
+    "Shield": { "effectiveHpMultiplier": null, "source": null }
+  }
+}

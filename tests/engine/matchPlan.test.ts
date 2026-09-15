@@ -186,7 +186,11 @@ describe("Match Plan", () => {
     // the bridge follows. Which wave leaks depends on where the opening
     // shell stands, so the assertion is on the order, not on a wave number:
     // the first repair lands no later than the bridge and is bought first.
-    const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
+    // Pinned to Very Hard: on the Hard default this window needs no repair.
+    const plan = generateMatchPlan(laserBuild, {
+      mapId: "forest",
+      difficulty: "veryHard",
+    });
     const window = plan.phases[1];
     const repairs = window.actions.filter((action) =>
       action.id.includes(":survival-repair:"),
@@ -235,7 +239,7 @@ describe("Match Plan", () => {
 
   it("allocates each phase budget from benchmark gold without manual spending", () => {
     const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
-    expect(plan.settings.difficulty).toBe("veryHard");
+    expect(plan.settings.difficulty).toBe("hard");
     expect(plan.phases[0].economy).toMatchObject({
       phaseStartGold: 300,
       incomeThisPhase: 390,

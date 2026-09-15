@@ -15,13 +15,14 @@
     "test:e2e:build-lab": "node scripts/testBuildLabPage.mjs",
     "test:e2e:match-plan": "node scripts/testMatchPlanPage.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate:data",
-    "validate:data": "npm run validate:towers && npm run validate:mechanic-facts && npm run validate:tower-economics",
+    "validate:data": "npm run validate:towers && npm run validate:mechanic-facts && npm run validate:tower-economics && npm run validate:calibration",
     "validate:towers": "node scripts/validateTowersV2.mjs",
     "validate:mechanic-facts": "node scripts/validateTowerMechanicFactsV1.mjs",
     "validate:tower-economics": "node scripts/validateTowerEconomicsV1.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "validate:calibration": "node scripts/validateCalibrationDataV1.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

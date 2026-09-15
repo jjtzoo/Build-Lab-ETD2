@@ -43,10 +43,13 @@ import {
   type LiveMatchLength,
 } from "@/lib/engine/liveEconomy";
 import {
+  DEFAULT_MATCH_PLAN_DIFFICULTY,
   MATCH_PLAN_DIFFICULTIES,
   MATCH_PLAN_DIFFICULTY_LABELS,
   type MatchPlanDifficulty,
+  waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
+import calibration from "@/data/waveObservations.v1.json";
 
 const LEGACY_MIGRATION_BACKUP_KEY = "etd2:live:migration-backup";
 
@@ -67,6 +70,51 @@ function towerMark(name: string): string {
         .join("")
         .toUpperCase()
     : name.slice(0, 2).toUpperCase();
+}
+
+type MeasuredGame = {
+  difficulty: string;
+  result: "win" | "loss";
+  wavesCleared: number | null;
+  totalDamageDealt: number | null;
+  leaks: number | null;
+};
+
+/**
+ * Whether the wave model has been shown to agree with measured play, and
+ * the sentence to show while it has not. A zero-leak win dealt every point
+ * of HP its waves carried, so its total damage bounds the HP the model may
+ * put on those waves; while the model is over that bound, every "fails" is
+ * unproven and the page says so. Disappears on its own the day the
+ * calibration test (tests/engine/matchPlanCalibration.test.ts) passes.
+ */
+function calibrationNotice(difficulty: MatchPlanDifficulty): string | null {
+  const games = (calibration.games as MeasuredGame[]).filter(
+    (game) => game.difficulty === "hard",
+  );
+  const wins = games.filter(
+    (game) =>
+      game.result === "win" &&
+      game.leaks === 0 &&
+      game.totalDamageDealt != null,
+  );
+  if (!wins.length) return null;
+  let modeled = 0;
+  for (let wave = 1; wave <= 55; wave += 1) {
+    const benchmark = waveBenchmark(wave, "hard");
+    if (benchmark) modeled += benchmark.effectiveHpPerCreep * benchmark.count;
+  }
+  const tightest = Math.min(...wins.map((game) => game.totalDamageDealt!));
+  if (modeled <= tightest) return null;
+  const losses = (calibration.games as MeasuredGame[]).filter(
+    (game) => game.result === "loss",
+  );
+  const millions = (value: number) => `${Math.round(value / 1_000_000)}M`;
+  const scaled =
+    difficulty === "hard"
+      ? ""
+      : ` ${MATCH_PLAN_DIFFICULTY_LABELS[difficulty].split(" · ")[0]} is scaled from that same table.`;
+  return `Wave HP is taken from the developer sheet and has not matched live play yet: a zero-leak Hard win dealt ${millions(tightest)} against this model's ${millions(modeled)} for waves 1–55.${scaled} Read "fails" as "unproven", not "lost"${losses.length ? ` — and ${losses.length === 1 ? "a game" : `${losses.length} games`} played straight from this guide ended before wave 55, so follow the field, not the verdicts` : ""}.`;
 }
 
 /** Tower level as the game shows it on the tower itself: I, II, III. */
@@ -651,6 +699,17 @@ export function MatchPlanView({
         </div>
       </header>
 
+      {(() => {
+        const notice = calibrationNotice(
+          plan.settings.difficulty ?? DEFAULT_MATCH_PLAN_DIFFICULTY,
+        );
+        return notice ? (
+          <aside className="match-calibration" role="note">
+            <b>Unverified against live play.</b> {notice}
+          </aside>
+        ) : null;
+      })()}
+
       <section className="match-controls" aria-label="Plan constraints">
         <label>
           Map
@@ -695,7 +754,7 @@ export function MatchPlanView({
         <label>
           Difficulty baseline
           <select
-            value={plan.settings.difficulty ?? "veryHard"}
+            value={plan.settings.difficulty ?? DEFAULT_MATCH_PLAN_DIFFICULTY}
             onChange={(event) =>
               regenerate({
                 difficulty: event.target.value as MatchPlanDifficulty,

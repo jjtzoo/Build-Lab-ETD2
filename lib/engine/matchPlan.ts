@@ -48,6 +48,7 @@ import {
 } from "@/lib/engine/matchPlanSurvival";
 import {
   bountyThroughWave,
+  DEFAULT_MATCH_PLAN_DIFFICULTY,
   type MatchPlanDifficulty,
   waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
@@ -255,7 +256,7 @@ function openingMonoElement(
             ),
           );
           const firstWaves = [1, 2, 3, 4, 5]
-            .map((wave) => waveBenchmark(wave, "veryHard"))
+            .map((wave) => waveBenchmark(wave, DEFAULT_MATCH_PLAN_DIFFICULTY))
             .filter((wave) => wave != null);
           const multipliers = firstWaves.map((wave) =>
             wave.element === "Composite"
@@ -380,6 +381,53 @@ function displacementRisks(field: readonly PlannedTowerState[]): string[] {
   return [
     `${names.join(" and ")} throws each hit creep forward to the front of the wave; the ${others.length} other damage ${others.length === 1 ? "copy" : "copies"} lose contact on the skipped stretch. This model still credits their full route and train time, so this window's survival figures overstate the field — the owner saw it nullify the damage towers in live play. Not modeled until the lost contact is measured.`,
   ];
+}
+
+/**
+ * Risk lines for fielded buff providers whose final allocation cannot take
+ * them to their top level — the magnitude the survival model will credit
+ * is the one the allocation allows, not the one the tower is known for.
+ */
+function buffCapRisks(
+  field: readonly PlannedTowerState[],
+  allocation: Readonly<Record<ElementName, number>>,
+): string[] {
+  const seen = new Set<string>();
+  return field.flatMap((tower) => {
+    if (seen.has(tower.towerId)) return [];
+    const facts = getTowerMechanicFacts(tower.towerId).filter(
+      (effect) =>
+        (effect.signal === "attack-damage-buff" ||
+          effect.signal === "attack-speed-buff") &&
+        effect.activationRequirement !== "active-cast" &&
+        effect.magnitude,
+    );
+    if (!facts.length) return [];
+    seen.add(tower.towerId);
+    let recipe: readonly ElementName[];
+    let maxLevel: number;
+    try {
+      const catalog = getTower(tower.towerId);
+      recipe = catalog.recipe;
+      maxLevel = catalog.maxLevel;
+    } catch {
+      return [];
+    }
+    const reachable = Math.min(
+      maxLevel,
+      ...recipe.map((element) => allocation[element] ?? 0),
+    );
+    if (reachable >= maxLevel) return [];
+    const magnitudes = facts[0].magnitude!.byLevel;
+    const held = magnitudes[reachable - 1] ?? magnitudes[0];
+    const top = magnitudes[maxLevel - 1] ?? magnitudes.at(-1) ?? held;
+    const missing = recipe
+      .filter((element) => (allocation[element] ?? 0) < maxLevel)
+      .map((element) => `${element} ${maxLevel}`);
+    return [
+      `${tower.towerName} is capped at level ${reachable} by this build's allocation: its buff stays at +${held}%, not the +${top}% of level ${maxLevel}. Reaching it needs ${missing.join(" and ")}.`,
+    ];
+  });
 }
 
 function actionCost(
@@ -1148,7 +1196,7 @@ export function generateMatchPlan(
   if (!map) throw new Error("Match Plan requires at least one traced map.");
   const mode = settings.mode ?? "standard";
   const matchLength = settings.matchLength ?? "full";
-  const difficulty = settings.difficulty ?? "veryHard";
+  const difficulty = settings.difficulty ?? DEFAULT_MATCH_PLAN_DIFFICULTY;
   const overrides = settings.overrides ?? [];
   const overrideReserve = overrides.find((entry) => entry.kind === "reserve");
   const reserveGold =
@@ -2333,6 +2381,10 @@ export function generateMatchPlan(
       // credits the full route and the full train, so its numbers overstate
       // such a field until the loss is measured.
       ...displacementRisks(field),
+      // Blacksmith and Well pay +10/30/90% by level, and level 3 needs both
+      // recipe elements at 3. A build whose allocation stops them at 2 is
+      // buying a +30% tower and calling it the +90% one.
+      ...buffCapRisks(field, build.allocation),
     ];
     const recoveries = [
       ...critical.flatMap((row) => (row.repair ? [row.repair] : [])),

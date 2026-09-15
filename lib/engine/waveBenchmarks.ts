@@ -10,6 +10,14 @@ export const MATCH_PLAN_DIFFICULTIES = [
 
 export type MatchPlanDifficulty = (typeof MATCH_PLAN_DIFFICULTIES)[number];
 
+/**
+ * The difficulty a plan is scored on when the build does not say. Hard: the
+ * owner's two archived zero-leak wins are Hard games and the calibration
+ * captures are taken on Hard, so Hard is where the model is checked against
+ * the game first. Very Hard stays one select away.
+ */
+export const DEFAULT_MATCH_PLAN_DIFFICULTY: MatchPlanDifficulty = "hard";
+
 export const MATCH_PLAN_DIFFICULTY_LABELS: Record<MatchPlanDifficulty, string> =
   {
     normal: "Normal · 100% HP",

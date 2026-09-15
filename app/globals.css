@@ -7717,6 +7717,24 @@ button.mechanic-chip {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
+/* One honest line between the hero and the controls while the wave model
+   is unverified against live play. Amber, not red: a caution about the
+   verdicts, not a failure of the plan. */
+.match-calibration {
+  margin: 0 clamp(20px, 4vw, 56px);
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--plan-amber) 45%, transparent);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--plan-amber) 6%, var(--surface));
+  color: var(--text-2, var(--text));
+  font-size: 13px;
+  line-height: 1.5;
+}
+.match-calibration b {
+  color: var(--plan-amber);
+  font-weight: 700;
+}
 .match-controls {
   display: grid;
   grid-template-columns: repeat(5, minmax(118px, 1fr)) auto;
