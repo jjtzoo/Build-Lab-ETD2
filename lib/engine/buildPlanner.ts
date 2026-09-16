@@ -869,16 +869,19 @@ function decisionVector(
     decision
       .anchorStrongSynergyCount,
 
-    // Contextual optimization evidence: covering the anchor's own armour
-    // weakness and its missing damage shape comes before raw synergy
-    // potency.
-    decision
-      .elementWeaknessesCovered,
-
+    // Contextual optimization evidence: closing a missing damage shape
+    // (a real second AoE contributor, not just a technically-legal one)
+    // comes before element-armour coverage, which in turn comes before
+    // raw synergy potency. A package that is entirely single-target can
+    // clear individual creeps but not a full wave train in time — that
+    // gap cannot be traded away for one more countered armour color.
     decision
       .damageShapeComplementary
       ? 1
       : 0,
+
+    decision
+      .elementWeaknessesCovered,
 
     // A developed scaling team buff (Blacksmith / Well at L3) outranks the
     // marginal synergy value of one more discretionary tower, so pushing a

@@ -27,7 +27,7 @@
       "notes": "38 towers: 6 Wisp, 2 Periodic (34% of damage), 3 Railgun, 3 Archdruid, 2 Golem, 2 Jinx, 2 Shredder, 4 Windstorm, 2 Polar, 5 Well."
     },
     {
-      "id": "game-3-doom-veryhard",
+      "id": "game-3-infernal-veryhard-theorycraft",
       "difficulty": "veryHard",
       "capturedAt": "2026-09-15",
       "source": "owner screenshot in chat, 2026-09-15 (Game Over screen)",
@@ -36,12 +36,29 @@
       "networth": 62652,
       "totalDamageDealt": null,
       "leaks": null,
-      "notes": "Theory Craft Doom build, followed the Match Plan guide exactly. Elements at death L1 D3 F3 N1 E2. Field: Doom, Life Altar, Shredder, Darkness mono, Infernal, Jinx, Root, Blacksmith, Arrow. Owner: gold left in the bank; the right-side double pass was under-used by the guide. An earlier guide-following game (no screenshots) also ended before wave 55."
+      "notes": "Corrected 2026-09-16: this is an Infernal-anchor strategy, not a 'Doom build' — Doom just dealt the most damage on the field, it was never the anchor. Theory Craft build, followed the Match Plan guide exactly. Elements at death L1 D3 F3 N1 E2. Field: Doom, Life Altar, Shredder, Darkness mono, Infernal, Jinx, Root, Blacksmith, Arrow. Owner: gold left in the bank; the right-side double pass was under-used by the guide. An earlier guide-following game (no screenshots) also ended before wave 55."
+    },
+    {
+      "id": "game-4-infernal-veryhard-buildlab",
+      "difficulty": "veryHard",
+      "capturedAt": "2026-09-16",
+      "source": "owner screenshot in chat, 2026-09-16 (Game Over screen)",
+      "result": "loss",
+      "wavesCleared": 50,
+      "networth": 61749,
+      "totalDamageDealt": null,
+      "leaks": null,
+      "notes": "A separate game from game-3, but the SAME anchor (Infernal) — this one is Build Lab's own automatic recommendation rather than a Theory Craft build, Very Hard. Died around wave 50-51 with gold left in the bank. Owner's own diagnosis: poor elemental coverage and no second AoE main-dps; the lineup got 'rocked on fire as well as dark'. Root-cause investigation that session: Infernal's own top recommended package (blacksmith, doom, infernal, jinx, life-altar, root, shredder) already has adequate AoE and element coverage per lib/engine/buildPlanner.ts's own evidence. The real, confirmed mechanism is sequencing in lib/engine/buildProgression.ts's stepPriority (not buildPreferredKeystonePath, an earlier, wrong guess): its anchorPrerequisiteProgress term outranks actionPriority, so Darkness/Fire (Infernal's own recipe) keep winning keystones over Nature/Earth/Light (needed by Root/Shredder/Life Altar) until the anchor's whole recipe is spent, landing Light at wave 46 and Root's Nature-2 upgrade at wave 51. A live experiment reordering that priority was tried and made things WORSE (waves 36-55 went from about half failing to all failing) — Infernal's own single-target DPS at full level covers more total wave HP than a half-developed AoE spread under the model's current wave-HP curve, so that reorder was reverted; buildProgression.ts is unchanged. The fix actually applied instead, per the owner's direction to fix Build Lab's own ranking rather than reject in Match Plan: lib/engine/buildPlanner.ts's decisionVector and lib/engine/normalPackageSearch.ts's computeSearchDecisionVector now rank damage-shape (AoE) coverage above element-matchup coverage. This did not change Infernal's own package (already fine) but is the correct standing principle going forward. Auditing all 22 CURATED_ANCHORS afterward found a second, previously-unnoticed instance of the same defect: Laser's own recommended package (laser, doom, money, rage, tesla-tree) is entirely single-target with no AoE anywhere, and the ranking reorder alone did not fix it either — Laser needs its own investigation of the same depth as this one. With both real losses now confirmed as the same anchor, the wave-36-55 shortfall reads less like an Infernal-specific bug and more like a real, general weakness of the Infernal recipe against the model's current wave-HP curve — worth weighting accordingly the next time this anchor is tuned. Second attempt 2026-09-16: found and fixed a real, distinct bug in lib/engine/matchPlan.ts's allocationOrder — its element merge counted by element only, not position, so an early preference token (the anchor's own operational-level push, or the early-game coverage-element pick) could silently cash in a LATER, differently-positioned occurrence of the same element from buildProgression.ts's own (already well-ordered) serialized route, corrupting it. Fixed correctly this time (dequeuing the matching element from serialized's own list instead of double-counting) and verified against the full CURATED_ANCHORS audit rather than Infernal alone. Result: even though the fix visibly balanced Infernal's own Darkness/Fire completion and pulled Light/Nature/Earth earlier as intended, waves 36-50 got WORSE (new failures at W36-38, W43, W46-47 that were not there before) and it introduced a fresh regression elsewhere (haste banked 3,510g idle in Waves 36-40 with a wave still short). Reverted. This is now the THIRD independent confirmation (after the two stepPriority reorder attempts) that no keystone/allocation-order change can fix this — Infernal's own raw single-target DPS is simply the most HP-efficient lever available under the current wave-HP model, so anything that trades anchor completion time for earlier package-role coverage nets negative. The actual blocker is the wave-HP calibration gap tracked in tests/engine/matchPlanCalibration.test.ts (the model runs ~2x hot vs measured zero-leak wins) — until that has real data, sequencing work on this anchor should stop."
     }
   ],
   "waves": [],
+  "hpCalibration": {
+    "date": "2026-09-16",
+    "note": "Root-cause audit at the owner's request found the waves-1-55 creep HP curve (normalHp() in lib/engine/waveBenchmarks.ts) was an undocumented, unsourced exponential fit that credited 119.0M total creep HP through wave 55 on Hard, against only 66.0M (Bloom, zero-leak win through wave 61) and 50.1M (Wisp, zero-leak win through wave 59) actually dealt in the two archived real wins — a computed 1.80x and 2.38x overshoot respectively (verified directly, not assumed). This was proven independent of any tower-damage modeling: the check sums only the HP curve against real screenshotted totals. Applied HP_CALIBRATION_SCALE = 1/3 to the waves-1-55 curve only (boss-stage HP at wave56+ is untouched, since BOSS_BASE_HP=500,000 is sourced from the developer workbook directly, not invented). This is an explicit placeholder pinned to the only two real data points available, not a claim of the true per-wave shape; replace it the moment real per-wave HP or creep-count captures exist. After the fix, all three previously-it.fails calibration assertions in tests/engine/matchPlanCalibration.test.ts pass for real and were flipped to plain it; the 22-anchor doctrine audit and a 6-archetype spot check (infernal, laser, bloom, wisp, disease, haste) all clear every wave 1-55 at both Hard and Very Hard, with only the untouched boss stage (56-70) still showing shortfall, a separate known gap."
+  },
   "endGameEssenceAccess": {
-    "firstLegalWave": null,
-    "note": "Unmeasured — the wave the two End Game essence purchases actually unlock in a real match. Until measured, the engine assumes wave 56 (LAST_NORMAL_WAVE + 1 in lib/engine/waveBenchmarks.ts) as the earliest defensible floor, since that is the wave the boss stage's own HP curve first needs them."
+    "firstLegalWave": 50,
+    "secondLegalWave": 55,
+    "note": "Confirmed by the owner 2026-09-16: wave 50 grants the first Pure/Periodic essence use, wave 55 the second — not both at the boss stage's own start (wave 56), which was only a stated, unmeasured floor before this. Wired into lib/engine/endGameAccess.ts's ESSENCE_LEGAL_WAVE and consumed by lib/engine/matchPlan.ts's essenceCandidates."
   }
 }

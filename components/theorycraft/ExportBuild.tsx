@@ -8,6 +8,7 @@ import {
   type PortableBuild,
 } from "@/lib/domain/portableBuild";
 import { getLiveStorage, liveImportUrl } from "@/lib/domain/liveImport";
+import { evaluateBuildAcceptance } from "@/lib/engine/buildAcceptance";
 import {
   useTheoryCraft,
   selectPlaced,
@@ -38,6 +39,7 @@ export function ExportBuild() {
   const placed = useMemo(() => selectPlaced({ slots }), [slots]);
   const allocation = useMemo(() => selectAllocation({ slots }), [slots]);
   const [copied, setCopied] = useState(false);
+  const [rejection, setRejection] = useState<string | null>(null);
 
   const url = useMemo(() => {
     if (placed.length === 0) return "";
@@ -61,6 +63,17 @@ export function ExportBuild() {
 
   function openInLive() {
     const portable = buildPortable(placed, allocation);
+    // Checked here, at the moment a hand-built lineup is about to leave
+    // Theory Craft, rather than inside Match Plan itself — Match Plan's
+    // own engine functions stay usable with any input (including the
+    // minimal fixtures a lot of its own tests construct); only a real
+    // player's export should ever be turned away.
+    const acceptance = evaluateBuildAcceptance(portable);
+    if (!acceptance.accepted) {
+      setRejection(acceptance.failures.map((failure) => failure.detail).join(" "));
+      return;
+    }
+    setRejection(null);
     window.location.href = liveImportUrl(portable, getLiveStorage());
   }
 
@@ -97,6 +110,7 @@ export function ExportBuild() {
           purchase sequence.
         </span>
       </div>
+      {rejection && <p className="tc-export-rejection">{rejection}</p>}
     </section>
   );
 }

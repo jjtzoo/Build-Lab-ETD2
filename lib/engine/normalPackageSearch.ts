@@ -1282,11 +1282,11 @@ function computeSearchDecisionVector(
     strengthFor([
       "effectively-continuous",
     ]),
-    covered,
     evidence.coverage.damageShape
       .hasMeaningfulComplementaryShape
       ? 1
       : 0,
+    covered,
     full.reduce(
       (total, match) =>
         total +

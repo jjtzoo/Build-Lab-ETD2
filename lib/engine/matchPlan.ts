@@ -42,6 +42,7 @@ import {
   getEndGameTowerFact,
 } from "@/lib/domain/endGameTowerFacts";
 import {
+  ESSENCE_LEGAL_WAVE,
   evaluateEndGameAccess,
   TRADITIONAL_END_GAME_ESSENCE_USES,
 } from "@/lib/engine/endGameAccess";
@@ -61,7 +62,6 @@ import {
   bountyThroughWave,
   DEFAULT_MATCH_PLAN_DIFFICULTY,
   LAST_BENCHMARK_WAVE,
-  LAST_NORMAL_WAVE,
   type MatchPlanDifficulty,
   waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
@@ -1798,18 +1798,18 @@ export function generateMatchPlan(
       return [...copies, ...upgrades];
     };
     // Stage 3 — the next End Game essence pick, once the normal-tier field
-    // is saturated. No capture records the wave the two essence picks
-    // actually unlock (owner item 0.4), so this is a stated, overridable
-    // assumption rather than a fact: legal only from the boss stage's own
-    // start (wave 56), the earliest point the field structurally needs it.
-    // Legality is re-checked against the plan's own live allocation (not
-    // the build's final target), so an essence tower is never offered
-    // before its keystones are actually held in-game.
+    // is saturated. Confirmed by the owner: wave 50 grants the first
+    // Pure/Periodic essence, wave 55 the second (ESSENCE_LEGAL_WAVE) — not
+    // both at the boss stage's own start (wave 56), which was only a
+    // stated, unmeasured floor before this was confirmed. Legality is
+    // re-checked against the plan's own live allocation (not the build's
+    // final target), so an essence tower is never offered before its
+    // keystones are actually held in-game.
     const essenceCandidates = (currentShortfall: number) => {
-      if (definition.start <= LAST_NORMAL_WAVE || essenceUsesRemaining <= 0)
-        return [];
+      if (essenceUsesRemaining <= 0) return [];
       const pickIndex =
         TRADITIONAL_END_GAME_ESSENCE_USES - essenceUsesRemaining;
+      if (definition.start < ESSENCE_LEGAL_WAVE[pickIndex]) return [];
       const towerId = essenceQueue[pickIndex];
       if (!towerId) return [];
       const access = evaluateEndGameAccess(allocation);
@@ -1839,7 +1839,7 @@ export function generateMatchPlan(
         "essence",
         currentShortfall,
         0,
-        `Essence pick ${pickIndex + 1} of ${TRADITIONAL_END_GAME_ESSENCE_USES}: ${fact.name}, ${fact.minimumFieldCost.toLocaleString()}g flat, no keystone. Assumed available from wave ${LAST_NORMAL_WAVE + 1} (the boss stage's own start) — the real pick wave is not measured, so it may legally land earlier once that is known.`,
+        `Essence pick ${pickIndex + 1} of ${TRADITIONAL_END_GAME_ESSENCE_USES}: ${fact.name}, ${fact.minimumFieldCost.toLocaleString()}g flat, no keystone. Legal from wave ${ESSENCE_LEGAL_WAVE[pickIndex]}.`,
       );
     };
     // Earliest leak first: a step that lands after the first failing wave
@@ -2951,8 +2951,12 @@ export function generateMatchPlan(
                     : `${next.towerName} ${next.toLevel} (${actionCost(next.towerId, 0, next.toLevel).toLocaleString()}g)`
                   : essenceUsesRemaining <= 0
                     ? "nothing — both End Game essence uses are already on the field"
-                    : definition.start <= LAST_NORMAL_WAVE
-                      ? `the End Game essence layer, not legal before wave ${LAST_NORMAL_WAVE + 1} (the boss stage's own start — the real pick wave is unmeasured)`
+                    : definition.start <
+                        ESSENCE_LEGAL_WAVE[
+                          TRADITIONAL_END_GAME_ESSENCE_USES -
+                            essenceUsesRemaining
+                        ]
+                      ? `the End Game essence layer, not legal before wave ${ESSENCE_LEGAL_WAVE[TRADITIONAL_END_GAME_ESSENCE_USES - essenceUsesRemaining]}`
                       : "the End Game essence layer, once this build's allocation reaches a legal Pure or Periodic pick";
               const leak = reported.worstWave ?? definition.start;
               return rescueExhausted === "gold"
@@ -2990,7 +2994,7 @@ export function generateMatchPlan(
                 isEndGameTowerId(tower.towerId),
               );
               const essenceNote = essenceOnField.length
-                ? `This field carries ${essenceOnField.map((t) => t.towerName).join(" and ")} (End Game essence, assumed legal from wave ${LAST_NORMAL_WAVE + 1} — the real pick wave is unmeasured, so it may have unlocked earlier).`
+                ? `This field carries ${essenceOnField.map((t) => t.towerName).join(" and ")} (End Game essence — the first use is legal from wave ${ESSENCE_LEGAL_WAVE[0]}, the second from wave ${ESSENCE_LEGAL_WAVE[1]}).`
                 : essenceUsesRemaining <= 0
                   ? "Both End Game essence uses are already spent elsewhere on the field."
                   : "No End Game tower is legal yet for this build's allocation; the essence layer is the outlet once one is.";

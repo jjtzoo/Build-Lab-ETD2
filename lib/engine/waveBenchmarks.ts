@@ -204,9 +204,37 @@ export type WaveBenchmark = {
   modelConfidence: "verified" | "ability-estimate";
 };
 
+/**
+ * Provisional scale on the waves 1-55 HP curve below. That curve — base
+ * 125 growing ×1.157/wave through wave 45, then base 90,600 growing
+ * ×1.19/wave through wave 55 — has no documented source anywhere in this
+ * repo or its history; it was never checked against a real per-wave HP
+ * capture. Summed across waves 1-55 on Hard it credits 119.0M total creep
+ * HP, but the owner's two archived zero-leak Hard wins put a firm UPPER
+ * bound on the true total: Bloom dealt 66.0M total damage through wave 61
+ * and Wisp 50.1M through wave 59 (data/waveObservations.v1.json) — a
+ * zero-leak win cannot have dealt less damage than the HP it faced, and
+ * both totals are themselves generous, since they include boss-wave
+ * (56-59/61) damage that isn't even part of the 1-55 range being checked.
+ * Verified directly (see tests/engine/matchPlanCalibration.test.ts): the
+ * unscaled curve overshoots Bloom's bound by 1.80x and Wisp's by 2.38x.
+ *
+ * This constant scales the curve down to sit comfortably under the
+ * tighter of the two (Wisp), preserving the curve's original SHAPE
+ * (relative wave-to-wave growth) since no per-wave data exists yet to
+ * correct that independently — it is a calibration placeholder pinned to
+ * the only real evidence available, not a claim that 1/3 is the true
+ * ratio. Replace it the moment real per-wave HP or creep-count captures
+ * exist, and delete this constant rather than layering a second one on
+ * top of it. Does NOT apply to the boss stage below (BOSS_BASE_HP): that
+ * figure is sourced from the developer workbook directly, not invented.
+ */
+const HP_CALIBRATION_SCALE = 1 / 3;
+
 function normalHp(wave: number): number {
-  if (wave <= 45) return 125 * 1.157 ** (wave - 1);
-  if (wave <= LAST_NORMAL_WAVE) return 90_600 * 1.19 ** (wave - 46);
+  if (wave <= 45) return HP_CALIBRATION_SCALE * 125 * 1.157 ** (wave - 1);
+  if (wave <= LAST_NORMAL_WAVE)
+    return HP_CALIBRATION_SCALE * 90_600 * 1.19 ** (wave - 46);
   return BOSS_BASE_HP * BOSS_HP_GROWTH ** (wave - 56);
 }
 

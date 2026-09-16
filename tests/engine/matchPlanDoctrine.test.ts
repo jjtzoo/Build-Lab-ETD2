@@ -133,8 +133,9 @@ describe("Match Plan doctrine — survival over economy", () => {
     // refuse them. That is Match Plan's own documented scope gap, not a
     // planner bug — see the survival-over-economy-fallback note on
     // crediting buffs. (The two boss windows after it do have a real
-    // outlet now — the End Game essence layer, under the wave-56
-    // assumption — see the boss-window tests below.)
+    // outlet now — the End Game essence layer, confirmed legal from wave
+    // 50 (first use) and wave 55 (second) — see the boss-window tests
+    // below.)
     const idle = plans.flatMap(({ anchor, matchPlan }) =>
       matchPlan.phases.slice(0, -3).flatMap((phase) => {
         if (phase.endWave == null) return [];

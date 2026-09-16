@@ -8,6 +8,7 @@ import {
   type PortableBuild,
 } from "@/lib/domain/portableBuild";
 import { getLiveStorage, liveImportUrl } from "@/lib/domain/liveImport";
+import { evaluateBuildAcceptance } from "@/lib/engine/buildAcceptance";
 
 /** Query strings much past this stop being reliably shareable. */
 const MAX_URL_PAYLOAD = 6000;
@@ -62,9 +63,21 @@ export function planToPortableBuild(plan: PlanDto): PortableBuild {
  */
 export function OpenInLive({ plan }: { plan: PlanDto }) {
   const [copied, setCopied] = useState(false);
+  const [rejection, setRejection] = useState<string | null>(null);
 
   function open() {
     const portable = planToPortableBuild(plan);
+    // Checked here, at the moment a recommended plan is about to leave
+    // Build Lab, not inside Match Plan itself. In practice the search
+    // should never produce a package this thin — see
+    // lib/engine/buildPlanner.ts's decision vector — so this is a
+    // backstop, not the fix.
+    const acceptance = evaluateBuildAcceptance(portable);
+    if (!acceptance.accepted) {
+      setRejection(acceptance.failures.map((failure) => failure.detail).join(" "));
+      return;
+    }
+    setRejection(null);
     window.location.href = liveImportUrl(portable, getLiveStorage());
   }
 
@@ -93,6 +106,7 @@ export function OpenInLive({ plan }: { plan: PlanDto }) {
       <span className="featured-handoff-note">
         Plan camps, coverage and purchases before the match.
       </span>
+      {rejection && <p className="featured-handoff-rejection">{rejection}</p>}
     </div>
   );
 }

@@ -16,6 +16,15 @@ export const TRADITIONAL_NORMAL_ALLOCATION_BUDGET =
 export const TRADITIONAL_END_GAME_ESSENCE_USES =
   2 as const;
 
+/**
+ * The wave each essence use actually unlocks, confirmed by the owner:
+ * wave 50 grants the first Pure/Periodic essence, wave 55 the second. Index
+ * matches the pick order (0 = first pick, 1 = second) — not the boss
+ * stage's own start (wave 56), which was only a stated, unmeasured floor
+ * the engine assumed before this was confirmed.
+ */
+export const ESSENCE_LEGAL_WAVE: readonly [number, number] = [50, 55];
+
 const PURE_TOWER_IDS:
   Readonly<Record<
     ElementName,
