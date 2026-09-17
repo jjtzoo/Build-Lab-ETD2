@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
+import { CURATED_ANCHORS } from "@/lib/domain/anchorPolicy";
 import { isBasicTowerId, isMonoTowerId } from "@/lib/domain/auxiliaryTowers";
 import { MATCH_PLAN_SCHEMA, parseMatchPlan } from "@/lib/domain/matchPlan";
 import { getTower } from "@/lib/domain/towerCatalog";
+import { planToPortableBuild } from "@/components/build-lab/OpenInLive";
+import { buildRecommendationSetDto } from "@/lib/engine/buildRecommendationDto";
 import {
   generateMatchPlan,
   migrateLegacyLiveState,
@@ -632,6 +635,63 @@ describe("Match Plan allocation timeline", () => {
             (phase.endAllocation as Record<string, number>)[element] ?? 0,
           ).toBeGreaterThanOrEqual(tower.level);
         }
+      }
+    }
+  });
+
+  it("an existing L1 copy stays L1 when its element's allocation rises later, until an explicit upgrade is purchased", () => {
+    // Real report (2026-09-18): "Infernal 2" x3 in a wave-46 starting
+    // field. Traced back: every Infernal copy did have a real, individually
+    // paid build/upgrade action — the actual defect was one level over
+    // (disease/mono-darkness, reproduced here as the real case in hand):
+    // the opportunistic coverage-evolve and the fleet-copy rescue cascade
+    // each mint a fresh copy's ordinal independently, and only the rescue
+    // cascade's own cache remembered its choices. A coverage-evolve's mono
+    // could mint the same ordinal — and therefore the same copyId — a
+    // same-window rescue copy was about to mint for a *different* fresh
+    // tower, merging two distinct, differently-placed towers into one
+    // array slot; a later upgrade matching by that shared copyId then made
+    // the merged tower's level "jump" with no single action explaining it.
+    // Fixed generically in matchPlan.ts's `nextCopyOrdinal`: every ordinal
+    // is now checked against the live field itself before being handed
+    // out, not just whichever cache the calling site happened to consult.
+    const anchor = CURATED_ANCHORS.find((entry) => entry.towerId === "disease")!;
+    const set = buildRecommendationSetDto(anchor.towerId);
+    const plan = set.plans.find((entry) => entry.id === "rank-1") ?? set.plans[0];
+    const matchPlan = generateMatchPlan(planToPortableBuild(plan!), {
+      mapId: "forest",
+    });
+    const levelByCopy = new Map<string, number>();
+    for (const phase of matchPlan.phases) {
+      const seen = new Set<string>();
+      for (const tower of phase.endTowers) {
+        // No copyId may name two different tower instances in one window —
+        // the exact corruption that let a level "rise" with no action.
+        expect(seen.has(tower.copyId)).toBe(false);
+        seen.add(tower.copyId);
+      }
+      const actionedLevels = new Map<string, Set<number>>();
+      for (const action of phase.actions) {
+        if (
+          !action.copyId ||
+          action.toLevel == null ||
+          (action.type !== "build" &&
+            action.type !== "upgrade" &&
+            action.type !== "evolve")
+        )
+          continue;
+        const set2 = actionedLevels.get(action.copyId) ?? new Set<number>();
+        set2.add(action.toLevel);
+        actionedLevels.set(action.copyId, set2);
+      }
+      for (const tower of phase.endTowers) {
+        const prior = levelByCopy.get(tower.copyId);
+        if (prior != null && tower.level > prior) {
+          expect(actionedLevels.get(tower.copyId)?.has(tower.level)).toBe(
+            true,
+          );
+        }
+        levelByCopy.set(tower.copyId, tower.level);
       }
     }
   });

@@ -1392,6 +1392,28 @@ export function generateMatchPlan(
       ),
     );
   }
+  // The next free copy ordinal for `towerId`, verified against the field
+  // that actually exists rather than trusted from a single cache. Three
+  // independent places mint a fresh copy's ordinal (the rescue cascade from
+  // `rescueOrdinalByTower`, the opportunistic coverage-evolve from a live
+  // count, the emergency armour repair from a hard 1 once nothing already
+  // exists) and only the first of them ever updated that cache — so a mono
+  // the coverage-evolve created without going through the cache could get
+  // silently reused by the rescue cascade's own next copy, corrupting two
+  // unrelated PlannedTowerState entries under one copyId (confirmed
+  // 2026-09-18: an opportunistic mono-darkness evolve and a same-window
+  // fleet-copy addition both minted ordinal 1). `hint` lets a caller offer
+  // its own best guess (a live count, a cache value); this only ever
+  // returns something higher, checked against `field` itself, which is the
+  // one place every mechanism's copies actually land.
+  const nextCopyOrdinal = (towerId: string, hint = 0): number => {
+    let ordinal = Math.max(rescueOrdinalByTower.get(towerId) ?? 0, hint) + 1;
+    while (
+      field.some((tower) => tower.copyId === stableId(planId, "copy", towerId, ordinal))
+    )
+      ordinal += 1;
+    return ordinal;
+  };
   const earliestAffordableWave = (
     requiredGold: number,
     startWave: number,
@@ -1837,7 +1859,7 @@ export function generateMatchPlan(
         ).values(),
       ];
       const copies = sourceTowers.flatMap((source) => {
-        const ordinal = (rescueOrdinalByTower.get(source.towerId) ?? 0) + 1;
+        const ordinal = nextCopyOrdinal(source.towerId);
         return rescueCandidate(
           {
             ...source,
@@ -2737,7 +2759,12 @@ export function generateMatchPlan(
       if (!opportunistic) return false;
       const { step, cost, existingCopies } = opportunistic;
       const towerName = liveTowerName(step.towerId);
-      const copyId = stableId(planId, "copy", step.towerId, existingCopies + 1);
+      const copyId = stableId(
+        planId,
+        "copy",
+        step.towerId,
+        nextCopyOrdinal(step.towerId, existingCopies),
+      );
       const evolved: PlannedTowerState = {
         copyId,
         towerId: step.towerId,

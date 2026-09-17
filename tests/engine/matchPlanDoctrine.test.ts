@@ -124,6 +124,74 @@ describe("Match Plan doctrine — survival over economy", () => {
     expect(leaks).toEqual([]);
   });
 
+  it("never gives one copyId to two different tower instances in the same window", () => {
+    // Root cause behind the next test's real report: three independent
+    // places mint a fresh copy's ordinal (the rescue cascade, the
+    // opportunistic coverage-evolve, the emergency armour repair), and only
+    // one of them recorded its choice anywhere the others could see. A
+    // coverage-evolve's mono and a same-window rescue copy could mint the
+    // identical ordinal and therefore the identical copyId, silently
+    // merging two real, separately-cell-placed towers into one array slot
+    // the moment anything later matched on that copyId (matchPlan.ts's
+    // `nextCopyOrdinal` now checks the live field itself, not just the
+    // cache, before handing out an ordinal).
+    for (const { anchor, matchPlan } of plans) {
+      for (const phase of matchPlan.phases) {
+        const seen = new Set<string>();
+        for (const tower of phase.endTowers) {
+          expect(
+            seen.has(tower.copyId),
+            `${anchor} ${phase.label}: copyId ${tower.copyId} appears twice in the same window's field`,
+          ).toBe(false);
+          seen.add(tower.copyId);
+        }
+      }
+    }
+  });
+
+  it("never raises a fielded copy's level without a matching build/upgrade/evolve action for that exact copy", () => {
+    // A copy's level must come from its own recorded purchase history, never
+    // be silently recomputed because an element's allocation happened to
+    // rise later — that would let e.g. "Infernal 1" quietly read as
+    // "Infernal 2" the moment Fire/Darkness reached level 2, with no gold
+    // ever spent on the upgrade. Real report (2026-09-18): three Infernal
+    // copies showing level 2 in a wave-46 starting field. The actual cause
+    // was the copyId collision above, not allocation-driven leveling — but
+    // this is the generic guard against either one: reconstructs every
+    // copy's level history from the plan's own actions across every phase,
+    // for every anchor and every tower.
+    for (const { anchor, matchPlan } of plans) {
+      const levelByCopy = new Map<string, number>();
+      for (const phase of matchPlan.phases) {
+        const actionedLevels = new Map<string, Set<number>>();
+        for (const action of phase.actions) {
+          if (
+            !action.copyId ||
+            action.toLevel == null ||
+            (action.type !== "build" &&
+              action.type !== "upgrade" &&
+              action.type !== "evolve")
+          )
+            continue;
+          const set = actionedLevels.get(action.copyId) ?? new Set<number>();
+          set.add(action.toLevel);
+          actionedLevels.set(action.copyId, set);
+        }
+        for (const tower of phase.endTowers) {
+          const prior = levelByCopy.get(tower.copyId);
+          if (prior != null && tower.level > prior) {
+            const actioned = actionedLevels.get(tower.copyId);
+            expect(
+              actioned?.has(tower.level),
+              `${anchor} ${phase.label}: ${tower.towerId} (${tower.copyId}) went L${prior}->L${tower.level} with no matching action landing at L${tower.level}`,
+            ).toBe(true);
+          }
+          levelByCopy.set(tower.copyId, tower.level);
+        }
+      }
+    }
+  });
+
   /** Real max level for a fielded copy: mono 3, basic 1, else the catalog. */
   function towerMaxLevel(towerId: string): number {
     if (isMonoTowerId(towerId)) return 3;
