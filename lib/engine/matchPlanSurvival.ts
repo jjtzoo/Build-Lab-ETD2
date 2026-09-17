@@ -313,7 +313,7 @@ export function isSurvivalBuffProvider(towerId: string): boolean {
   return BUFF_BY_TOWER.has(towerId);
 }
 
-function cellsApart(
+export function cellsApart(
   a: { col: number; row: number },
   b: { col: number; row: number },
 ): number {

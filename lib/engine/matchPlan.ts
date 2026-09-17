@@ -53,6 +53,7 @@ import {
   type LiveMatchLength,
 } from "@/lib/engine/liveEconomy";
 import {
+  cellsApart,
   combatFacts,
   evaluatePhaseSurvival,
   isSurvivalBuffProvider,
@@ -986,13 +987,36 @@ function chooseCell(
   const fact = getTowerPlacementFact(towerId);
   const facts = towerFacts(towerId, level);
   if (fact.targetsTowers && (facts.baseDps ?? 0) <= 0) {
+    // A support that targets towers, not creeps, gains nothing from route
+    // line-of-sight — but it gains nothing at all if its radius holds no
+    // damage tower either. Rank candidate cells by how much fielded damage
+    // (dps x quantity) actually falls inside this tower's own radius, so a
+    // Blacksmith or Well lands where it does real work; among cells tied on
+    // that (most often: no damage towers exist to reach yet), fall back to
+    // the lowest route coverage so it still keeps out of a real tower's way.
+    const rangeCells = (facts.range ?? 0) / Math.max(1, map.rangeUnitsPerCell);
+    const damagePlaced = placed.flatMap((tower) => {
+      if (!tower.cell) return [];
+      const towerData = towerFacts(tower.towerId, tower.level);
+      return towerData.baseDps &&
+        (tower.effect === "damage" || tower.effect === "hybrid")
+        ? [{ cell: tower.cell, dps: towerData.baseDps * tower.quantity }]
+        : [];
+    });
     const choices = map.buildableCells
       .filter((cell) => !taken.has(`${cell.col},${cell.row}`))
       .map((cell) => ({
         cell,
+        coveredDps: damagePlaced.reduce(
+          (sum, entry) =>
+            cellsApart(cell, entry.cell) <= rangeCells
+              ? sum + entry.dps
+              : sum,
+          0,
+        ),
         coverage: coverageForMode(map, cell, 1000, mode).coveragePercent,
       }))
-      .sort((a, b) => a.coverage - b.coverage);
+      .sort((a, b) => b.coveredDps - a.coveredDps || a.coverage - b.coverage);
     const cell = choices[0]?.cell;
     const camp =
       cell &&
@@ -1513,6 +1537,22 @@ export function generateMatchPlan(
             : sum + Math.max(0, 1 - (wave.margin ?? 0)),
         0,
       );
+    // Uncapped companion to verifiedShortfall: credits every point of a
+    // verified wave's margin, not just enough to clear it. verifiedShortfall
+    // floors each wave's term at zero, so once a candidate closes the gap on
+    // every wave in the window, two candidates that both "pass" score
+    // identically no matter how much headroom either leaves — which is
+    // exactly why a cheap fresh copy that barely clears a window used to
+    // outrank an upgrade that clears it with room to spare. This sum has no
+    // such floor, so the extra headroom an upgrade leaves on the waves it
+    // touches (real safety margin against the next window's HP growth)
+    // shows up as real value instead of vanishing at 100%.
+    const marginSum = (result: MatchPlanPhase["survival"]) =>
+      result.waves.reduce(
+        (sum, wave) =>
+          wave.status === "unverified" ? sum : sum + (wave.margin ?? 0),
+        0,
+      );
     const firstFailingWave = (result: MatchPlanPhase["survival"]) =>
       result.waves.find((wave) => wave.status === "fails")?.wave ?? null;
 
@@ -1542,10 +1582,11 @@ export function generateMatchPlan(
       cost: number,
       ordinal: number | null,
       kind: RescueCandidate["source"],
-      currentShortfall: number,
+      currentSurvival: MatchPlanPhase["survival"],
       fromLevel = 0,
       entryReason?: string,
     ): RescueCandidate[] => {
+      const currentShortfall = verifiedShortfall(currentSurvival);
       if (cost <= 0) return [];
       if (!leverMode && cumulativeCost + cost > gross) {
         rescueUnaffordable += 1;
@@ -1582,9 +1623,19 @@ export function generateMatchPlan(
       const nextShortfall = verifiedShortfall(nextSurvival);
       // A step must close the gap or move the floor by at least one percent
       // of a wave: a 75g Arrow against a two-million HP wave is not a rescue,
-      // however early it lands.
-      const lift = currentShortfall - nextShortfall;
-      if (lift < Math.min(0.01, currentShortfall - 0.0001)) return [];
+      // however early it lands. This gate stays on the clipped shortfall —
+      // it exists to keep the rescue loop making real progress on a genuine
+      // deficit each step, not to rank candidates that already clear it.
+      const shortfallLift = currentShortfall - nextShortfall;
+      if (shortfallLift < Math.min(0.01, currentShortfall - 0.0001))
+        return [];
+      // Ranking uses the uncapped margin sum instead: two candidates that
+      // both close the gap can still differ in how much headroom they leave
+      // on the waves they touch, and that headroom — not just "passes or
+      // doesn't" — is what a real player (and the next window's rescue) gets
+      // to start from. No arbitrary bonus for being an upgrade; the level's
+      // real modeled damage is the only thing being compared.
+      const headroomLift = marginSum(nextSurvival) - marginSum(currentSurvival);
       return [
         {
           tower,
@@ -1593,7 +1644,7 @@ export function generateMatchPlan(
           targetWave,
           survival: nextSurvival,
           shortfall: nextShortfall,
-          efficiency: lift / cost,
+          efficiency: headroomLift / cost,
           source: kind,
           fromLevel,
           entryReason,
@@ -1606,7 +1657,7 @@ export function generateMatchPlan(
     // A planned step for a copy already on the field is an upgrade in place;
     // a step for a copy not yet fielded may be bought at its planned level or
     // at level 1 as an early step toward it.
-    const buildPathCandidates = (currentShortfall: number) =>
+    const buildPathCandidates = (currentSurvival: MatchPlanPhase["survival"]) =>
       remainingQueue().flatMap((entry) => {
         const copyId = stableId(
           planId,
@@ -1664,7 +1715,7 @@ export function generateMatchPlan(
             actionCost(entry.towerId, fromLevel, level),
             null,
             "build-path",
-            currentShortfall,
+            currentSurvival,
             fromLevel,
             entry.reason,
           );
@@ -1678,7 +1729,7 @@ export function generateMatchPlan(
     const anchorEstablished = field.some(
       (tower) => tower.towerId === build.anchorTowerId,
     );
-    const fleetCopyCandidates = (currentShortfall: number) => {
+    const fleetCopyCandidates = (currentSurvival: MatchPlanPhase["survival"]) => {
       const damageTowers = field.filter(
         (tower) =>
           (tower.effect === "damage" || tower.effect === "hybrid") &&
@@ -1771,7 +1822,7 @@ export function generateMatchPlan(
           actionCost(source.towerId, 0, source.level),
           ordinal,
           "fleet-copy",
-          currentShortfall,
+          currentSurvival,
         );
       });
       // A fielded copy's next level is often the strongest legal damage step
@@ -1791,7 +1842,7 @@ export function generateMatchPlan(
           actionCost(source.towerId, source.level, level),
           null,
           "fleet-copy",
-          currentShortfall,
+          currentSurvival,
           source.level,
         );
       });
@@ -1805,7 +1856,7 @@ export function generateMatchPlan(
     // re-checked against the plan's own live allocation (not the build's
     // final target), so an essence tower is never offered before its
     // keystones are actually held in-game.
-    const essenceCandidates = (currentShortfall: number) => {
+    const essenceCandidates = (currentSurvival: MatchPlanPhase["survival"]) => {
       if (essenceUsesRemaining <= 0) return [];
       const pickIndex =
         TRADITIONAL_END_GAME_ESSENCE_USES - essenceUsesRemaining;
@@ -1837,7 +1888,7 @@ export function generateMatchPlan(
         resolveLiveTowerCost(towerId, 1),
         null,
         "essence",
-        currentShortfall,
+        currentSurvival,
         0,
         `Essence pick ${pickIndex + 1} of ${TRADITIONAL_END_GAME_ESSENCE_USES}: ${fact.name}, ${fact.minimumFieldCost.toLocaleString()}g flat, no keystone. Legal from wave ${ESSENCE_LEGAL_WAVE[pickIndex]}.`,
       );
@@ -1900,9 +1951,9 @@ export function generateMatchPlan(
         if (currentShortfall <= 0) break;
         rescueUnaffordable = 0;
         const best = [
-          ...buildPathCandidates(currentShortfall),
-          ...fleetCopyCandidates(currentShortfall),
-          ...essenceCandidates(currentShortfall),
+          ...buildPathCandidates(survival),
+          ...fleetCopyCandidates(survival),
+          ...essenceCandidates(survival),
         ].sort(rankRescue(firstFailingWave(survival), policy))[0];
         if (!best) {
           rescueExhausted = rescueUnaffordable > 0 ? "gold" : "cap";
@@ -2924,9 +2975,9 @@ export function generateMatchPlan(
               const shortfall = verifiedShortfall(reported);
               leverMode = true;
               const best = [
-                ...buildPathCandidates(shortfall),
-                ...fleetCopyCandidates(shortfall),
-                ...essenceCandidates(shortfall),
+                ...buildPathCandidates(reported),
+                ...fleetCopyCandidates(reported),
+                ...essenceCandidates(reported),
               ].sort((a, b) => a.shortfall - b.shortfall || a.cost - b.cost)[0];
               leverMode = false;
               const next = remainingQueue().find(
