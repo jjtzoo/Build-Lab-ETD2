@@ -185,16 +185,19 @@ describe("Match Plan", () => {
     // repair bought first. After the 2026-09-16 wave-HP calibration fix
     // (HP_CALIBRATION_SCALE in lib/engine/waveBenchmarks.ts corrected an
     // undocumented curve that had been crediting 1.8x-2.4x more HP than any
-    // measured zero-leak win actually faced), that specific early race is
-    // gone at every difficulty up to Legendary — the opening shell now
-    // comfortably covers it, which is the intended outcome, not a
-    // regression. The same repair-before-queue mechanism still fires later
-    // in this build's own plan (Waves 36–40, the default Hard difficulty),
-    // so the invariant is checked there instead of forcing back a race
-    // that was itself an artifact of the old, disproven calibration.
+    // measured zero-leak win actually faced), that specific early race
+    // moved to Waves 36–40. The 2026-09-18 rescue-valuation fix (deficit-
+    // relevant headroom instead of a raw window-wide margin sum, plus a
+    // surplus-spend pass that no longer lets a comfortably-passing window
+    // bank its gold) makes every earlier window's own field stronger by the
+    // time this build reaches it, so the race moved again, to Waves 41–45 —
+    // each shift is the intended outcome of a real engine improvement, not a
+    // regression, so the invariant is checked wherever it actually still
+    // occurs in this build's own plan rather than forcing back a race an
+    // earlier fix already closed.
     const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
-    const window = plan.phases[7];
-    expect(window.label).toBe("Waves 36–40");
+    const window = plan.phases[8];
+    expect(window.label).toBe("Waves 41–45");
     const repairs = window.actions.filter((action) =>
       action.id.includes(":survival-repair:"),
     );

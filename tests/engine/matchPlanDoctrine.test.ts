@@ -114,13 +114,22 @@ describe("Match Plan doctrine — survival over economy", () => {
     );
   }
 
-  it("never banks gold while a wave in the window is short and a legal step remains", () => {
+  it("never banks more than its own reserve, whether or not a wave is currently short", () => {
     // Gold earned on a window's last wave cannot be spent inside it, so the
-    // idle figure excludes that bounty. What is left must be below the
-    // cheapest step that would still move a late wave by one percent —
-    // unless nothing legal is left at all: a keystone-blocked wait already
-    // explains that, and a fully maxed roster (every fielded damage tower
-    // at its real max level) has nothing further to buy or upgrade.
+    // idle figure excludes that bounty. Every rescue/repair pass only ever
+    // fires on a verified deficit, so checking only "short" windows (a wave
+    // under 100%) missed the real failure mode entirely: a window that
+    // already clears everything, comfortably, still has nothing pulling it
+    // to spend once its own finite package queue runs dry — that is
+    // matchPlan.ts's surplus-spend pass's whole reason to exist. So every
+    // window is checked here, "short" or not, against the same
+    // `windowReserve` the engine itself spends down to (a flat reserve
+    // before wave 21, then at least the next window's own first-wave
+    // bounty) — not "explained" by an unrelated illegal action elsewhere in
+    // the plan, which proves nothing about whether a legal, affordable,
+    // worthwhile step existed for the gold actually left idle. A fully
+    // maxed roster (every fielded damage tower at its real max level) is
+    // still the one legitimate terminal state with nothing further to buy.
     //
     // Waves 51–55 (the last window with a verifiable wave total; the two
     // boss windows after it carry HP per creep but no measured creep count)
@@ -139,19 +148,32 @@ describe("Match Plan doctrine — survival over economy", () => {
     const idle = plans.flatMap(({ anchor, matchPlan }) =>
       matchPlan.phases.slice(0, -3).flatMap((phase) => {
         if (phase.endWave == null) return [];
-        const short = phase.survival.waves.some(
-          (wave) => wave.margin != null && wave.margin < 1,
-        );
-        if (!short) return [];
         const lastBounty =
           waveBenchmark(phase.endWave, matchPlan.settings.difficulty)
             ?.waveBounty ?? 0;
         const left = phase.economy.phaseEndGold - lastBounty;
-        if (left <= 3_500) return [];
+        const windowReserve =
+          phase.startWave >= 21
+            ? Math.max(
+                matchPlan.settings.reserveGold,
+                waveBenchmark(phase.startWave, matchPlan.settings.difficulty)
+                  ?.waveBounty ?? 0,
+              )
+            : matchPlan.settings.reserveGold;
+        if (left <= windowReserve + 0.5) return [];
+        // "Explained" means a real, verified blocker is visible: the next
+        // queued step is either illegal (a keystone the allocation does not
+        // hold) or legal but would breach the reserve above — not "any
+        // illegal action happens to exist somewhere in the list", which
+        // proves nothing about the gold actually sitting idle (an unrelated
+        // illegal action several elements away used to pass this check even
+        // while tens of thousands of gold sat untouched).
         const explained =
-          phase.actions.some((action) => !action.affordable && !action.legal) ||
+          phase.actions.some((action) => !action.affordable) ||
           rosterMaxed(phase);
-        return explained ? [] : [`${anchor} ${phase.label} idle ${left}g`];
+        return explained
+          ? []
+          : [`${anchor} ${phase.label} idle ${left}g (reserve ${windowReserve}g)`];
       }),
     );
     expect(idle).toEqual([]);

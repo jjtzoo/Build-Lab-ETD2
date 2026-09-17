@@ -1537,22 +1537,44 @@ export function generateMatchPlan(
             : sum + Math.max(0, 1 - (wave.margin ?? 0)),
         0,
       );
-    // Uncapped companion to verifiedShortfall: credits every point of a
-    // verified wave's margin, not just enough to clear it. verifiedShortfall
-    // floors each wave's term at zero, so once a candidate closes the gap on
-    // every wave in the window, two candidates that both "pass" score
-    // identically no matter how much headroom either leaves — which is
-    // exactly why a cheap fresh copy that barely clears a window used to
-    // outrank an upgrade that clears it with room to spare. This sum has no
-    // such floor, so the extra headroom an upgrade leaves on the waves it
-    // touches (real safety margin against the next window's HP growth)
-    // shows up as real value instead of vanishing at 100%.
-    const marginSum = (result: MatchPlanPhase["survival"]) =>
-      result.waves.reduce(
-        (sum, wave) =>
-          wave.status === "unverified" ? sum : sum + (wave.margin ?? 0),
-        0,
+    // Deficit-relevant companion to verifiedShortfall: credits a candidate's
+    // real headroom gain, but only on the waves that actually need it —
+    // never on a wave that was already comfortably clear before this
+    // candidate. A plain sum of every wave's margin (tried first, and wrong)
+    // lets a tower that happens to overkill an easy, favorably-matched wave
+    // outrank one that actually helps the wave in trouble, because HP
+    // compounds ~1.157x/wave: the same absolute damage buys a far bigger
+    // margin swing on a window's easiest wave than on its hardest.
+    //
+    // "Needs it" is: a confirmed deficit (matches verifiedShortfall's own
+    // convention — an unverified wave's own number is not trusted as a
+    // confirmed failure), or, when nothing is confirmed-failing, whichever
+    // wave in the window is weakest right now, verified or not. An
+    // unverified wave's margin is still the only number available for it,
+    // and a thin one must not be waved through as safe just because nothing
+    // else has broken first — that is how a window banks tens of thousands
+    // of gold on the strength of a number the model itself flags as unsure.
+    const relevantWaves = (result: MatchPlanPhase["survival"]) => {
+      const deficits = result.waves.filter(
+        (wave) => wave.status !== "unverified" && (wave.margin ?? 1) < 1,
       );
+      if (deficits.length) return deficits;
+      const withMargin = result.waves.filter((wave) => wave.margin != null);
+      if (!withMargin.length) return [];
+      const worst = Math.min(...withMargin.map((wave) => wave.margin!));
+      return withMargin.filter((wave) => wave.margin === worst);
+    };
+    const relevantHeadroom = (
+      before: MatchPlanPhase["survival"],
+      after: MatchPlanPhase["survival"],
+    ) =>
+      relevantWaves(before).reduce((sum, beforeWave) => {
+        const afterWave = after.waves.find(
+          (wave) => wave.wave === beforeWave.wave,
+        );
+        if (!afterWave || afterWave.margin == null) return sum;
+        return sum + (afterWave.margin - (beforeWave.margin ?? 0));
+      }, 0);
     const firstFailingWave = (result: MatchPlanPhase["survival"]) =>
       result.waves.find((wave) => wave.status === "fails")?.wave ?? null;
 
@@ -1616,10 +1638,15 @@ export function generateMatchPlan(
       const nextField = upgrade
         ? field.map((entry) => (entry.copyId === tower.copyId ? tower : entry))
         : [...field, tower];
-      const nextSurvival = evaluate(nextField, {
-        copyId: tower.copyId,
-        targetWave,
-      });
+      // In lever mode `currentSurvival` is the phase's own reported window
+      // (horizon 0, see `reported` below) rather than the rescue loop's
+      // usual one-wave-ahead view — match it here, or the two sides of every
+      // comparison below would be summed over different wave sets.
+      const nextSurvival = evaluate(
+        nextField,
+        { copyId: tower.copyId, targetWave },
+        leverMode ? 0 : 1,
+      );
       const nextShortfall = verifiedShortfall(nextSurvival);
       // A step must close the gap or move the floor by at least one percent
       // of a wave: a 75g Arrow against a two-million HP wave is not a rescue,
@@ -1629,13 +1656,13 @@ export function generateMatchPlan(
       const shortfallLift = currentShortfall - nextShortfall;
       if (shortfallLift < Math.min(0.01, currentShortfall - 0.0001))
         return [];
-      // Ranking uses the uncapped margin sum instead: two candidates that
-      // both close the gap can still differ in how much headroom they leave
-      // on the waves they touch, and that headroom — not just "passes or
-      // doesn't" — is what a real player (and the next window's rescue) gets
-      // to start from. No arbitrary bonus for being an upgrade; the level's
-      // real modeled damage is the only thing being compared.
-      const headroomLift = marginSum(nextSurvival) - marginSum(currentSurvival);
+      // Ranking uses the deficit-relevant headroom instead: two candidates
+      // that both close the gap can still differ in how much headroom they
+      // leave on the wave that actually needed it, and that headroom — not
+      // just "passes or doesn't" — is what a real player (and the next
+      // window's rescue) gets to start from. No arbitrary bonus for being an
+      // upgrade; the level's real modeled damage is the only thing compared.
+      const headroomLift = relevantHeadroom(currentSurvival, nextSurvival);
       return [
         {
           tower,
@@ -2907,6 +2934,73 @@ export function generateMatchPlan(
         )
           restore(beforeSales);
         else survival = after;
+      }
+    }
+
+    // Surplus spend: the package queue and every rescue pass above only ever
+    // fire on a verified deficit, so a window that already clears everything
+    // — even by a thin, unverified margin — leaves whatever is left
+    // completely idle once its own finite queue runs dry. A real player
+    // does not sit on tens of thousands of gold because nothing is failing
+    // yet; they buy the next real upgrade. This spends exactly as far as the
+    // existing reserve allows (survival repair above may dip into it —
+    // discretionary spending here never does), on whichever legal add or
+    // upgrade is the strongest per gold by the same deficit-relevant
+    // headroom used above, stopping the moment nothing worthwhile remains.
+    {
+      const spendable = Math.max(0, lower - windowReserve);
+      for (let step = 0; step < 24; step += 1) {
+        const current = evaluate(field);
+        const best = [
+          ...buildPathCandidates(current),
+          ...fleetCopyCandidates(current),
+          ...essenceCandidates(current),
+        ].sort(rankRescue(firstFailingWave(current), "build-path-first"))[0];
+        if (!best) break;
+        // Same "at least one percent of a wave" floor rescueCandidate itself
+        // uses for a genuine deficit — here it is what stops a purely
+        // decorative purchase once nothing real is left to buy.
+        const headroom = best.efficiency * best.cost;
+        if (headroom < 0.01) break;
+        if (cumulativeCost + best.cost > spendable) break;
+        field = best.fromLevel
+          ? field.map((tower) =>
+              tower.copyId === best.tower.copyId ? best.tower : tower,
+            )
+          : [...field, best.tower];
+        cumulativeCost += best.cost;
+        phaseCost += best.cost;
+        if (best.source === "essence") essenceUsesRemaining -= 1;
+        if (best.ordinal != null)
+          rescueOrdinalByTower.set(best.tower.towerId, best.ordinal);
+        actions.push({
+          id: stableId(
+            planId,
+            definition.id,
+            "surplus-spend",
+            best.tower.copyId,
+            best.tower.level,
+          ),
+          phaseId: definition.id,
+          order: actionOrder++,
+          type: best.fromLevel ? "upgrade" : "build",
+          summary: `${best.fromLevel ? "Upgrade" : best.source === "build-path" ? "Build" : "Add"} ${best.tower.towerName} ${best.tower.level}`,
+          reason: `This window already clears every verified wave, with ${windowReserve.toLocaleString()}g kept banked as the emergency reserve. This is the strongest remaining legal step for the rest — real modeled damage against the weakest wave here, not banked on the strength of an unverified margin.`,
+          towerId: best.tower.towerId,
+          towerName: best.tower.towerName,
+          copyId: best.tower.copyId,
+          fromLevel: best.fromLevel,
+          toLevel: best.tower.level,
+          cost: best.cost,
+          legal: true,
+          affordable: true,
+          targetWave: best.targetWave,
+          cell: best.tower.cell ?? undefined,
+          cellLabel: best.tower.cellLabel ?? undefined,
+          campId: best.tower.campId ?? undefined,
+          temporary: best.tower.status === "temporary",
+        });
+        survival = best.survival;
       }
     }
 
