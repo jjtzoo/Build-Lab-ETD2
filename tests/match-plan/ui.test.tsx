@@ -171,6 +171,77 @@ describe("Match Plan UI", () => {
     for (const pip of pips) expect(pip.textContent).toMatch(/^(I|II|III)$/);
   });
 
+  it("badges each tower with its build/upgrade step number from the action sequence, and leaves carried towers unbadged", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+
+    const plan = generateMatchPlan(build, { mapId: "forest" });
+    const opening = plan.phases[0];
+    const openingSteps = opening.actions.flatMap((action, index) =>
+      action.copyId &&
+      action.affordable !== false &&
+      (action.type === "build" ||
+        action.type === "upgrade" ||
+        action.type === "evolve")
+        ? [{ copyId: action.copyId, position: index + 1 }]
+        : [],
+    );
+    expect(openingSteps.length).toBeGreaterThan(0);
+    const openingDistinctCopies = new Set(
+      openingSteps.map((step) => step.copyId),
+    );
+
+    // Waves 1-5: every fielded tower was just built, so every copy with a
+    // build/upgrade/evolve action gets exactly one badge, in list order.
+    const stepBadgeText = () =>
+      Array.from(document.querySelectorAll(".match-tower-step text")).map(
+        (el) => el.textContent,
+      );
+    await waitFor(() =>
+      expect(stepBadgeText().length).toBe(openingDistinctCopies.size),
+    );
+    for (const text of stepBadgeText()) {
+      expect(text).toMatch(/^\d+(→\d+)*$/);
+      // Every number in the badge is a real, in-range position in this
+      // window's own action list — the same list "Exact action sequence"
+      // numbers — never a value the sequence itself couldn't produce.
+      for (const part of text!.split("→")) {
+        const n = Number(part);
+        expect(n).toBeGreaterThanOrEqual(1);
+        expect(n).toBeLessThanOrEqual(opening.actions.length);
+      }
+    }
+
+    // Waves 6-10: some copies carry over unchanged (asserted elsewhere in
+    // this file via the "held" roster), so strictly fewer tokens should
+    // carry a badge than are on the board.
+    const stepper = screen.getByRole("group", {
+      name: "Step between windows",
+    });
+    fireEvent.click(
+      within(stepper).getByRole("button", { name: "Next window: Waves 6–10" }),
+    );
+    await screen.findByRole("heading", { name: "Waves 6–10" });
+    const nextPhase = plan.phases[1];
+    const nextSteps = nextPhase.actions.flatMap((action, index) =>
+      action.copyId &&
+      action.affordable !== false &&
+      (action.type === "build" ||
+        action.type === "upgrade" ||
+        action.type === "evolve")
+        ? [{ copyId: action.copyId, position: index + 1 }]
+        : [],
+    );
+    const nextDistinctCopies = new Set(nextSteps.map((step) => step.copyId));
+    const boardTokens = document.querySelectorAll(
+      ".match-tower:not(.is-future)",
+    ).length;
+    await waitFor(() =>
+      expect(stepBadgeText().length).toBe(nextDistinctCopies.size),
+    );
+    expect(stepBadgeText().length).toBeLessThan(boardTokens);
+  });
+
   it("exports the deterministic Co-pilot action stream", async () => {
     render(<MatchPlanView initialPlan={build} />);
     const button = await screen.findByRole("button", {

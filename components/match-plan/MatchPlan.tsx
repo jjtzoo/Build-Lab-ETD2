@@ -142,19 +142,50 @@ function towerChange(
   return before.level < tower.level ? "upgraded" : "carried";
 }
 
+/**
+ * The step number(s) this copy holds in "Exact action sequence" (below),
+ * where every action in `phase.actions` numbers in list order — deliberately
+ * not derived from `towerChange`'s start-vs-end comparison, so a copy's map
+ * badge can never drift from what the sequence panel actually shows for it.
+ * A copy built then upgraded in the same window carries both numbers, in
+ * order, joined the way a chained step already reads elsewhere in this view
+ * (see the copilot decision's own `" → "` join). A copy already on the
+ * field with nothing done to it this window gets no badge at all.
+ */
+function towerStepLabel(
+  phase: MatchPlanPhase,
+  copyId: string,
+): string | null {
+  const steps = phase.actions.flatMap((action, index) =>
+    action.copyId === copyId &&
+    action.affordable !== false &&
+    (action.type === "build" ||
+      action.type === "upgrade" ||
+      action.type === "evolve")
+      ? [index + 1]
+      : [],
+  );
+  return steps.length ? steps.join("→") : null;
+}
+
 function TowerToken({
   icon,
   name,
   level,
+  stepLabel,
 }: {
   icon: string | null | undefined;
   name: string;
   level: number;
+  /** This copy's position(s) in the window's own "Exact action sequence" —
+   * see `towerStepLabel` — or omitted for a tower untouched this window. */
+  stepLabel?: string | null;
 }) {
   const numeral = romanLevel(level);
   // A small pip at the token's lower-right corner, the way the game marks a
   // tower's level on its model. Width follows the numeral so "III" fits.
   const pipWidth = 0.14 + numeral.length * 0.13;
+  const stepWidth = stepLabel ? 0.14 + stepLabel.length * 0.13 : 0;
   return (
     <>
       {icon ? (
@@ -189,6 +220,29 @@ function TowerToken({
           {numeral}
         </text>
       </g>
+      {stepLabel ? (
+        // Same pip shape and scale as the level marker, mirrored to the
+        // opposite (upper-left) corner and picked out in the same gold this
+        // view already uses for "new" / "upgraded" tokens, so the badge
+        // reads as "this is why that highlight is here" rather than a new,
+        // unrelated system.
+        <g
+          className="match-tower-step"
+          transform={`translate(${-0.42 + stepWidth / 2} -.36)`}
+          aria-hidden="true"
+        >
+          <rect
+            x={-stepWidth / 2}
+            y="-.15"
+            width={stepWidth}
+            height=".3"
+            rx=".06"
+          />
+          <text y=".075" textAnchor="middle">
+            {stepLabel}
+          </text>
+        </g>
+      ) : null}
     </>
   );
 }
@@ -2265,6 +2319,7 @@ function PlanMap({
 
             {phase.endTowers.flatMap((tower, index) => {
               const changeState = `is-${towerChange(phase, tower)}`;
+              const stepLabel = towerStepLabel(phase, tower.copyId);
               return tower.cell
                 ? [
                     <g
@@ -2281,12 +2336,14 @@ function PlanMap({
                       <title>
                         {tower.towerName} {romanLevel(tower.level)} ·{" "}
                         {towerMetaLine(tower, index)}
+                        {stepLabel ? ` · step ${stepLabel} this window` : ""}
                       </title>
                       <circle r=".42" />
                       <TowerToken
                         icon={iconFor(tower.towerId)}
                         name={tower.towerName}
                         level={tower.level}
+                        stepLabel={stepLabel}
                       />
                     </g>,
                   ]

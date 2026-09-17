@@ -8369,6 +8369,24 @@ button.mechanic-chip {
   font: 800 0.21px var(--font-mono, monospace);
   letter-spacing: 0.01em;
 }
+/* Step-sequence pip: same shape and scale as the level marker above,
+   mirrored to the upper-left corner, in the same gold this view already
+   uses to mark a "new" / "upgraded" token — so the badge reads as the
+   reason for that highlight, not a second, unrelated marker system. */
+.match-tower-step {
+  pointer-events: none;
+}
+.match-tower-step rect {
+  fill: #c0a476;
+  stroke: #0a0d0c;
+  stroke-width: 0.9;
+  vector-effect: non-scaling-stroke;
+}
+.match-tower-step text {
+  fill: #0a0d0c;
+  font: 800 0.19px var(--font-mono, monospace);
+  letter-spacing: 0.01em;
+}
 .match-tower.is-temporary circle {
   fill: #c0a476;
   stroke-dasharray: 0.11 0.07;
