@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
+import { isBasicTowerId, isMonoTowerId } from "@/lib/domain/auxiliaryTowers";
 import { MATCH_PLAN_SCHEMA, parseMatchPlan } from "@/lib/domain/matchPlan";
 import { getTower } from "@/lib/domain/towerCatalog";
 import {
@@ -558,5 +559,80 @@ describe("End Game essence queue", () => {
       difficulty: "hard",
     });
     expect(essenceActions(plan)).toEqual([]);
+  });
+});
+
+describe("Match Plan allocation timeline", () => {
+  it("never lets a later allocation leak into an earlier window: Darkness first leaves Earth towers unavailable at W1", () => {
+    // Howitzer (Darkness + Earth). The order is forced via an explicit
+    // override so the scenario holds regardless of which element the
+    // engine's own opening-bridge scoring would otherwise pick first —
+    // this is the exact real report (2026-09-18): a Darkness-first opening
+    // appeared to show an Earth tower already available on the map before
+    // Earth had ever been allocated.
+    const howitzerBuild: PortableBuild = {
+      schema: "etd2-build/2",
+      source: "engine",
+      anchorTowerId: "howitzer",
+      towers: [{ towerId: "howitzer", level: 2 }],
+      allocation: {
+        Light: 0,
+        Darkness: 3,
+        Water: 0,
+        Fire: 0,
+        Nature: 0,
+        Earth: 3,
+      },
+      createdAt: "2026-09-14T00:00:00.000Z",
+    };
+    const plan = generateMatchPlan(howitzerBuild, {
+      mapId: "forest",
+      overrides: [
+        {
+          id: "force-darkness-first",
+          kind: "allocation-order",
+          elements: ["Darkness", "Earth", "Water", "Fire", "Light", "Nature"],
+        },
+      ],
+    });
+    const recipeOf = (towerId: string): readonly string[] => {
+      if (isBasicTowerId(towerId)) return [];
+      if (isMonoTowerId(towerId))
+        return [towerId.slice(5, 6).toUpperCase() + towerId.slice(6)];
+      try {
+        return getTower(towerId).recipe;
+      } catch {
+        return [];
+      }
+    };
+    const opening = plan.phases[0];
+    expect(opening.actions[0]).toMatchObject({
+      type: "allocate-element",
+      element: "Darkness",
+    });
+    expect(opening.endAllocation.Earth).toBe(0);
+    // Only base towers (no recipe) and Darkness-only towers may be on the
+    // field once wave 1's own allocation is Darkness-only — never a tower
+    // whose recipe needs Earth, or any other not-yet-allocated element.
+    for (const tower of opening.endTowers) {
+      const recipe = recipeOf(tower.towerId);
+      expect(recipe.every((element) => element === "Darkness")).toBe(true);
+    }
+    expect(
+      opening.endTowers.some((tower) =>
+        recipeOf(tower.towerId).includes("Earth"),
+      ),
+    ).toBe(false);
+    // Same check across every window of this build's own plan: a tower's
+    // recipe elements can never outrun that same window's own allocation.
+    for (const phase of plan.phases) {
+      for (const tower of phase.endTowers) {
+        for (const element of recipeOf(tower.towerId)) {
+          expect(
+            (phase.endAllocation as Record<string, number>)[element] ?? 0,
+          ).toBeGreaterThanOrEqual(tower.level);
+        }
+      }
+    }
   });
 });

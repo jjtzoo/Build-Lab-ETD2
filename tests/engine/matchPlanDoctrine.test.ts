@@ -86,6 +86,44 @@ describe("Match Plan doctrine — survival over economy", () => {
     expect(unexpected).toEqual([]);
   });
 
+  /** A tower's own recipe elements, or its single element for a mono. */
+  function recipeOf(towerId: string): readonly string[] {
+    if (isBasicTowerId(towerId)) return [];
+    if (isMonoTowerId(towerId))
+      return [towerId.slice(5, 6).toUpperCase() + towerId.slice(6)];
+    try {
+      return getTower(towerId).recipe;
+    } catch {
+      return [];
+    }
+  }
+
+  it("never shows a tower whose recipe outruns the allocation acquired by that same window", () => {
+    // Every window's own endTowers/endAllocation must agree with each
+    // other: a tower fielded by this window's end can only need elements at
+    // levels this same window's allocation actually reached — never a level
+    // an element hasn't been allocated to yet, whatever order the build's
+    // own elements are picked in. This is the generic form of a real report
+    // (2026-09-18): a Darkness-first opening appeared to show an Earth
+    // tower as already available before Earth had ever been allocated.
+    const leaks = plans.flatMap(({ anchor, matchPlan }) =>
+      matchPlan.phases.flatMap((phase) =>
+        phase.endTowers.flatMap((tower) =>
+          recipeOf(tower.towerId).flatMap((element) => {
+            const allocated =
+              (phase.endAllocation as Record<string, number>)[element] ?? 0;
+            return allocated < tower.level
+              ? [
+                  `${anchor} ${phase.label}: ${tower.towerId} L${tower.level} needs ${element} ${tower.level}, allocation is ${allocated}`,
+                ]
+              : [];
+          }),
+        ),
+      ),
+    );
+    expect(leaks).toEqual([]);
+  });
+
   /** Real max level for a fielded copy: mono 3, basic 1, else the catalog. */
   function towerMaxLevel(towerId: string): number {
     if (isMonoTowerId(towerId)) return 3;

@@ -2366,7 +2366,14 @@ function PlanMap({
                 </title>
                 <circle r=".42" />
                 <TowerToken
-                  icon={iconFor(tower.towerId)}
+                  // Deliberately never the tower's real icon: nothing here
+                  // is legal yet — the element(s) it needs may not even be
+                  // allocated — so a ghost must not show a recognizable
+                  // silhouette of what it will become, only that a step is
+                  // planned for this cell and when. The plain initial-letter
+                  // mark (TowerToken's own no-icon fallback) still tells a
+                  // player something is coming without asserting it early.
+                  icon={null}
                   name={tower.towerName}
                   level={tower.level}
                 />

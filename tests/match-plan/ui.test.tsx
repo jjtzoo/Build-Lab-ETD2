@@ -10,6 +10,7 @@ import {
 } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { MatchPlanView } from "@/components/match-plan/MatchPlan";
+import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import type { PortableBuild } from "@/lib/domain/portableBuild";
 import { MATCH_PLAN_STORAGE_KEY } from "@/lib/domain/matchPlan";
 import { generateMatchPlan } from "@/lib/engine/matchPlan";
@@ -240,6 +241,31 @@ describe("Match Plan UI", () => {
       expect(stepBadgeText().length).toBe(nextDistinctCopies.size),
     );
     expect(stepBadgeText().length).toBeLessThan(boardTokens);
+  });
+
+  it("never shows a future tower's real icon, only a current on-field tower's", async () => {
+    // A fake resolver that answers every lookup, so a future tower here
+    // *would* resolve a real icon if the code allowed it — proving the
+    // absence below is the code's own choice, not just missing test assets.
+    const fakeIcon = "data:image/svg+xml,fake";
+    const fakeAssets = new Proxy(
+      {},
+      { get: () => new Proxy({}, { get: () => fakeIcon }) },
+    ) as unknown as BuildLabAssets;
+    render(<MatchPlanView initialPlan={build} assets={fakeAssets} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+
+    const currentIcons = document.querySelectorAll(
+      ".match-tower:not(.is-future) image.match-tower-icon",
+    );
+    expect(currentIcons.length).toBeGreaterThan(0);
+
+    const futureTokens = document.querySelectorAll("[data-future-placement]");
+    expect(futureTokens.length).toBeGreaterThan(0);
+    for (const token of futureTokens) {
+      expect(token.querySelector("image.match-tower-icon")).toBeNull();
+      expect(token.querySelector(".match-tower-mark")).not.toBeNull();
+    }
   });
 
   it("exports the deterministic Co-pilot action stream", async () => {
