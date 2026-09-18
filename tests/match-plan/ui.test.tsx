@@ -243,6 +243,24 @@ describe("Match Plan UI", () => {
     expect(stepBadgeText().length).toBeLessThan(boardTokens);
   });
 
+  it("caps wave percentages at 100% and shows each wave's gold left", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    const percents = [
+      ...document.querySelectorAll(".snapshot-wave-grid article > strong"),
+    ]
+      .map((node) => node.textContent?.match(/^(\d+)% of wave HP$/)?.[1])
+      .filter((value): value is string => value != null)
+      .map(Number);
+    expect(percents.length).toBeGreaterThan(0);
+    expect(Math.max(...percents)).toBeLessThanOrEqual(100);
+    const ledgers = document.querySelectorAll(".snapshot-wave-ledger");
+    expect(ledgers.length).toBe(
+      document.querySelectorAll(".snapshot-wave-grid article").length,
+    );
+    expect(ledgers[0].textContent).toMatch(/Left after wave \d+[\d,]+g/);
+  });
+
   it("shows the real icon on both current and future tower tokens", async () => {
     // A fake resolver that answers every lookup, so every token can resolve
     // an icon regardless of which test assets happen to exist.

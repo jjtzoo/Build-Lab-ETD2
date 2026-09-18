@@ -152,10 +152,7 @@ function towerChange(
  * (see the copilot decision's own `" → "` join). A copy already on the
  * field with nothing done to it this window gets no badge at all.
  */
-function towerStepLabel(
-  phase: MatchPlanPhase,
-  copyId: string,
-): string | null {
+function towerStepLabel(phase: MatchPlanPhase, copyId: string): string | null {
   const steps = phase.actions.flatMap((action, index) =>
     action.copyId === copyId &&
     action.affordable !== false &&
@@ -943,7 +940,7 @@ export function MatchPlanView({
           );
           const readout =
             margin != null && entry.survival.worstWave != null
-              ? `W${entry.survival.worstWave} · ${Math.floor(margin * 100)}%`
+              ? `W${entry.survival.worstWave} · ${capPercent(margin)}%`
               : boss
                 ? "boss · ability unknown"
                 : critical
@@ -1440,6 +1437,44 @@ function actionRows(actions: readonly MatchPlanAction[]): ActionRow[] {
   );
 }
 
+/**
+ * A wave's modeled damage as a share of its HP, capped at 100%: a wave is
+ * either fully cleared or short, and overkill is not extra safety to show.
+ * Floored so a wave just short of its HP never rounds up to a clear.
+ */
+function capPercent(margin: number): number {
+  return Math.min(100, Math.floor(margin * 100));
+}
+
+/** What is summoned for one wave, and the bank left once it clears. */
+function WaveLedger({ phase, wave }: { phase: MatchPlanPhase; wave: number }) {
+  const entry = phase.economy.waveLedger?.find((item) => item.wave === wave);
+  if (!entry) return null;
+  const rows = actionRows(
+    phase.actions.filter((action) => entry.actionIds.includes(action.id)),
+  );
+  return (
+    <div className="snapshot-wave-ledger">
+      {rows.length ? (
+        <ul aria-label={`Summoned for wave ${wave}`}>
+          {rows.map((row) => (
+            <li key={row.key} data-tier={row.tier}>
+              {row.verb} {row.subject}
+              {row.count > 1 && <b> ×{row.count}</b>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>Nothing new</p>
+      )}
+      <span>
+        <small>Left after wave {wave}</small>
+        <b>{entry.bankAfter.toLocaleString()}g</b>
+      </span>
+    </div>
+  );
+}
+
 function ActionRows({
   actions,
   selectedCopyId,
@@ -1571,7 +1606,7 @@ function PhaseSnapshot({
   );
   const verdict =
     phase.survival.status === "survives"
-      ? `Clears every wave · +${Math.round((phase.survival.margin ?? 1) * 100 - 100)}% on the tightest`
+      ? "Clears every wave · 100% of wave HP"
       : phase.survival.status === "borderline"
         ? `Thin margin · wave ${phase.survival.worstWave}`
         : phase.survival.status === "fails"
@@ -1723,7 +1758,7 @@ function PhaseSnapshot({
                     ? wave.count == null
                       ? "Count unmeasured"
                       : "No benchmark"
-                    : `${Math.round(wave.margin * 100)}% of wave HP`}
+                    : `${capPercent(wave.margin)}% of wave HP`}
                 </strong>
                 {wave.status === "unverified" && (
                   <small>
@@ -1734,6 +1769,7 @@ function PhaseSnapshot({
                         : `${wave.ability} not modeled`}
                   </small>
                 )}
+                <WaveLedger phase={phase} wave={wave.wave} />
               </article>
             ))}
           </div>

@@ -249,6 +249,18 @@ describe("Match Plan", () => {
       phaseEndGold: 290,
     });
     expect(plan.phases[0].survival.waves).toHaveLength(5);
+    // The wave-by-wave ledger covers every wave of each window, never
+    // spends gold the bank does not hold, and closes on the window's total.
+    for (const phase of plan.phases) {
+      const ledger = phase.economy.waveLedger;
+      expect(ledger[0].wave).toBe(phase.startWave);
+      expect(ledger.at(-1)?.bankAfter).toBe(phase.economy.phaseEndGold);
+      for (const entry of ledger)
+        expect(entry.bankAfter).toBeGreaterThanOrEqual(0);
+      expect(ledger.flatMap((entry) => entry.actionIds).sort()).toEqual(
+        phase.actions.map((action) => action.id).sort(),
+      );
+    }
     for (const phase of plan.phases) {
       expect(phase.economy.assumptions[0]).toContain("per-wave bounty");
       expect(phase.economy.cumulativeCost).toBeLessThanOrEqual(
@@ -655,9 +667,12 @@ describe("Match Plan allocation timeline", () => {
     // Fixed generically in matchPlan.ts's `nextCopyOrdinal`: every ordinal
     // is now checked against the live field itself before being handed
     // out, not just whichever cache the calling site happened to consult.
-    const anchor = CURATED_ANCHORS.find((entry) => entry.towerId === "disease")!;
+    const anchor = CURATED_ANCHORS.find(
+      (entry) => entry.towerId === "disease",
+    )!;
     const set = buildRecommendationSetDto(anchor.towerId);
-    const plan = set.plans.find((entry) => entry.id === "rank-1") ?? set.plans[0];
+    const plan =
+      set.plans.find((entry) => entry.id === "rank-1") ?? set.plans[0];
     const matchPlan = generateMatchPlan(planToPortableBuild(plan!), {
       mapId: "forest",
     });
@@ -687,9 +702,7 @@ describe("Match Plan allocation timeline", () => {
       for (const tower of phase.endTowers) {
         const prior = levelByCopy.get(tower.copyId);
         if (prior != null && tower.level > prior) {
-          expect(actionedLevels.get(tower.copyId)?.has(tower.level)).toBe(
-            true,
-          );
+          expect(actionedLevels.get(tower.copyId)?.has(tower.level)).toBe(true);
         }
         levelByCopy.set(tower.copyId, tower.level);
       }

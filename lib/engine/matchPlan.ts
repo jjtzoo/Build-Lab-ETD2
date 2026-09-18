@@ -21,6 +21,7 @@ import {
   type MatchPlanOverride,
   type MatchPlanPhase,
   type MatchPlanPhaseId,
+  type MatchPlanWaveLedgerEntry,
   type PlannedTowerState,
 } from "@/lib/domain/matchPlan";
 import type {
@@ -1009,9 +1010,7 @@ function chooseCell(
         cell,
         coveredDps: damagePlaced.reduce(
           (sum, entry) =>
-            cellsApart(cell, entry.cell) <= rangeCells
-              ? sum + entry.dps
-              : sum,
+            cellsApart(cell, entry.cell) <= rangeCells ? sum + entry.dps : sum,
           0,
         ),
         coverage: coverageForMode(map, cell, 1000, mode).coveragePercent,
@@ -1409,7 +1408,9 @@ export function generateMatchPlan(
   const nextCopyOrdinal = (towerId: string, hint = 0): number => {
     let ordinal = Math.max(rescueOrdinalByTower.get(towerId) ?? 0, hint) + 1;
     while (
-      field.some((tower) => tower.copyId === stableId(planId, "copy", towerId, ordinal))
+      field.some(
+        (tower) => tower.copyId === stableId(planId, "copy", towerId, ordinal),
+      )
     )
       ordinal += 1;
     return ordinal;
@@ -1676,8 +1677,7 @@ export function generateMatchPlan(
       // it exists to keep the rescue loop making real progress on a genuine
       // deficit each step, not to rank candidates that already clear it.
       const shortfallLift = currentShortfall - nextShortfall;
-      if (shortfallLift < Math.min(0.01, currentShortfall - 0.0001))
-        return [];
+      if (shortfallLift < Math.min(0.01, currentShortfall - 0.0001)) return [];
       // Ranking uses the deficit-relevant headroom instead: two candidates
       // that both close the gap can still differ in how much headroom they
       // leave on the wave that actually needed it, and that headroom — not
@@ -1778,7 +1778,9 @@ export function generateMatchPlan(
     const anchorEstablished = field.some(
       (tower) => tower.towerId === build.anchorTowerId,
     );
-    const fleetCopyCandidates = (currentSurvival: MatchPlanPhase["survival"]) => {
+    const fleetCopyCandidates = (
+      currentSurvival: MatchPlanPhase["survival"],
+    ) => {
       const damageTowers = field.filter(
         (tower) =>
           (tower.effect === "damage" || tower.effect === "hybrid") &&
@@ -2646,7 +2648,12 @@ export function generateMatchPlan(
           !field.some(
             (t) =>
               t.copyId ===
-              stableId(planId, "copy", candidate.towerId, candidate.copyOrdinal),
+              stableId(
+                planId,
+                "copy",
+                candidate.towerId,
+                candidate.copyOrdinal,
+              ),
           ),
       );
       if (entry) {
@@ -2677,8 +2684,7 @@ export function generateMatchPlan(
               : "permanent",
           effect: effectFor(entry.towerId, entry.toLevel),
           globalBuff: getTowerPlacementFact(entry.towerId).targetsTowers,
-          directHitDebuff:
-            getTowerPlacementFact(entry.towerId).debuff !== null,
+          directHitDebuff: getTowerPlacementFact(entry.towerId).debuff !== null,
           cell: tower.cell,
           cellLabel: tower.cellLabel,
           campId: tower.campId,
@@ -2735,12 +2741,10 @@ export function generateMatchPlan(
           const existingCopies = field.filter(
             (t) => t.towerId === step.towerId,
           ).length;
-          if (existingCopies >= fleetCopySaturationFor(step.towerId))
-            return [];
+          if (existingCopies >= fleetCopySaturationFor(step.towerId)) return [];
           const facts = towerFacts(step.towerId, step.level);
           const element = facts.damageElement;
-          if (!element || element === "Composite" || !facts.baseDps)
-            return [];
+          if (!element || element === "Composite" || !facts.baseDps) return [];
           const cost = evolutionCost(
             { towerId: tower.towerId, level: tower.level },
             step,
@@ -2785,7 +2789,13 @@ export function generateMatchPlan(
       cumulativeCost += cost;
       phaseCost += cost;
       actions.push({
-        id: stableId(planId, definition.id, "evolve", tower.copyId, step.towerId),
+        id: stableId(
+          planId,
+          definition.id,
+          "evolve",
+          tower.copyId,
+          step.towerId,
+        ),
         phaseId: definition.id,
         order: actionOrder++,
         type: "evolve",
@@ -3221,6 +3231,43 @@ export function generateMatchPlan(
           ]
         : []),
     ];
+    const waveLedger: MatchPlanWaveLedgerEntry[] = [];
+    {
+      let bank = phaseStartGold;
+      let grossBefore = grossAtStart;
+      for (let wave = definition.start; wave <= phaseEndWave; wave += 1) {
+        const grossAfter = benchmarkGoldAtEndWave(
+          wave,
+          matchLength,
+          bountyThroughWave,
+        );
+        const due = actions.filter((action) => {
+          const target = Math.min(
+            phaseEndWave,
+            Math.max(definition.start, action.targetWave ?? definition.start),
+          );
+          return target === wave || (wave === phaseEndWave && target > wave);
+        });
+        const spend = due
+          .filter((action) => action.legal && action.affordable)
+          .reduce((total, action) => total + action.cost, 0);
+        const refund = due.reduce(
+          (total, action) => total + (action.refund ?? 0),
+          0,
+        );
+        const income = Math.max(0, grossAfter - grossBefore);
+        bank += income - spend + refund;
+        grossBefore = grossAfter;
+        waveLedger.push({
+          wave,
+          income,
+          spend,
+          refund,
+          bankAfter: bank,
+          actionIds: due.map((action) => action.id),
+        });
+      }
+    }
     const bankAtLowerBound = Math.max(0, lower - cumulativeCost);
     const protectedReserve = Math.min(windowReserve, bankAtLowerBound);
     const spendableLowerBound = Math.max(0, lower - protectedReserve);
@@ -3242,6 +3289,7 @@ export function generateMatchPlan(
         phaseStartGold,
         incomeThisPhase,
         phaseEndGold: Math.max(0, gross - cumulativeCost),
+        waveLedger,
         goldLowerBound: lower,
         goldUpperBound: gross,
         emergencyReserve: protectedReserve,

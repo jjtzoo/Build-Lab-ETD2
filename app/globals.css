@@ -7527,6 +7527,54 @@ button.mechanic-chip {
   color: var(--muted);
   font: 8px var(--font-mono, monospace);
 }
+.snapshot-wave-ledger {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.snapshot-wave-ledger ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.snapshot-wave-ledger li,
+.snapshot-wave-ledger p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.snapshot-wave-ledger p {
+  color: var(--muted);
+}
+.snapshot-wave-ledger li[data-tier="keystone"],
+.snapshot-wave-ledger li[data-tier="sell"] {
+  color: var(--muted);
+}
+.snapshot-wave-ledger li[data-tier="wait"] {
+  color: var(--plan-amber);
+}
+.snapshot-wave-ledger > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 7px;
+}
+.snapshot-wave-ledger small {
+  color: var(--muted);
+  font: 8px var(--font-mono, monospace);
+  text-transform: uppercase;
+}
+.snapshot-wave-ledger b {
+  color: var(--plan-cyan);
+  font: 11px var(--font-mono, monospace);
+}
 .snapshot-survival details {
   margin-top: 10px;
   color: var(--muted);

@@ -116,12 +116,29 @@ export type MatchPlanEconomy = {
   phaseStartGold: number;
   incomeThisPhase: number;
   phaseEndGold: number;
+  /**
+   * The window's gold wave by wave: what each wave pays, what is bought (or
+   * sold) for it, and the bank left once it clears. Actions land on the wave
+   * they are due before, clamped into this window, so the last entry's
+   * bankAfter equals phaseEndGold.
+   */
+  waveLedger: readonly MatchPlanWaveLedgerEntry[];
   goldLowerBound: number;
   goldUpperBound: number;
   emergencyReserve: number;
   spendableLowerBound: number;
   affordable: boolean;
   assumptions: readonly string[];
+};
+
+export type MatchPlanWaveLedgerEntry = {
+  wave: number;
+  income: number;
+  spend: number;
+  refund: number;
+  bankAfter: number;
+  /** Actions due before this wave (the last wave also takes later ones). */
+  actionIds: readonly string[];
 };
 
 export type MatchPlanWaveSurvival = {
