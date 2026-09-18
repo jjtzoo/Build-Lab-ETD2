@@ -243,10 +243,9 @@ describe("Match Plan UI", () => {
     expect(stepBadgeText().length).toBeLessThan(boardTokens);
   });
 
-  it("never shows a future tower's real icon, only a current on-field tower's", async () => {
-    // A fake resolver that answers every lookup, so a future tower here
-    // *would* resolve a real icon if the code allowed it — proving the
-    // absence below is the code's own choice, not just missing test assets.
+  it("shows the real icon on both current and future tower tokens", async () => {
+    // A fake resolver that answers every lookup, so every token can resolve
+    // an icon regardless of which test assets happen to exist.
     const fakeIcon = "data:image/svg+xml,fake";
     const fakeAssets = new Proxy(
       {},
@@ -263,8 +262,7 @@ describe("Match Plan UI", () => {
     const futureTokens = document.querySelectorAll("[data-future-placement]");
     expect(futureTokens.length).toBeGreaterThan(0);
     for (const token of futureTokens) {
-      expect(token.querySelector("image.match-tower-icon")).toBeNull();
-      expect(token.querySelector(".match-tower-mark")).not.toBeNull();
+      expect(token.querySelector("image.match-tower-icon")).not.toBeNull();
     }
   });
 

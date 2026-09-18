@@ -412,12 +412,18 @@ export function MatchPlanView({
     assets?.elementTowerIcons ?? ({} as Record<ElementName, string | null>);
   const basicTowerIcons =
     assets?.basicTowerIcons ?? ({} as Record<string, string | null>);
+  const endGameForms =
+    assets?.endGameForms ?? ({} as Record<string, string | null>);
   const iconForTower = (towerId: string): string | null | undefined => {
     const direct = towerIcons[towerId];
     if (direct) return direct;
     if (isMonoTowerId(towerId))
       return elementTowerIcons[getMonoTower(towerId).element] ?? null;
     if (isBasicTowerId(towerId)) return basicTowerIcons[towerId] ?? null;
+    // End-game towers (Pure, Periodic) sit outside the recommendation
+    // catalog, so their token art comes from the end-game form art.
+    const endGame = (endGameForms as Record<string, string | null>)[towerId];
+    if (endGame) return endGame;
     return direct;
   };
   const hydrated = useRef(false);
@@ -2366,14 +2372,11 @@ function PlanMap({
                 </title>
                 <circle r=".42" />
                 <TowerToken
-                  // Deliberately never the tower's real icon: nothing here
-                  // is legal yet — the element(s) it needs may not even be
-                  // allocated — so a ghost must not show a recognizable
-                  // silhouette of what it will become, only that a step is
-                  // planned for this cell and when. The plain initial-letter
-                  // mark (TowerToken's own no-icon fallback) still tells a
-                  // player something is coming without asserting it early.
-                  icon={null}
+                  // The tower's real icon, so a player can see which tower
+                  // each planned cell is reserved for. The .is-future
+                  // styling (dimmed, grayscale, dashed ring) and the
+                  // wave-range label mark it as not yet built.
+                  icon={iconFor(tower.towerId)}
                   name={tower.towerName}
                   level={tower.level}
                 />
