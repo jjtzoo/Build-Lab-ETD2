@@ -31,6 +31,7 @@ import { getMap, tracedMaps } from "@/lib/domain/mapCatalog";
 import { cellLabel, type GridPoint } from "@/lib/domain/mapConfig";
 import { getTower } from "@/lib/domain/towerCatalog";
 import {
+  encodePortableBuild,
   PENDING_IMPORT_KEY,
   type PortableBuild,
 } from "@/lib/domain/portableBuild";
@@ -248,6 +249,15 @@ function campCode(camp: MatchPlanCamp): string {
   return camp.name.match(/^Camp [A-Z]+/)?.[0] ?? camp.name;
 }
 
+/**
+ * What the boss stage's numbers can and cannot claim: HP per creep and
+ * the 30-creep count come from the developer workbook (count via its
+ * bounty ratio), neither has been checked against a real game yet, and
+ * the "Mixed" ability composition is not modeled at all.
+ */
+const BOSS_STAGE_NOTE =
+  "boss HP comes from the developer workbook, is not yet checked against a real game, and the Mixed abilities are not modeled";
+
 type WindowStatus = {
   tone: "clear" | "watch" | "short";
   label: string;
@@ -260,9 +270,22 @@ type WindowStatus = {
  * ability or an unplaced tower is named alongside it, never as a second
  * verdict that reads as if it contradicted the first.
  */
-function windowStatus(phase: MatchPlanPhase): WindowStatus {
+function windowStatus(
+  phase: MatchPlanPhase,
+  next: MatchPlanPhase | undefined,
+): WindowStatus {
+  // Only an armour that actually spawns in this window or the next is a
+  // reason to be careful now; a weak Earth matchup is noise in a window of
+  // Boss waves.
+  const coming = new Set<string>(
+    [...phase.survival.waves, ...(next?.survival.waves ?? [])].map(
+      (wave) => wave.element,
+    ),
+  );
   const weak = phase.coverage.filter(
-    (row) => row.status === "critical" || row.status === "weak",
+    (row) =>
+      (row.status === "critical" || row.status === "weak") &&
+      coming.has(row.defender),
   );
   const multipliers = weak
     .filter((row) => row.weightedMultiplier != null)
@@ -273,13 +296,14 @@ function windowStatus(phase: MatchPlanPhase): WindowStatus {
   const withWeak = (text: string) =>
     weakText ? `${text} · ${weakText}` : text;
   const worst = phase.survival.worstWave ?? phase.startWave;
+  const hasBoss = phase.survival.waves.some((wave) => wave.element === "Boss");
   switch (phase.survival.status) {
     case "fails":
       return {
         tone: "short",
         label: "Leaks",
         detail: withWeak(
-          `Wave ${worst} takes only ${Math.floor((phase.survival.margin ?? 0) * 100)}% of its HP in modeled damage`,
+          `Wave ${worst} takes only ${Math.floor((phase.survival.margin ?? 0) * 100)}% of its HP in modeled damage${hasBoss ? ` · ${BOSS_STAGE_NOTE}, so the real wave is at least this hard` : ""}`,
         ),
       };
     case "borderline":
@@ -289,9 +313,6 @@ function windowStatus(phase: MatchPlanPhase): WindowStatus {
         detail: withWeak(`Wave ${worst} clears with little room to spare`),
       };
     case "unverified": {
-      const boss = phase.survival.waves.filter(
-        (wave) => wave.element === "Boss",
-      );
       const missingStat = phase.survival.waves.some(
         (wave) =>
           wave.status === "unverified" &&
@@ -313,8 +334,8 @@ function windowStatus(phase: MatchPlanPhase): WindowStatus {
         tone: "watch",
         label: "Not proven",
         detail: withWeak(
-          boss.length
-            ? `Boss stage · creep count and ${boss[0].ability ?? "mixed"} ability composition are not modeled, so a clear here is not proven`
+          hasBoss
+            ? `Base HP clears, but ${BOSS_STAGE_NOTE}, so this clear is a floor, not a guarantee`
             : missingStat
               ? "A placed tower has no combat stat at this level, so the damage shown is only a floor"
               : `Base HP clears; ${abilities.join(", ") || "wave"} abilit${abilities.length === 1 ? "y is" : "ies are"} not modeled`,
@@ -510,6 +531,7 @@ export function MatchPlanView({
   const [checkedForBuild, setCheckedForBuild] = useState(!!initialPlan);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [history, setHistory] = useState<MatchPlan[]>([]);
   const [selectedCopyId, setSelectedCopyId] = useState<string | null>(null);
   const [allocationDraft, setAllocationDraft] = useState("");
@@ -644,6 +666,21 @@ export function MatchPlanView({
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       setCopied(false);
+    }
+  }
+
+  // The build, not the plan: the link reopens this build in Match Plan,
+  // where the settings above are chosen again for that match.
+  async function copyPlanLink() {
+    if (!source) return;
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/match-plan?b=${encodePortableBuild(source)}`,
+      );
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1800);
+    } catch {
+      setLinkCopied(false);
     }
   }
 
@@ -805,25 +842,38 @@ export function MatchPlanView({
           <p className="eyebrow">MATCH PLAN · PRE-GAME</p>
           <h1>{plan.name}</h1>
           <p>
-            This is the strategy skeleton. The Co-pilot follows these field,
-            coverage and budget targets, then intervenes only when the match
-            moves off plan.
+            Every five-wave window of the match, planned before it starts: what
+            to build, where it stands, and whether the planned field clears each
+            wave. It does not follow your live game — if your field drifts from
+            the plan, trust the field.
           </p>
         </div>
-        <div
-          className="match-export-actions"
-          aria-label="Co-pilot action stream"
-        >
+        <div className="match-export-actions" aria-label="Share and export">
           <span className="match-export-meta">
-            <b>{actions.length}</b> Co-pilot actions
+            <b>{actions.length}</b> planned actions
           </span>
           <div className="match-export-group" role="group">
-            <button type="button" onClick={copyActions} aria-live="polite">
-              {copied ? "Copied" : "Copy JSON"}
-            </button>
-            <button type="button" onClick={downloadActions}>
-              Download
-            </button>
+            {source && (
+              <button
+                type="button"
+                className="match-share-link"
+                onClick={copyPlanLink}
+                aria-live="polite"
+              >
+                {linkCopied ? "Link copied" : "Copy build link"}
+              </button>
+            )}
+            <details className="match-export-menu">
+              <summary>Export</summary>
+              <div role="group" aria-label="Action list export">
+                <button type="button" onClick={copyActions} aria-live="polite">
+                  {copied ? "Copied" : "Copy JSON"}
+                </button>
+                <button type="button" onClick={downloadActions}>
+                  Download
+                </button>
+              </div>
+            </details>
           </div>
         </div>
       </header>
@@ -1000,10 +1050,11 @@ export function MatchPlanView({
           </div>
           <i aria-hidden="true">→</i>
           <div>
-            <span>Co-pilot check</span>
-            <strong>Compare the match to plan</strong>
+            <span>Your check</span>
+            <strong>Compare your game to the plan</strong>
             <small>
-              Gold, coverage and field state are the decision inputs.
+              Gold, coverage and field state — the plan cannot see your game, so
+              this comparison is yours.
             </small>
           </div>
           <i aria-hidden="true">→</i>
@@ -1055,6 +1106,10 @@ export function MatchPlanView({
               .some((earlier) =>
                 earlier.survival.waves.some((wave) => wave.element === "Boss"),
               );
+          const explanation =
+            margin != null && entry.survival.worstWave != null
+              ? `${entry.label}: the tightest wave is W${entry.survival.worstWave}; the planned field clears ${capPercent(margin)}% of its HP.${boss ? ` Boss stage: ${BOSS_STAGE_NOTE}.` : ""}`
+              : `${entry.label}: ${readout}.`;
           return (
             <Fragment key={entry.id}>
               {firstBoss && (
@@ -1064,7 +1119,9 @@ export function MatchPlanView({
                 type="button"
                 className={index === phaseIndex ? "is-active" : ""}
                 data-severity={severity}
+                data-boss={boss || undefined}
                 aria-current={index === phaseIndex ? "step" : undefined}
+                title={explanation}
                 onClick={() => selectPhase(index)}
               >
                 <span>{entry.id}</span>
@@ -1074,6 +1131,11 @@ export function MatchPlanView({
           );
         })}
       </nav>
+      <p className="match-timeline-key">
+        Each window shows its tightest wave and how much of that wave&apos;s HP
+        the planned field clears. From 56 on, boss HP is the developer
+        workbook&apos;s and not yet checked against a real game.
+      </p>
 
       <section className="match-phase-heading">
         <div>
@@ -1083,7 +1145,7 @@ export function MatchPlanView({
           <h2>{phase.label}</h2>
         </div>
         {(() => {
-          const status = windowStatus(phase);
+          const status = windowStatus(phase, plan.phases[phase.index + 1]);
           return (
             <div
               className={`match-window-status is-${status.tone}`}
@@ -1097,6 +1159,8 @@ export function MatchPlanView({
           );
         })()}
       </section>
+
+      <WaveLookahead plan={plan} phase={phase} />
 
       <div className="match-now">
         <CopilotDecision
@@ -1285,6 +1349,61 @@ export function MatchPlanView({
       </section>
       <LabFooter />
     </main>
+  );
+}
+
+/**
+ * The next ten waves read the way a player reads ahead: each wave's
+ * armour element and ability, next to what the planned end-of-window
+ * field deals into that armour. Seeing a weak matchup a window early is
+ * the time to build its counter — not the wave it leaks.
+ */
+function WaveLookahead({
+  plan,
+  phase,
+}: {
+  plan: MatchPlan;
+  phase: MatchPlanPhase;
+}) {
+  const next = plan.phases[phase.index + 1];
+  const waves = [
+    ...phase.survival.waves.map((wave) => ({ wave, now: true })),
+    ...(next?.survival.waves ?? []).map((wave) => ({ wave, now: false })),
+  ].slice(0, 10);
+  if (!waves.length) return null;
+  const coverage = new Map(phase.coverage.map((row) => [row.defender, row]));
+  return (
+    <section className="match-lookahead" aria-label="Upcoming waves">
+      <p>
+        Next waves <span>× = your field vs. its armour</span>
+      </p>
+      <ol>
+        {waves.map(({ wave, now }) => {
+          const row = coverage.get(wave.element as ElementName);
+          const multiplier =
+            row?.weightedMultiplier != null
+              ? `${row.weightedMultiplier.toFixed(2)}×`
+              : wave.element === "Boss"
+                ? "boss"
+                : "—";
+          return (
+            <li
+              key={wave.wave}
+              data-coverage={row?.status ?? "none"}
+              data-window={now ? "now" : "next"}
+              title={`Wave ${wave.wave} · ${wave.element} armour${wave.ability ? ` · ${wave.ability}` : ""}${row?.weightedMultiplier != null ? ` · the planned field deals ${row.weightedMultiplier.toFixed(2)}× damage into it (${row.status})` : ""}${now ? "" : ` · in ${next!.label}`}`}
+            >
+              <b>W{wave.wave}</b>
+              <span>{wave.element}</span>
+              <small>
+                {multiplier}
+                {wave.ability ? ` · ${wave.ability}` : ""}
+              </small>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
@@ -1849,7 +1968,7 @@ function PhaseSnapshot({
                   ? phase.survival.waves.every(
                       (wave) => wave.element === "Boss",
                     )
-                    ? "Boss waves: HP per creep and creep count are known; the ability composition is not, so a clear here is not proven safe"
+                    ? "Boss waves: HP and the 30-creep count come from the developer workbook and are not yet checked against a real game; the Mixed abilities are not modeled, so a clear here is a floor, not proof"
                     : missingStatWaves.length
                       ? "A placed tower has no combat stat at this level, so the damage shown is only a floor"
                       : "Base HP clears; wave abilities are not modeled yet, so these waves are not proven safe"
@@ -1868,17 +1987,30 @@ function PhaseSnapshot({
                   <b>W{wave.wave}</b>
                   <span>{wave.element}</span>
                 </header>
+                {/* Wave HP is the whole wave (every creep, after armour);
+                    field damage is what the planned field deals across
+                    one pass — the same unit, so they compare directly. */}
                 <dl>
                   <div>
-                    <dt>{wave.count == null ? "HP per creep" : "Wave HP"}</dt>
+                    <dt>
+                      {wave.count == null
+                        ? "HP per creep"
+                        : `Wave HP · ${wave.count} creeps`}
+                    </dt>
                     <dd>{Math.round(wave.effectiveWaveHp).toLocaleString()}</dd>
                   </div>
+                  {wave.count != null && wave.count > 0 && (
+                    <div>
+                      <dt>Per creep</dt>
+                      <dd>
+                        {Math.round(
+                          wave.effectiveWaveHp / wave.count,
+                        ).toLocaleString()}
+                      </dd>
+                    </div>
+                  )}
                   <div>
-                    <dt>Units</dt>
-                    <dd>{wave.count ?? "unmeasured"}</dd>
-                  </div>
-                  <div>
-                    <dt>Damage</dt>
+                    <dt>Field damage</dt>
                     <dd>
                       {wave.modeledDamage == null
                         ? "—"
@@ -1893,6 +2025,20 @@ function PhaseSnapshot({
                       : "No benchmark"
                     : `${capPercent(wave.margin)}% of wave HP`}
                 </strong>
+                {wave.margin != null &&
+                  (wave.margin >= 1.05 ? (
+                    <em className="snapshot-wave-margin">
+                      {wave.margin >= 10
+                        ? Math.round(wave.margin)
+                        : wave.margin.toFixed(1)}
+                      × the wave HP
+                    </em>
+                  ) : wave.estimatedLeaks ? (
+                    <em className="snapshot-wave-margin is-short">
+                      ~{wave.estimatedLeaks} creep
+                      {wave.estimatedLeaks === 1 ? "" : "s"} leak
+                    </em>
+                  ) : null)}
                 {wave.status === "unverified" && (
                   <small>
                     {wave.element === "Boss"
@@ -2126,7 +2272,7 @@ function CopilotDecision({
   return (
     <section className="match-copilot-decision" data-state={decision.state}>
       <div className="match-decision-kicker">
-        <p className="eyebrow">COPILOT DECISION</p>
+        <p className="eyebrow">THIS WINDOW&apos;S CALL</p>
         <span>{decision.state.replace("-", " ")}</span>
       </div>
       <h3>{decision.title}</h3>

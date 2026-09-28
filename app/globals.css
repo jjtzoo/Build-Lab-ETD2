@@ -9345,3 +9345,221 @@ button.mechanic-chip {
     gap: 3px;
   }
 }
+/* Match Plan — batch 2: read-ahead strip, timeline key, wave margins,
+   demoted export, phone header. */
+.match-timeline-key {
+  margin: 0;
+  padding: 0 clamp(20px, 4vw, 56px);
+  max-width: 88ch;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+/* Ten waves ahead, pinned while the window scrolls: the armour and ability
+   of each coming wave next to the planned field's multiplier into it.
+   Colour follows the engine's own coverage status, never a softer one. */
+.match-lookahead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 clamp(20px, 4vw, 56px) 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+.match-lookahead > p {
+  flex: 0 0 auto;
+  max-width: 150px;
+  margin: 0;
+  color: var(--text-2);
+  font: 700 10px/1.35 var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.match-lookahead > p span {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.match-lookahead ol {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+.match-lookahead li {
+  display: grid;
+  flex: 1 0 74px;
+  gap: 1px;
+  padding: 5px 7px;
+  border-top: 2px solid var(--line-strong);
+  background: var(--surface-raised);
+}
+.match-lookahead li[data-window="next"] {
+  opacity: 0.72;
+}
+.match-lookahead li[data-window="now"] + li[data-window="next"] {
+  margin-left: 8px;
+}
+.match-lookahead li b {
+  color: var(--text);
+  font: 11px var(--font-mono, monospace);
+}
+.match-lookahead li span {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.match-lookahead li small {
+  overflow: hidden;
+  color: var(--muted);
+  font: 9px var(--font-mono, monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.match-lookahead li[data-coverage="strong"],
+.match-lookahead li[data-coverage="covered"] {
+  border-top-color: color-mix(in srgb, var(--plan-cyan) 70%, var(--line));
+}
+.match-lookahead li[data-coverage="weak"] {
+  border-top-color: var(--plan-amber);
+}
+.match-lookahead li[data-coverage="weak"] small {
+  color: var(--plan-amber);
+}
+.match-lookahead li[data-coverage="critical"] {
+  border-top-color: var(--plan-red);
+}
+.match-lookahead li[data-coverage="critical"] small {
+  color: var(--plan-red);
+}
+.snapshot-wave-margin {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font: 9px var(--font-mono, monospace);
+  font-style: normal;
+}
+.snapshot-wave-margin.is-short {
+  color: var(--danger);
+}
+/* The build link is the everyday action; the JSON action list is for
+   tooling, so it sits behind a small Export menu. */
+.match-export-group:has(.match-export-menu) {
+  overflow: visible;
+}
+/* The export popover must paint over the settings bar below the hero. */
+.match-hero {
+  position: relative;
+  z-index: 5;
+}
+.match-export-menu {
+  position: relative;
+}
+.match-export-menu > summary {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 10px 14px;
+  border-left: 1px solid var(--line-strong);
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+.match-export-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.match-export-menu > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.match-export-menu > summary:hover,
+.match-export-menu[open] > summary {
+  color: var(--text);
+  background: var(--surface-raised);
+}
+.match-export-menu > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.match-export-menu > div {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 160px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 14px 34px color-mix(in srgb, #000 40%, transparent);
+  overflow: hidden;
+}
+.match-export-menu > div button {
+  text-align: left;
+}
+.match-export-menu > div button + button {
+  border-top: 1px solid var(--line);
+  border-left: 0;
+}
+@media (max-width: 760px) {
+  .match-lookahead {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 7px 8px;
+  }
+  .match-lookahead > p {
+    max-width: none;
+  }
+  .match-lookahead > p span {
+    display: inline;
+    margin-left: 6px;
+  }
+  .match-lookahead li {
+    flex-basis: 62px;
+    padding: 4px 6px;
+  }
+  .match-timeline-key {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+/* Phone header: the brand mark stands in for the wordmark so the three
+   sections fit on one line instead of wrapping into stacked labels. */
+@media (max-width: 480px) {
+  .lab-header .wordmark {
+    font-size: 0;
+    letter-spacing: 0;
+  }
+  .lab-header .wordmark-mark {
+    margin-right: 0;
+  }
+  .lab-nav {
+    gap: 16px;
+  }
+  .lab-nav-link {
+    white-space: nowrap;
+  }
+}

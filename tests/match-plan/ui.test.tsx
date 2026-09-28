@@ -56,7 +56,9 @@ describe("Match Plan UI", () => {
       "Automatic allocation",
     );
     expect(screen.getByText("Plan skeleton")).toBeInTheDocument();
-    expect(screen.getByText("COPILOT DECISION")).toBeInTheDocument();
+    expect(screen.getByText("THIS WINDOW'S CALL")).toBeInTheDocument();
+    // The page no longer claims a Co-pilot that follows the live game.
+    expect(document.body.textContent).not.toMatch(/co-?pilot/i);
     expect(screen.getByLabelText("Difficulty baseline")).toHaveValue("hard");
     expect(screen.getByLabelText("Gold allocation")).toHaveTextContent(
       "Wave income",
@@ -330,6 +332,78 @@ describe("Match Plan UI", () => {
       screen.getByRole("button", { name: "Show next window only" }),
     );
     expect(future()).toBe(nextOnly);
+  });
+
+  it("reads ten waves ahead with the planned field's multiplier into each armour", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    const plan = generateMatchPlan(build, { mapId: "forest" });
+    const [first, second] = plan.phases;
+    const strip = screen.getByLabelText("Upcoming waves");
+    const chips = strip.querySelectorAll("li");
+    expect(chips.length).toBe(
+      Math.min(10, first.survival.waves.length + second.survival.waves.length),
+    );
+    expect(chips[0]).toHaveTextContent(`W${first.survival.waves[0].wave}`);
+    expect(chips[0]).toHaveAttribute("data-window", "now");
+    expect(chips[chips.length - 1]).toHaveAttribute("data-window", "next");
+    // Each chip's multiplier is the current window's own coverage row for
+    // that armour — the same number the coverage panel shows.
+    for (const [index, wave] of [
+      ...first.survival.waves,
+      ...second.survival.waves,
+    ]
+      .slice(0, 10)
+      .entries()) {
+      const row = first.coverage.find(
+        (entry) => entry.defender === wave.element,
+      );
+      if (row?.weightedMultiplier != null)
+        expect(chips[index]).toHaveTextContent(
+          `${row.weightedMultiplier.toFixed(2)}×`,
+        );
+    }
+  });
+
+  it("labels wave HP as the whole wave and shows spare damage beside the capped percent", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    const plan = generateMatchPlan(build, { mapId: "forest" });
+    const wave = plan.phases[0].survival.waves[0];
+    const card = document.querySelector(".snapshot-wave-grid article")!;
+    expect(card).toHaveTextContent(`Wave HP · ${wave.count} creeps`);
+    expect(card).toHaveTextContent("Field damage");
+    if (wave.margin != null && wave.margin >= 1.05)
+      expect(card.querySelector(".snapshot-wave-margin")).toHaveTextContent(
+        /× the wave HP/,
+      );
+  });
+
+  it("names the boss stage's unchecked HP and unmodeled abilities", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    fireEvent.click(screen.getByRole("button", { name: /56-60/ }));
+    await screen.findByRole("heading", { name: "Waves 56–60 · Boss" });
+    const status = screen.getByLabelText("Window status");
+    expect(status).toHaveTextContent(/developer workbook/);
+    expect(status).toHaveTextContent(/not yet checked against a real game/);
+    expect(status).toHaveTextContent(/Mixed abilities are not modeled/);
+    expect(status).not.toHaveTextContent(/creep count .* not modeled/);
+    // Every wave here is Boss armour, so a weak elemental matchup is not
+    // a reason to be careful in this window.
+    expect(status).not.toHaveTextContent(/armour weakly covered/);
+  });
+
+  it("copies a build link as the main share action", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Copy build link" }),
+    );
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledOnce(),
+    );
+    const link = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0];
+    expect(link).toMatch(/\/match-plan\?b=[A-Za-z0-9_-]+$/);
   });
 
   it("shows the real icon on both current and future tower tokens", async () => {
