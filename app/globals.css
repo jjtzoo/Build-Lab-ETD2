@@ -8914,13 +8914,13 @@ button.mechanic-chip {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.match-lineup li[data-change="sold"] {
+.match-lineup li[data-change="evolved"] {
   padding: 4px 7px;
   color: var(--muted);
   text-decoration: line-through;
   text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
 }
-.match-lineup li[data-change="sold"] small {
+.match-lineup li[data-change="evolved"] small {
   text-decoration: none;
 }
 .match-keystones {

@@ -320,12 +320,17 @@ export function cellsApart(
   return Math.hypot(a.col - b.col, a.row - b.row);
 }
 
-/** One step of a copy's life inside a window: from this wave it is at this level. */
+/**
+ * One step of a copy's life inside a window: from this wave it is at this
+ * level. Level 0 means the copy has left the field from that wave on — a
+ * tower evolved into another keeps firing until its evolution lands.
+ */
 export type LevelStep = { fromWave: number; level: number };
 
 /**
- * The level a copy is at during `wave`, or null if it is not on the field yet.
- * A copy with no timeline is assumed present at its listed level all window.
+ * The level a copy is at during `wave`, or null if it is not on the field
+ * (not built yet, or already evolved away). A copy with no timeline is
+ * assumed present at its listed level all window.
  */
 function levelDuringWave(
   timeline: readonly LevelStep[] | undefined,
@@ -335,7 +340,7 @@ function levelDuringWave(
   if (!timeline) return fallbackLevel;
   let level: number | null = null;
   for (const step of timeline) if (wave >= step.fromWave) level = step.level;
-  return level;
+  return level != null && level > 0 ? level : null;
 }
 
 export function evaluatePhaseSurvival({

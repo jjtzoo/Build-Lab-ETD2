@@ -67,7 +67,6 @@ import {
   type MatchPlanDifficulty,
   waveBenchmark,
 } from "@/lib/engine/waveBenchmarks";
-import { sellRefundFraction } from "@/lib/domain/towerEconomics";
 import { evolutionCost, evolutionTargets } from "@/lib/domain/towerEvolution";
 import {
   isEndGameTowerId,
@@ -128,12 +127,6 @@ export type MatchPlanSettings = {
   overrides?: readonly MatchPlanOverride[];
   now?: string;
   id?: string;
-  /**
-   * Fraction of a tower's gold returned on sale. Defaults to the verified
-   * catalog value; null (the catalog default until the owner supplies it)
-   * disables retirement entirely rather than assuming a rate.
-   */
-  sellRefundFraction?: number | null;
 };
 
 type Purchase = Omit<PortableTowerAction, "towerId"> & {
@@ -1339,10 +1332,6 @@ export function generateMatchPlan(
     overrideReserve?.kind === "reserve"
       ? overrideReserve.value
       : (settings.reserveGold ?? 300);
-  const sellRefund =
-    settings.sellRefundFraction === undefined
-      ? sellRefundFraction()
-      : settings.sellRefundFraction;
   const order = allocationOrder(build, overrides, map, mode);
   const queue = purchases(build, order, map, mode);
   const essenceQueue = buildEssenceQueue(build);
@@ -1358,6 +1347,9 @@ export function generateMatchPlan(
   // stop. Camps are route moments, so a map with more of them earns more
   // copies, but not one per moment for every cheap mono.
   const viableCampCount = camps.filter((camp) => camp.viable).length;
+  // The towers the build is made of; their copies are never consumed as
+  // evolution sources (see evolutionSource).
+  const buildTowerIds = new Set(build.towers.map((tower) => tower.towerId));
   const fleetCopySaturationFor = (towerId: string) =>
     Math.max(
       2,
@@ -1451,6 +1443,7 @@ export function generateMatchPlan(
         : reserveGold;
     const startAllocation = { ...allocation };
     const startTowers = field.map((tower) => ({ ...tower }));
+    const carriedCopyIds = new Set(startTowers.map((tower) => tower.copyId));
     const actions: MatchPlanAction[] = [];
     if (phaseIndex < 11 && order[phaseIndex]) {
       const element = order[phaseIndex];
@@ -1498,15 +1491,25 @@ export function generateMatchPlan(
     // but cannot be paid for inside this window.
     let rescueExhausted: null | "cap" | "gold" = null;
     let rescueUnaffordable = 0;
+    // Carried towers evolved into something else this window, and the wave
+    // their evolution lands: each keeps firing until then (a real player
+    // evolves when the gold is there, not at the window's first wave).
+    let evolvedAway: { tower: PlannedTowerState; untilWave: number }[] = [];
 
     // ---- Survival helpers (shared by both planning passes of this phase) ----
     // Each copy's life inside this window: carried copies start at their
     // opening level; every purchase this window steps the copy to its new
     // level from the wave it lands, so an upgrade keeps its old damage until
     // then rather than vanishing.
+    type Prospect = {
+      copyId: string;
+      targetWave: number;
+      /** The carried tower this prospective step evolves away, if any. */
+      retires?: PlannedTowerState;
+    };
     const timelineFor = (
       towers: readonly PlannedTowerState[],
-      candidate?: { copyId: string; targetWave: number },
+      candidate?: Prospect,
     ) => {
       const timeline = new Map<string, LevelStep[]>();
       const step = (copyId: string, fromWave: number, level: number) => {
@@ -1527,6 +1530,12 @@ export function generateMatchPlan(
         const level = towers.find((t) => t.copyId === candidate.copyId)?.level;
         if (level != null) step(candidate.copyId, candidate.targetWave, level);
       }
+      // Pushed after the carried copies' opening steps, so on the same wave
+      // the departure wins (the sort below is stable).
+      for (const gone of evolvedAway)
+        step(gone.tower.copyId, gone.untilWave, 0);
+      if (candidate?.retires)
+        step(candidate.retires.copyId, candidate.targetWave, 0);
       for (const steps of timeline.values())
         steps.sort((a, b) => a.fromWave - b.fromWave);
       return timeline;
@@ -1536,11 +1545,20 @@ export function generateMatchPlan(
     // choices are ranked against it too (a copy that counters its armour
     // beats one that does not). The verdict shown stays the window's own.
     const evaluate = (
-      towers: readonly PlannedTowerState[],
-      candidate?: { copyId: string; targetWave: number },
+      fielded: readonly PlannedTowerState[],
+      candidate?: Prospect,
       horizon = 1,
-    ) =>
-      evaluatePhaseSurvival({
+    ) => {
+      // A tower evolved away this window still fires until its evolution
+      // lands, so it stays in the evaluated set with a departure step.
+      const leaving = [
+        ...evolvedAway.map((gone) => gone.tower),
+        ...(candidate?.retires ? [candidate.retires] : []),
+      ].filter(
+        (tower) => !fielded.some((entry) => entry.copyId === tower.copyId),
+      );
+      const towers = [...fielded, ...leaving];
+      return evaluatePhaseSurvival({
         map,
         mode,
         difficulty,
@@ -1552,6 +1570,7 @@ export function generateMatchPlan(
         towers,
         levelTimeline: timelineFor(towers, candidate),
       });
+    };
     const verifiedShortfall = (result: MatchPlanPhase["survival"]) =>
       result.waves.reduce(
         (sum, wave) =>
@@ -1614,7 +1633,59 @@ export function generateMatchPlan(
       fromLevel: number;
       /** The package's own reason for the step, when it has one. */
       entryReason?: string;
+      /** A temporary tower this step evolves in place, instead of a fresh build. */
+      evolveFrom?: PlannedTowerState;
     };
+    // Evolution is how a real player reaches a bigger tower: a tower already
+    // standing whose elements the target contains is upgraded into it on its
+    // own cell, paying only the difference (lib/domain/towerEvolution.ts), so
+    // no gold already spent is thrown away and nothing is ever sold. Only a
+    // tower outside the build is consumed — a starter, an opening mono, a
+    // bridge carry — never a copy of a tower the build itself is made of (a
+    // survival-repair copy of the anchor or a package tower is real damage
+    // the build leans on, even though it is marked temporary). The source
+    // with the most gold already in it wins.
+    const evolutionSource = (
+      towerId: string,
+      level: number,
+    ): PlannedTowerState | null =>
+      field
+        .filter(
+          (tower) =>
+            // Anything on the field that is not part of the build: a starter,
+            // an opening or coverage mono, a bridge carry — temporary or
+            // grown permanent by an earlier evolution — unless the player
+            // pinned it with "keep temporary carry".
+            !buildTowerIds.has(tower.towerId) &&
+            !retainTemporary(overrides, tower.copyId) &&
+            // Carried in from an earlier window: growth across windows, not
+            // "build it, then evolve it" inside the same one.
+            carriedCopyIds.has(tower.copyId) &&
+            tower.cell != null &&
+            tower.towerId !== towerId &&
+            tower.level <= level &&
+            evolutionTargets(tower.towerId, tower.level).some(
+              (step) => step.towerId === towerId,
+            ),
+        )
+        .sort(
+          (a, b) =>
+            resolveLiveTowerCost(b.towerId, b.level) -
+            resolveLiveTowerCost(a.towerId, a.level),
+        )[0] ?? null;
+    // Evolve then upgrade: the running total to any tower is the same by
+    // any route, so the price is the target's field cost less what the
+    // source already cost.
+    const evolvePrice = (
+      source: PlannedTowerState,
+      towerId: string,
+      level: number,
+    ) =>
+      Math.max(
+        0,
+        actionCost(towerId, 0, level) -
+          actionCost(source.towerId, 0, source.level),
+      );
     // Prices and places one prospective step — a new copy, or an upgrade of a
     // copy already on the field — keeping it only if it lifts the verified
     // damage floor. Survival may spend the reserve, never beyond gross.
@@ -1630,6 +1701,7 @@ export function generateMatchPlan(
       currentSurvival: MatchPlanPhase["survival"],
       fromLevel = 0,
       entryReason?: string,
+      evolveFrom?: PlannedTowerState,
     ): RescueCandidate[] => {
       const currentShortfall = verifiedShortfall(currentSurvival);
       if (cost <= 0) return [];
@@ -1638,11 +1710,14 @@ export function generateMatchPlan(
         return [];
       }
       const upgrade = fromLevel > 0;
-      const placement = upgrade
-        ? source.cell
-          ? { cell: source.cell, campId: source.campId ?? "uncamped" }
-          : null
-        : chooseCell(map, mode, camps, source.towerId, source.level, field);
+      // An evolution stands on its source's own cell; the source is gone.
+      const placement = evolveFrom?.cell
+        ? { cell: evolveFrom.cell, campId: evolveFrom.campId ?? "uncamped" }
+        : upgrade
+          ? source.cell
+            ? { cell: source.cell, campId: source.campId ?? "uncamped" }
+            : null
+          : chooseCell(map, mode, camps, source.towerId, source.level, field);
       if (!placement) return [];
       const targetWave = leverMode
         ? definition.start
@@ -1660,14 +1735,17 @@ export function generateMatchPlan(
       };
       const nextField = upgrade
         ? field.map((entry) => (entry.copyId === tower.copyId ? tower : entry))
-        : [...field, tower];
+        : [
+            ...field.filter((entry) => entry.copyId !== evolveFrom?.copyId),
+            tower,
+          ];
       // In lever mode `currentSurvival` is the phase's own reported window
       // (horizon 0, see `reported` below) rather than the rescue loop's
       // usual one-wave-ahead view — match it here, or the two sides of every
       // comparison below would be summed over different wave sets.
       const nextSurvival = evaluate(
         nextField,
-        { copyId: tower.copyId, targetWave },
+        { copyId: tower.copyId, targetWave, retires: evolveFrom },
         leverMode ? 0 : 1,
       );
       const nextShortfall = verifiedShortfall(nextSurvival);
@@ -1697,6 +1775,7 @@ export function generateMatchPlan(
           source: kind,
           fromLevel,
           entryReason,
+          evolveFrom,
         },
       ];
     };
@@ -1759,7 +1838,7 @@ export function generateMatchPlan(
                 cellLabel: null,
                 campId: null,
               };
-          return rescueCandidate(
+          const fresh = rescueCandidate(
             source,
             actionCost(entry.towerId, fromLevel, level),
             null,
@@ -1768,6 +1847,25 @@ export function generateMatchPlan(
             fromLevel,
             entry.reason,
           );
+          // A copy not yet fielded may instead grow out of a temporary
+          // tower already standing; the rescue ranking weighs the cheaper
+          // price against the damage the source stops dealing.
+          const evolveFrom = existing
+            ? null
+            : evolutionSource(entry.towerId, level);
+          const evolved = evolveFrom
+            ? rescueCandidate(
+                source,
+                evolvePrice(evolveFrom, entry.towerId, level),
+                null,
+                "build-path",
+                currentSurvival,
+                0,
+                entry.reason,
+                evolveFrom,
+              )
+            : [];
+          return [...fresh, ...evolved];
         });
       });
     // Stage 2 — another copy of a tower the fleet already runs, judged by how
@@ -1862,19 +1960,35 @@ export function generateMatchPlan(
       ];
       const copies = sourceTowers.flatMap((source) => {
         const ordinal = nextCopyOrdinal(source.towerId);
-        return rescueCandidate(
-          {
-            ...source,
-            copyId: stableId(planId, "copy", source.towerId, ordinal),
-            purpose: "Zero-leak survival repair",
-            roles: source.roles.length ? source.roles : ["main-dps"],
-            status: "temporary",
-          },
-          actionCost(source.towerId, 0, source.level),
-          ordinal,
-          "fleet-copy",
-          currentSurvival,
-        );
+        const copy: PlannedTowerState = {
+          ...source,
+          copyId: stableId(planId, "copy", source.towerId, ordinal),
+          purpose: "Zero-leak survival repair",
+          roles: source.roles.length ? source.roles : ["main-dps"],
+          status: "temporary",
+        };
+        const evolveFrom = evolutionSource(source.towerId, source.level);
+        return [
+          ...rescueCandidate(
+            copy,
+            actionCost(source.towerId, 0, source.level),
+            ordinal,
+            "fleet-copy",
+            currentSurvival,
+          ),
+          ...(evolveFrom
+            ? rescueCandidate(
+                copy,
+                evolvePrice(evolveFrom, source.towerId, source.level),
+                ordinal,
+                "fleet-copy",
+                currentSurvival,
+                0,
+                undefined,
+                evolveFrom,
+              )
+            : []),
+        ];
       });
       // A fielded copy's next level is often the strongest legal damage step
       // once it has hit the copy-saturation cap above — no new cell, no new
@@ -1985,6 +2099,50 @@ export function generateMatchPlan(
         );
       };
 
+    // Committing a chosen step: an upgrade replaces its copy, an evolution
+    // replaces its source on the same cell, a fresh build adds a copy.
+    const commitCandidateField = (best: RescueCandidate) => {
+      if (best.evolveFrom)
+        evolvedAway.push({
+          tower: best.evolveFrom,
+          untilWave: best.targetWave,
+        });
+      return commitFieldFor(best);
+    };
+    const commitFieldFor = (best: RescueCandidate) =>
+      best.fromLevel
+        ? field.map((tower) =>
+            tower.copyId === best.tower.copyId ? best.tower : tower,
+          )
+        : [
+            ...field.filter(
+              (tower) => tower.copyId !== best.evolveFrom?.copyId,
+            ),
+            best.tower,
+          ];
+    const candidateVerb = (
+      best: RescueCandidate,
+    ): Pick<
+      MatchPlanAction,
+      "type" | "summary" | "fromLevel" | "fromTowerId" | "fromTowerName"
+    > =>
+      best.evolveFrom
+        ? {
+            type: "evolve",
+            summary: `Evolve ${best.evolveFrom.towerName} ${best.evolveFrom.level} into ${best.tower.towerName} ${best.tower.level}`,
+            fromLevel: best.evolveFrom.level,
+            fromTowerId: best.evolveFrom.towerId,
+            fromTowerName: best.evolveFrom.towerName,
+          }
+        : {
+            type: best.fromLevel ? "upgrade" : "build",
+            summary: `${best.fromLevel ? "Upgrade" : best.source === "build-path" ? "Build" : "Add"} ${best.tower.towerName} ${best.tower.level}`,
+            fromLevel: best.fromLevel,
+          };
+    const evolveReason = (best: RescueCandidate) =>
+      best.evolveFrom
+        ? `${best.evolveFrom.towerName} ${best.evolveFrom.level} grows into ${best.tower.towerName} on its own cell for ${best.cost.toLocaleString()}g, net of the gold already in it — nothing is sold or rebuilt. `
+        : "";
     // A snapshot is not allowed to recommend a field that is known to leak.
     // Spend the reserve when necessary, then add the most efficient legal copy
     // that improves the verified five-wave damage floor. Unknown abilities stay
@@ -2010,11 +2168,7 @@ export function generateMatchPlan(
           rescueExhausted = rescueUnaffordable > 0 ? "gold" : "cap";
           break;
         }
-        field = best.fromLevel
-          ? field.map((tower) =>
-              tower.copyId === best.tower.copyId ? best.tower : tower,
-            )
-          : [...field, best.tower];
+        field = commitCandidateField(best);
         cumulativeCost += best.cost;
         phaseCost += best.cost;
         if (best.source === "essence") essenceUsesRemaining -= 1;
@@ -2043,20 +2197,19 @@ export function generateMatchPlan(
           ),
           phaseId: definition.id,
           order: actionOrder++,
-          type: best.fromLevel ? "upgrade" : "build",
-          summary: `${best.fromLevel ? "Upgrade" : best.source === "build-path" ? "Build" : "Add"} ${best.tower.towerName} ${best.tower.level}`,
-          reason:
+          ...candidateVerb(best),
+          reason: `${evolveReason(best)}${
             best.source === "build-path"
               ? `${best.entryReason ? `${best.entryReason} ` : ""}${repairedWaves || "This window"} is below the 100% damage floor. This step is already part of the build, so it is bought now as damage instead of banking. ${priority}`
               : best.source === "essence"
                 ? (best.entryReason ?? "")
                 : best.fromLevel
                   ? `${repairedWaves || "This window"} is below the 100% damage floor. Upgrading this fielded copy is the strongest legal damage step on the build's own elements. ${priority}`
-                  : `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. ${priority}`,
+                  : `${repairedWaves || "This copy"} is below the 100% damage floor without this placement. ${priority}`
+          }`,
           towerId: best.tower.towerId,
           towerName: best.tower.towerName,
           copyId: best.tower.copyId,
-          fromLevel: best.fromLevel,
           toLevel: best.tower.level,
           cost: best.cost,
           legal: true,
@@ -2117,6 +2270,7 @@ export function generateMatchPlan(
       phaseRefund,
       rescueExhausted,
       rescueOrdinals: new Map(rescueOrdinalByTower),
+      evolvedAway: [...evolvedAway],
     });
     const restore = (state: ReturnType<typeof snapshot>) => {
       field = [...state.field];
@@ -2129,6 +2283,7 @@ export function generateMatchPlan(
       phaseCost = state.phaseCost;
       phaseRefund = state.phaseRefund;
       rescueExhausted = state.rescueExhausted;
+      evolvedAway = [...state.evolvedAway];
       rescueOrdinalByTower.clear();
       for (const [towerId, ordinal] of state.rescueOrdinals)
         rescueOrdinalByTower.set(towerId, ordinal);
@@ -2169,7 +2324,24 @@ export function generateMatchPlan(
           blocked ??= { entry, why: "keystone" };
           continue;
         }
-        const cost = actionCost(entry.towerId, fromLevel, entry.toLevel);
+        // A player's placement override pins a fresh copy to its cell; only
+        // an un-pinned new copy may grow out of a throwaway tower instead.
+        const pinned = existing
+          ? null
+          : overriddenPlacement(
+              overrides,
+              copyId,
+              map,
+              camps,
+              field.flatMap((tower) => (tower.cell ? [tower.cell] : [])),
+            );
+        const evolveFrom =
+          existing || pinned
+            ? null
+            : evolutionSource(entry.towerId, entry.toLevel);
+        const cost = evolveFrom
+          ? evolvePrice(evolveFrom, entry.towerId, entry.toLevel)
+          : actionCost(entry.towerId, fromLevel, entry.toLevel);
         const hasEstablishedDamage = field.some(
           (tower) =>
             !isBasicTowerId(tower.towerId) &&
@@ -2195,14 +2367,17 @@ export function generateMatchPlan(
         }
         const placement = existing?.cell
           ? { cell: existing.cell, campId: existing.campId ?? "uncamped" }
-          : (overriddenPlacement(
-              overrides,
-              copyId,
-              map,
-              camps,
-              field.flatMap((tower) => (tower.cell ? [tower.cell] : [])),
-            ) ??
-            chooseCell(map, mode, camps, entry.towerId, entry.toLevel, field));
+          : evolveFrom?.cell
+            ? { cell: evolveFrom.cell, campId: evolveFrom.campId ?? "uncamped" }
+            : (pinned ??
+              chooseCell(
+                map,
+                mode,
+                camps,
+                entry.towerId,
+                entry.toLevel,
+                field,
+              ));
         const origin = originFor(map);
         const nextTower: PlannedTowerState = {
           copyId,
@@ -2227,39 +2402,56 @@ export function generateMatchPlan(
         };
         field = existing
           ? field.map((tower) => (tower.copyId === copyId ? nextTower : tower))
-          : [...field, nextTower];
+          : [
+              ...field.filter((tower) => tower.copyId !== evolveFrom?.copyId),
+              nextTower,
+            ];
         cumulativeCost += cost;
         phaseCost += cost;
+        const landsAt = Math.max(
+          entry.targetWave ?? 0,
+          earliestAffordableWave(
+            cumulativeCost + purchaseReserve,
+            definition.start,
+            definition.end,
+          ),
+        );
+        if (evolveFrom)
+          evolvedAway.push({ tower: evolveFrom, untilWave: landsAt });
         actions.push({
           id: stableId(
             planId,
             definition.id,
-            entry.kind,
+            evolveFrom ? "evolve" : entry.kind,
             entry.towerId,
             entry.toLevel,
             copyId,
           ),
           phaseId: definition.id,
           order: actionOrder++,
-          type: entry.kind,
-          summary: `${entry.kind === "upgrade" || fromLevel ? "Upgrade" : "Build"} ${entry.towerName} ${entry.toLevel}`,
-          reason: entry.reason,
+          ...(evolveFrom
+            ? {
+                type: "evolve" as const,
+                summary: `Evolve ${evolveFrom.towerName} ${evolveFrom.level} into ${entry.towerName} ${entry.toLevel}`,
+                reason: `${evolveFrom.towerName} ${evolveFrom.level} grows into ${entry.towerName} on its own cell for ${cost.toLocaleString()}g, net of the gold already in it — nothing is sold or rebuilt. ${entry.reason}`,
+                fromLevel: evolveFrom.level,
+                fromTowerId: evolveFrom.towerId,
+                fromTowerName: evolveFrom.towerName,
+              }
+            : {
+                type: entry.kind,
+                summary: `${entry.kind === "upgrade" || fromLevel ? "Upgrade" : "Build"} ${entry.towerName} ${entry.toLevel}`,
+                reason: entry.reason,
+                fromLevel,
+              }),
           towerId: entry.towerId,
           towerName: entry.towerName,
           copyId,
-          fromLevel,
           toLevel: entry.toLevel,
           cost,
           legal,
           affordable: true,
-          targetWave: Math.max(
-            entry.targetWave ?? 0,
-            earliestAffordableWave(
-              cumulativeCost + purchaseReserve,
-              definition.start,
-              definition.end,
-            ),
-          ),
+          targetWave: landsAt,
           cell: placement?.cell,
           cellLabel: placement ? cellLabel(placement.cell, origin) : undefined,
           campId: placement?.campId,
@@ -2624,7 +2816,7 @@ export function generateMatchPlan(
     // the queue's own next build for a reachable tower is still legal and
     // affordable at the net evolution price, this exact copy becomes that
     // tower on its own cell instead of being discarded for an unmeasured
-    // refund and rebuilt from nothing elsewhere.
+    // refund and rebuilt from nothing elsewhere. (The plan never sells.)
     const tryEvolve = (tower: PlannedTowerState): boolean => {
       if (!isBasicTowerId(tower.towerId) && !isMonoTowerId(tower.towerId))
         return false;
@@ -2689,6 +2881,7 @@ export function generateMatchPlan(
           cellLabel: tower.cellLabel,
           campId: tower.campId,
         };
+        evolvedAway.push({ tower, untilWave: definition.start });
         field = [...field.filter((t) => t.copyId !== tower.copyId), evolved];
         cumulativeCost += cost;
         phaseCost += cost;
@@ -2704,7 +2897,7 @@ export function generateMatchPlan(
           order: actionOrder++,
           type: "evolve",
           summary: `Evolve ${tower.towerName} into ${entry.towerName} ${entry.toLevel}`,
-          reason: `${tower.towerName} no longer moves a wave here, but the build's own queue calls for ${entry.towerName} next and this exact tower can become it — ${cost.toLocaleString()}g net of the gold already spent on it, cheaper than selling for an unmeasured refund and building fresh elsewhere.`,
+          reason: `${tower.towerName} no longer moves a wave here, but the build's own queue calls for ${entry.towerName} next and this exact tower can become it — ${cost.toLocaleString()}g net of the gold already spent on it — the plan never sells, so gold already spent keeps working.`,
           towerId: entry.towerId,
           towerName: entry.towerName,
           fromTowerId: tower.towerId,
@@ -2785,6 +2978,7 @@ export function generateMatchPlan(
         cellLabel: tower.cellLabel,
         campId: tower.campId,
       };
+      evolvedAway.push({ tower, untilWave: definition.start });
       field = [...field.filter((t) => t.copyId !== tower.copyId), evolved];
       cumulativeCost += cost;
       phaseCost += cost;
@@ -2800,7 +2994,7 @@ export function generateMatchPlan(
         order: actionOrder++,
         type: "evolve",
         summary: `Evolve ${tower.towerName} into ${towerName} ${step.level}`,
-        reason: `${tower.towerName} no longer moves a wave here, and nothing later in the build's own queue can still use it, but ${towerName} is legal on this allocation and helps this field's own armour coverage — ${cost.toLocaleString()}g net of the gold already spent on it, cheaper than selling for an unmeasured refund and building fresh elsewhere.`,
+        reason: `${tower.towerName} no longer moves a wave here, and nothing later in the build's own queue can still use it, but ${towerName} is legal on this allocation and helps this field's own armour coverage — ${cost.toLocaleString()}g net of the gold already spent on it — the plan never sells, so gold already spent keeps working.`,
         towerId: step.towerId,
         towerName,
         fromTowerId: tower.towerId,
@@ -2820,140 +3014,57 @@ export function generateMatchPlan(
       return true;
     };
 
-    // ---- Retirement. A temporary copy carried into this window is sold
-    // when the window no longer needs its damage: outright if it no longer
-    // moves any wave, otherwise only when its refund (with the others') lets
-    // a build-path step that is waiting on gold be bought now. Needs the
-    // verified sell rate; without it nothing is sold and the plan says so.
+    // ---- Retirement. The plan never sells (owner doctrine: a Match Plan
+    // is one continuous line of growth, and gold already spent is never
+    // thrown away). A temporary copy carried into this window that no
+    // longer moves any wave is grown into something the build can use —
+    // the queue's own next tower, or a legal coverage tower — on its own
+    // cell. If nothing can absorb it yet it simply stays, and is tried
+    // again next window.
     const retireTemporaries = (): boolean => {
-      // Without a verified sell rate no refund is credited, but a temporary
-      // copy that no longer moves any wave (an un-upgraded Arrow left over
-      // from the opening) is still retired: a real player does not keep it,
-      // and carrying it forward only clutters the field and the cell map.
-      const refundRate = sellRefund ?? 0;
       // A window with no scored wave (the open boss window today) cannot
       // tell a dead copy from a live one: everything looks negligible.
       if (!survival.waves.some((wave) => wave.margin != null)) return false;
       const baseline = verifiedShortfall(survival);
-      const carried = new Set(startTowers.map((tower) => tower.copyId));
       const anchorUp = field.some(
         (tower) => tower.towerId === build.anchorTowerId,
       );
-      const candidates = field
-        .flatMap((tower) => {
-          if (
-            tower.status !== "temporary" ||
-            !carried.has(tower.copyId) ||
-            retainTemporary(overrides, tower.copyId) ||
-            (tower.effect !== "damage" && tower.effect !== "hybrid")
-          )
-            return [];
-          const without = field.filter((t) => t.copyId !== tower.copyId);
-          const result = evaluate(without);
-          // Losing more than one percent of a wave is not negligible; a
-          // hair less is, and the rescue pass that follows a sale can put a
-          // real step in its place.
-          if (verifiedShortfall(result) > baseline + 0.01) return [];
-          const contribution = Math.max(
-            0,
-            ...survival.waves.map((wave, index) => {
-              const after = result.waves[index]?.modeledDamage ?? 0;
-              return wave.effectiveWaveHp > 0
-                ? ((wave.modeledDamage ?? 0) - after) / wave.effectiveWaveHp
-                : 0;
-            }),
+      const idle = field.filter((tower) => {
+        if (
+          tower.status !== "temporary" ||
+          !carriedCopyIds.has(tower.copyId) ||
+          retainTemporary(overrides, tower.copyId) ||
+          (tower.effect !== "damage" && tower.effect !== "hybrid")
+        )
+          return false;
+        // An un-upgraded starter is wave-one shell once the anchor is up.
+        if (anchorUp && isBasicTowerId(tower.towerId)) return true;
+        const without = evaluate(
+          field.filter((t) => t.copyId !== tower.copyId),
+        );
+        // Losing more than one percent of a wave is not negligible.
+        if (verifiedShortfall(without) > baseline + 0.01) return false;
+        return survival.waves.every((wave, index) => {
+          const after = without.waves[index]?.modeledDamage ?? 0;
+          return (
+            wave.effectiveWaveHp <= 0 ||
+            ((wave.modeledDamage ?? 0) - after) / wave.effectiveWaveHp < 0.01
           );
-          const paid = resolveLiveTowerCost(tower.towerId, tower.level);
-          // An un-upgraded starter (Arrow / Cannon) is wave-one shell: once
-          // the anchor is up a real player sells it whatever hair of damage
-          // it still adds, rather than leaving it forgotten on the field.
-          const starterPastItsTime = anchorUp && isBasicTowerId(tower.towerId);
-          return [
-            {
-              tower,
-              contribution: starterPastItsTime ? 0 : contribution,
-              refund: Math.round(paid * refundRate),
-            },
-          ];
-        })
-        .sort((a, b) => a.contribution - b.contribution || b.refund - a.refund);
-      if (!candidates.length) return false;
-      const blocked = actions.find(
-        (action) =>
-          action.id.includes(":wait:") && action.legal && !action.affordable,
-      );
-      const needed = blocked?.waitForGold ?? 0;
-      const negligible = candidates.filter((c) => c.contribution < 0.01);
-      const toSell = [...negligible];
-      // Selling a still-useful copy to fund a step is only honest when the
-      // refund it would bring is a verified number.
-      if (blocked && needed > 0 && sellRefund != null) {
-        let pool = negligible.reduce((sum, c) => sum + c.refund, 0);
-        for (const candidate of candidates) {
-          if (pool >= needed) break;
-          if (toSell.includes(candidate)) continue;
-          toSell.push(candidate);
-          pool += candidate.refund;
-        }
-        // The refunds cannot reach the step: keep the useful copies.
-        if (pool < needed) toSell.length = negligible.length;
-      }
-      if (!toSell.length) return false;
-      const funding = toSell.some((c) => !negligible.includes(c));
-      for (const candidate of toSell) {
-        const { tower, refund, contribution } = candidate;
-        // A negligible copy is tried as an evolution before it is sold — a
-        // copy kept specifically to fund another step (below) never is,
-        // since evolving spends net gold rather than freeing it.
-        if (negligible.includes(candidate) && tryEvolve(tower)) continue;
-        field = field.filter((t) => t.copyId !== tower.copyId);
-        cumulativeCost -= refund;
-        phaseRefund += refund;
-        actions.push({
-          id: stableId(planId, definition.id, "sell", tower.copyId),
-          phaseId: definition.id,
-          order: actionOrder++,
-          type: "sell",
-          summary: `Sell ${tower.towerName} ${tower.level}`,
-          reason:
-            contribution < 0.01
-              ? `${isBasicTowerId(tower.towerId) ? "An un-upgraded starter has no place once the anchor is up: it adds under 1% of any wave here." : "This temporary copy no longer moves any wave in this window (under 1% of a wave)."} Sell it at the start of the window${sellRefund == null ? "; no refund is credited because the sell rate is not in the data yet." : ` and recover ${refund.toLocaleString()}g.`}`
-              : `This temporary copy is not needed for this window's 100% damage floor, and its ${refund.toLocaleString()}g refund helps fund ${blocked?.summary.replace(/^Wait on /, "") ?? "the next build-path step"}.`,
-          towerId: tower.towerId,
-          towerName: tower.towerName,
-          copyId: tower.copyId,
-          fromLevel: tower.level,
-          toLevel: 0,
-          cost: 0,
-          refund,
-          legal: true,
-          affordable: true,
-          targetWave: definition.start,
-          cell: tower.cell ?? undefined,
-          cellLabel: tower.cellLabel ?? undefined,
-          campId: tower.campId ?? undefined,
-          temporary: true,
         });
-      }
-      if (funding && blocked) {
-        const index = actions.findIndex((action) => action.id === blocked.id);
-        if (index >= 0) actions.splice(index, 1);
-        runPackagePurchases();
-      }
-      return true;
+      });
+      let evolved = false;
+      for (const tower of idle) if (tryEvolve(tower)) evolved = true;
+      return evolved;
     };
-    // Retirement is a transaction: sell, let the rescue pass spend what the
-    // sale frees, and keep the result only if the window's verified floor
-    // did not drop. Each copy is negligible on its own; three starters sold
-    // together can still cost a wave its last percent, and a window that
-    // was clearing must never be traded down for a tidier field.
+    // Growing idle copies is a transaction: evolve, let the rescue pass
+    // spend around the new field, and keep the result only if no wave that
+    // was clearing is lost and the floor did not drop.
     {
-      const beforeSales = snapshot();
+      const beforeGrowth = snapshot();
       const floorBefore = verifiedShortfall(survival);
       const clearingBefore = survival.waves
         .filter((wave) => wave.margin != null && wave.margin >= 1)
         .map((wave) => wave.wave);
-      const fieldBefore = field.length;
       if (retireTemporaries()) {
         const after = applySurvivalRescue(evaluate(field), "after-package");
         const lostAWave = after.waves.some(
@@ -2962,14 +3073,8 @@ export function generateMatchPlan(
             wave.margin != null &&
             wave.margin < 1,
         );
-        // A sold shell may cost up to one percent of a wave each — that is
-        // the definition of negligible — but never a wave that was clearing.
-        const sold = Math.max(0, fieldBefore - field.length);
-        if (
-          verifiedShortfall(after) > floorBefore + 0.01 * sold + 0.0001 ||
-          lostAWave
-        )
-          restore(beforeSales);
+        if (verifiedShortfall(after) > floorBefore + 0.0001 || lostAWave)
+          restore(beforeGrowth);
         else survival = after;
       }
     }
@@ -3000,11 +3105,7 @@ export function generateMatchPlan(
         const headroom = best.efficiency * best.cost;
         if (headroom < 0.01) break;
         if (cumulativeCost + best.cost > spendable) break;
-        field = best.fromLevel
-          ? field.map((tower) =>
-              tower.copyId === best.tower.copyId ? best.tower : tower,
-            )
-          : [...field, best.tower];
+        field = commitCandidateField(best);
         cumulativeCost += best.cost;
         phaseCost += best.cost;
         if (best.source === "essence") essenceUsesRemaining -= 1;
@@ -3020,13 +3121,11 @@ export function generateMatchPlan(
           ),
           phaseId: definition.id,
           order: actionOrder++,
-          type: best.fromLevel ? "upgrade" : "build",
-          summary: `${best.fromLevel ? "Upgrade" : best.source === "build-path" ? "Build" : "Add"} ${best.tower.towerName} ${best.tower.level}`,
-          reason: `This window already clears every verified wave, with ${windowReserve.toLocaleString()}g kept banked as the emergency reserve. This is the strongest remaining legal step for the rest — real modeled damage against the weakest wave here, not banked on the strength of an unverified margin.`,
+          ...candidateVerb(best),
+          reason: `${evolveReason(best)}This window already clears every verified wave, with ${windowReserve.toLocaleString()}g kept banked as the emergency reserve. This is the strongest remaining legal step for the rest — real modeled damage against the weakest wave here, not banked on the strength of an unverified margin.`,
           towerId: best.tower.towerId,
           towerName: best.tower.towerName,
           copyId: best.tower.copyId,
-          fromLevel: best.fromLevel,
           toLevel: best.tower.level,
           cost: best.cost,
           legal: true,
@@ -3298,9 +3397,7 @@ export function generateMatchPlan(
         assumptions: [
           "Starting gold and per-wave bounty are benchmark inputs.",
           "No interest income is assumed.",
-          sellRefund == null
-            ? "No sale value is assumed: the sell refund rate is not in the data. Temporary copies that no longer move any wave are still sold, at 0g credited."
-            : `Sell refunds are credited at ${Math.round(sellRefund * 100)}% of the gold paid.`,
+          "Nothing is ever sold: a temporary tower evolves into the build, paying only the difference, or stays on the field.",
         ],
       },
       survival: reported,

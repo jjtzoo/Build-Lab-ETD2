@@ -6,6 +6,7 @@ import { MATCH_PLAN_SCHEMA, parseMatchPlan } from "@/lib/domain/matchPlan";
 import { getTower } from "@/lib/domain/towerCatalog";
 import { planToPortableBuild } from "@/components/build-lab/OpenInLive";
 import { buildRecommendationSetDto } from "@/lib/engine/buildRecommendationDto";
+import { resolveLiveTowerCost } from "@/lib/engine/liveGame";
 import {
   generateMatchPlan,
   migrateLegacyLiveState,
@@ -314,31 +315,57 @@ describe("Match Plan", () => {
     );
   });
 
-  it("evolves stale starters into whatever legal mono helps coverage, when the build's own queue has already moved past them", () => {
-    // laserBuild's opening Arrows go stale well before the queue ever asks
-    // for a fresh mono again (the anchor's own upgrades dominate by then) —
-    // this is the real, organic case the exact-queue-match path can never
-    // reach on its own, and the one the owner's real game hit.
-    const plan = generateMatchPlan(laserBuild, { mapId: "forest" });
-    const evolves = plan.phases.flatMap((phase) =>
-      phase.actions.filter((action) => action.type === "evolve"),
-    );
-    expect(evolves.length).toBeGreaterThan(0);
-    expect(
-      evolves.every(
-        (action) =>
-          (action.fromTowerId === "arrow" || action.fromTowerId === "cannon") &&
-          action.towerId !== action.fromTowerId,
-      ),
-    ).toBe(true);
-    const sells = plan.phases.flatMap((phase) =>
-      phase.actions.filter(
-        (action) =>
-          action.type === "sell" &&
-          (action.towerId === "arrow" || action.towerId === "cannon"),
-      ),
-    );
-    expect(sells).toEqual([]);
+  it("never sells: towers outside the build grow into it by evolution, paying only the difference", () => {
+    // Owner doctrine: a Match Plan never recommends selling. A starter, an
+    // opening mono or a bridge carry is evolved into something the build
+    // uses, on its own cell, or kept — gold already spent keeps working.
+    const buildIds = new Set(laserBuild.towers.map((t) => t.towerId));
+    for (const difficulty of ["hard", "veryHard"] as const) {
+      const plan = generateMatchPlan(laserBuild, {
+        mapId: "forest",
+        difficulty,
+      });
+      const actions = plan.phases.flatMap((phase) => phase.actions);
+      expect(actions.filter((action) => action.type === "sell")).toEqual([]);
+      const evolves = actions.filter((action) => action.type === "evolve");
+      expect(evolves.length).toBeGreaterThan(0);
+      for (const action of evolves) {
+        // The source is never a tower the build itself is made of.
+        expect(buildIds.has(action.fromTowerId!)).toBe(false);
+        expect(action.towerId).not.toBe(action.fromTowerId);
+        // Evolve-then-upgrade costs the target's field cost less the
+        // source's: the same total as any other route to that tower.
+        expect(action.cost).toBe(
+          Math.max(
+            0,
+            resolveLiveTowerCost(action.towerId!, action.toLevel!) -
+              resolveLiveTowerCost(action.fromTowerId!, action.fromLevel!),
+          ),
+        );
+      }
+    }
+  });
+
+  it("grows the anchor out of an opening tower instead of pricing it fresh", () => {
+    // The recommended Laser route opens on Light, adds Earth for Atom, then
+    // Darkness for Laser: Light 1 → Atom 1 → Laser 1 on one cell costs the
+    // same 1,500g as a fresh Laser, but keeps a tower firing throughout.
+    const set = buildRecommendationSetDto("laser");
+    const recommended =
+      set.plans.find((p) => p.id === set.engineRecommendedPlanId) ??
+      set.plans[0];
+    const plan = generateMatchPlan(planToPortableBuild(recommended!), {
+      mapId: "forest",
+      difficulty: "veryHard",
+    });
+    const anchorEvolve = plan.phases
+      .flatMap((phase) => phase.actions)
+      .find((action) => action.type === "evolve" && action.towerId === "laser");
+    expect(anchorEvolve).toBeDefined();
+    // The evolved-away source keeps firing until the evolution lands: the
+    // window it is bought in must not read worse than its own start field.
+    const phase = plan.phases.find((p) => p.id === anchorEvolve!.phaseId)!;
+    expect(phase.survival.status).not.toBe("fails");
   });
 
   it("serializes an evolve action with its own tower identity, distinct from a fresh build", () => {

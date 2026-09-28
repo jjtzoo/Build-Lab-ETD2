@@ -2118,7 +2118,19 @@ function LineupSnapshot({
   const changed = rows.filter((row) => row.change !== "carried");
   const held = rows.filter((row) => row.change === "carried");
   const endIds = new Set(phase.endTowers.map((tower) => tower.copyId));
-  const sold = phase.startTowers.filter((tower) => !endIds.has(tower.copyId));
+  // The plan never sells, so a tower that left the field grew into
+  // another one on its own cell — named by the evolve action there.
+  const evolvedAway = phase.startTowers
+    .filter((tower) => !endIds.has(tower.copyId))
+    .map((tower) => ({
+      tower,
+      into: phase.actions.find(
+        (action) =>
+          action.type === "evolve" &&
+          action.cellLabel != null &&
+          action.cellLabel === tower.cellLabel,
+      ),
+    }));
   const counts = {
     new: changed.filter((row) => row.change === "new").length,
     upgraded: changed.filter((row) => row.change === "upgraded").length,
@@ -2127,7 +2139,7 @@ function LineupSnapshot({
     `${phase.endTowers.length} tower${phase.endTowers.length === 1 ? "" : "s"} standing`,
     counts.new ? `${counts.new} new` : null,
     counts.upgraded ? `${counts.upgraded} upgraded` : null,
-    sold.length ? `${sold.length} sold` : null,
+    evolvedAway.length ? `${evolvedAway.length} evolved` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -2187,17 +2199,22 @@ function LineupSnapshot({
           <ul className="match-lineup">{held.map(renderRow)}</ul>
         </details>
       )}
-      {sold.length > 0 && (
-        <ul className="match-lineup" aria-label="Sold this window">
+      {evolvedAway.length > 0 && (
+        <ul className="match-lineup" aria-label="Evolved this window">
           <li className="match-lineup-divider" aria-hidden="true">
-            Sold this window
+            Evolved this window
           </li>
-          {sold.map((tower) => (
-            <li key={`sold-${tower.copyId}`} data-change="sold">
+          {evolvedAway.map(({ tower, into }) => (
+            <li key={`evolved-${tower.copyId}`} data-change="evolved">
               <span>
                 {tower.towerName} {tower.level}
               </span>
-              <small>{tower.cellLabel ?? "unplaced"} · gone</small>
+              <small>
+                {tower.cellLabel ?? "unplaced"} ·{" "}
+                {into
+                  ? `became ${into.towerName} ${into.toLevel}${into.targetWave ? ` before W${into.targetWave}` : ""}`
+                  : "evolved"}
+              </small>
             </li>
           ))}
         </ul>

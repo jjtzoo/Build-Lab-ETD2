@@ -87,6 +87,39 @@ describe("evaluatePhaseSurvival level timeline", () => {
     expect(builtAt13.waves[1]?.modeledDamage).toBe(0);
     expect(builtAt13.waves[2]?.modeledDamage).toBeGreaterThan(0);
   });
+
+  it("keeps an evolved-away copy firing until the evolution lands, then drops it", () => {
+    const bridge = placedAtom();
+    const whole = evaluatePhaseSurvival({ ...base, towers: [bridge] });
+    const leavesAt14 = evaluatePhaseSurvival({
+      ...base,
+      towers: [bridge],
+      levelTimeline: new Map([
+        [
+          bridge.copyId,
+          [
+            { fromWave: 11, level: bridge.level },
+            { fromWave: 14, level: 0 },
+          ],
+        ],
+      ]),
+    });
+    const damageAt = (
+      result: ReturnType<typeof evaluatePhaseSurvival>,
+      wave: number,
+    ) => result.waves.find((w) => w.wave === wave)?.modeledDamage;
+    expect(damageAt(leavesAt14, 11)).toBe(damageAt(whole, 11));
+    expect(damageAt(leavesAt14, 13)).toBe(damageAt(whole, 13));
+    expect(damageAt(leavesAt14, 14)).toBe(0);
+    expect(damageAt(leavesAt14, 15)).toBe(0);
+    // Leaving the field is not a missing combat stat: the verdict is not
+    // turned "unverified" just because a copy departed.
+    expect(
+      leavesAt14.waves.every(
+        (wave) => !wave.limitingFactor?.includes("no combat stat"),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("End Game tower crediting", () => {
