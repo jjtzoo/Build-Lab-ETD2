@@ -7159,27 +7159,6 @@ button.mechanic-chip {
   font: 28px/1 var(--font-mono, monospace);
   letter-spacing: -0.06em;
 }
-.snapshot-verdict {
-  flex: 0 0 auto;
-  padding: 7px 10px;
-  border: 1px solid color-mix(in srgb, var(--plan-cyan) 52%, var(--line));
-  border-radius: 4px;
-  color: var(--plan-cyan);
-  background: color-mix(in srgb, var(--plan-cyan) 6%, transparent);
-  font: 10px var(--font-mono, monospace);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.snapshot-verdict[data-state="fails"] {
-  border-color: color-mix(in srgb, var(--danger) 62%, var(--line));
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 7%, transparent);
-}
-.snapshot-verdict[data-state="borderline"],
-.snapshot-verdict[data-state="unverified"] {
-  border-color: color-mix(in srgb, var(--plan-amber) 62%, var(--line));
-  color: var(--plan-amber);
-}
 .snapshot-ledger {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr) max-content);
@@ -8103,39 +8082,6 @@ button.mechanic-chip {
   margin: 4px 0 0;
   font-size: clamp(27px, 4vw, 46px);
   letter-spacing: -0.035em;
-}
-.match-confidence {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 100%;
-  padding: 7px 12px 7px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-/* The reason reads as a sentence, not a label: normal case, muted. */
-.match-confidence span {
-  color: var(--muted);
-  font: 12px/1.3 var(--font-sans, inherit);
-  letter-spacing: 0;
-  text-transform: none;
-}
-.match-confidence b {
-  font-weight: 700;
-  white-space: nowrap;
-}
-.match-confidence.is-low b {
-  color: var(--plan-red);
-}
-.match-confidence.is-high b {
-  color: #70d99b;
-}
-.match-confidence.is-low {
-  border-color: color-mix(in srgb, var(--plan-red) 50%, transparent);
 }
 .match-storyboard {
   display: grid;
@@ -9192,4 +9138,210 @@ button.mechanic-chip {
 }
 .match-lineup-held .match-lineup {
   margin-top: 6px;
+}
+/* Match Plan — one status per window, decision first, folded settings. */
+/* The survival verdict leads; the reason to be careful follows in
+   sentence case. Tone, not a second verdict. */
+.match-window-status {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  max-width: min(100%, 560px);
+  padding: 8px 14px 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-raised) 60%, transparent);
+}
+.match-window-status b {
+  flex: 0 0 auto;
+  font: 700 11px var(--font-mono, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.match-window-status span {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.match-window-status.is-clear {
+  border-left-color: #70d99b;
+}
+.match-window-status.is-clear b {
+  color: #70d99b;
+}
+.match-window-status.is-watch {
+  border-left-color: var(--plan-amber);
+}
+.match-window-status.is-watch b {
+  color: var(--plan-amber);
+}
+.match-window-status.is-short {
+  border-color: color-mix(in srgb, var(--plan-red) 50%, var(--line));
+  border-left-color: var(--plan-red);
+}
+.match-window-status.is-short b {
+  color: var(--plan-red);
+}
+/* The window's call sits directly under its heading, before the ledger:
+   what to do is read first, the detail behind it after. */
+.match-now {
+  margin: 0 clamp(20px, 4vw, 56px) 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--plan-cyan);
+  background: var(--surface);
+}
+.match-now:has([data-state="delay"]) {
+  border-top-color: var(--plan-amber);
+}
+.match-now:has([data-state="repair"]) {
+  border-top-color: var(--danger);
+}
+.match-now .match-copilot-decision {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  column-gap: 28px;
+  align-items: start;
+}
+.match-now .match-copilot-decision > * {
+  grid-column: 1;
+  max-width: 72ch;
+}
+.match-now .match-decision-trigger {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  margin: 0;
+}
+.match-now .match-copilot-decision > details {
+  grid-column: 1 / -1;
+  max-width: none;
+}
+.match-brief > details:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+/* Plan settings: chosen once per match, folded into one line that still
+   states them. Opens onto the existing controls and overrides. */
+.match-settings {
+  margin: 0 clamp(20px, 4vw, 56px);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}
+.match-settings > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.match-settings > summary::-webkit-details-marker {
+  display: none;
+}
+.match-settings > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  border-radius: 10px;
+}
+.match-settings-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 700 10px var(--font-mono, monospace);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.match-settings-values {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.match-settings-edit {
+  flex: 0 0 auto;
+  color: var(--plan-cyan);
+  font-size: 12px;
+  font-weight: 650;
+}
+.match-settings[open] .match-settings-edit {
+  color: var(--muted);
+}
+.match-settings .match-controls {
+  padding-left: 16px;
+  padding-right: 16px;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+}
+.match-settings .match-overrides {
+  margin: 0;
+  border-width: 1px 0 0;
+  border-radius: 0;
+}
+.match-settings .match-decision-model {
+  margin: 0;
+  border-width: 1px 0 0;
+  border-left-width: 2px;
+  border-radius: 0 0 10px 10px;
+}
+.snapshot-blocked-label {
+  margin-top: 14px !important;
+  color: var(--plan-amber) !important;
+}
+.match-map-later-toggle {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--plan-cyan);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.match-map-later-toggle:hover {
+  color: var(--text);
+}
+.match-map-later-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .match-now {
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 16px;
+  }
+  .match-now .match-copilot-decision {
+    grid-template-columns: 1fr;
+  }
+  .match-now .match-decision-trigger {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 14px;
+  }
+  .match-settings {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+  .match-settings > summary {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .match-settings-values {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .match-settings-edit {
+    margin-left: auto;
+  }
+  .match-window-status {
+    flex-direction: column;
+    gap: 3px;
+  }
 }

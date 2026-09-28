@@ -261,6 +261,77 @@ describe("Match Plan UI", () => {
     expect(ledgers[0].textContent).toMatch(/Left after wave \d+[\d,]+g/);
   });
 
+  it("gives each window one status and puts the decision before the snapshot", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    // One status, next to the window heading — no second verdict badge.
+    expect(document.querySelectorAll(".match-window-status").length).toBe(1);
+    expect(document.querySelector(".snapshot-verdict")).toBeNull();
+    // Settings fold into one line that still states them.
+    const settings = document.querySelector("details.match-settings");
+    expect(settings).not.toHaveAttribute("open");
+    expect(settings!.querySelector("summary")).toHaveTextContent(/Forest/);
+    // Decision card comes before the snapshot and the map in reading order.
+    const decision = document.querySelector(".match-now")!;
+    const snapshot = document.querySelector(".phase-snapshot")!;
+    const mapPanel = document.querySelector(".match-map-panel")!;
+    expect(
+      decision.compareDocumentPosition(snapshot) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      snapshot.compareDocumentPosition(mapPanel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("lists waits apart from the to-do rows, each naming what unblocks it", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    const plan = generateMatchPlan(build, { mapId: "forest" });
+    const waits = plan.phases[0].actions.filter((action) => !action.affordable);
+    const todo = document.querySelector("ol.snapshot-actions");
+    expect(todo?.querySelector('li[data-tier="wait"]') ?? null).toBeNull();
+    if (!waits.length) return;
+    const blocked = screen.getByLabelText("Blocked this window");
+    const rows = blocked.querySelectorAll('li[data-tier="wait"]');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows)
+      expect(row.textContent).toMatch(/unlocks with the|needs [\d,]+g more/);
+    // A wait is never listed as summoned for a wave.
+    expect(
+      document.querySelector('.snapshot-wave-ledger li[data-tier="wait"]'),
+    ).toBeNull();
+  });
+
+  it("shows only the next window's later placements until asked for all", async () => {
+    render(<MatchPlanView initialPlan={build} />);
+    await screen.findByRole("heading", { name: /laser match plan/i });
+    const plan = generateMatchPlan(build, { mapId: "forest" });
+    const now = new Set(plan.phases[0].endTowers.map((tower) => tower.copyId));
+    const later = new Map<string, string>();
+    for (const phase of plan.phases.slice(1))
+      for (const tower of phase.endTowers)
+        if (tower.cell && !now.has(tower.copyId) && !later.has(tower.copyId))
+          later.set(tower.copyId, phase.id);
+    const nextOnly = [...later.values()].filter(
+      (phaseId) => phaseId === plan.phases[1].id,
+    ).length;
+    const future = () =>
+      document.querySelectorAll("[data-future-placement]").length;
+    expect(future()).toBe(nextOnly);
+    const toggle = screen.getByRole("button", {
+      name: `Show all ${later.size} later placements`,
+    });
+    fireEvent.click(toggle);
+    expect(future()).toBe(later.size);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show next window only" }),
+    );
+    expect(future()).toBe(nextOnly);
+  });
+
   it("shows the real icon on both current and future tower tokens", async () => {
     // A fake resolver that answers every lookup, so every token can resolve
     // an icon regardless of which test assets happen to exist.

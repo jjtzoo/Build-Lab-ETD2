@@ -248,34 +248,99 @@ function campCode(camp: MatchPlanCamp): string {
   return camp.name.match(/^Camp [A-Z]+/)?.[0] ?? camp.name;
 }
 
+type WindowStatus = {
+  tone: "clear" | "watch" | "short";
+  label: string;
+  detail: string;
+};
+
 /**
- * Why the window's verdict is as trustworthy as it is — the pill says
- * "low" or "high", this says what made it so, in the engine's own terms.
+ * The window's one status: the survival verdict and the reason to be
+ * careful, in one place. Survival leads; a weak armour, an unmodeled
+ * ability or an unplaced tower is named alongside it, never as a second
+ * verdict that reads as if it contradicted the first.
  */
-function confidenceReason(phase: MatchPlanPhase): string {
-  // The engine counts weak coverage as critical for this verdict.
-  const critical = phase.coverage.filter(
+function windowStatus(phase: MatchPlanPhase): WindowStatus {
+  const weak = phase.coverage.filter(
     (row) => row.status === "critical" || row.status === "weak",
   );
-  if (phase.survival.status === "fails")
-    return `modeled failure on W${phase.survival.worstWave ?? phase.startWave}`;
-  if (critical.length)
-    return `${critical.map((row) => row.defender).join(", ")} armour ${critical.length === 1 ? "is" : "are"} weakly covered`;
-  if (phase.survival.status === "unverified") {
-    const abilities = [
-      ...new Set(
-        phase.survival.waves
-          .filter((wave) => wave.status === "unverified" && wave.ability)
-          .map((wave) => wave.ability),
-      ),
-    ];
-    return abilities.length
-      ? `${abilities.join(", ")} not modeled`
-      : "a fielded tower has no combat data";
+  const multipliers = weak
+    .filter((row) => row.weightedMultiplier != null)
+    .map((row) => `${row.weightedMultiplier!.toFixed(2)}×`);
+  const weakText = weak.length
+    ? `${weak.map((row) => row.defender).join(", ")} armour weakly covered${multipliers.length ? ` (${multipliers.join(", ")})` : ""}`
+    : null;
+  const withWeak = (text: string) =>
+    weakText ? `${text} · ${weakText}` : text;
+  const worst = phase.survival.worstWave ?? phase.startWave;
+  switch (phase.survival.status) {
+    case "fails":
+      return {
+        tone: "short",
+        label: "Leaks",
+        detail: withWeak(
+          `Wave ${worst} takes only ${Math.floor((phase.survival.margin ?? 0) * 100)}% of its HP in modeled damage`,
+        ),
+      };
+    case "borderline":
+      return {
+        tone: "watch",
+        label: "Thin margin",
+        detail: withWeak(`Wave ${worst} clears with little room to spare`),
+      };
+    case "unverified": {
+      const boss = phase.survival.waves.filter(
+        (wave) => wave.element === "Boss",
+      );
+      const missingStat = phase.survival.waves.some(
+        (wave) =>
+          wave.status === "unverified" &&
+          wave.limitingFactor?.includes("no combat stat"),
+      );
+      const abilities = [
+        ...new Set(
+          phase.survival.waves
+            .filter(
+              (wave) =>
+                wave.status === "unverified" &&
+                wave.ability &&
+                wave.element !== "Boss",
+            )
+            .map((wave) => wave.ability),
+        ),
+      ];
+      return {
+        tone: "watch",
+        label: "Not proven",
+        detail: withWeak(
+          boss.length
+            ? `Boss stage · creep count and ${boss[0].ability ?? "mixed"} ability composition are not modeled, so a clear here is not proven`
+            : missingStat
+              ? "A placed tower has no combat stat at this level, so the damage shown is only a floor"
+              : `Base HP clears; ${abilities.join(", ") || "wave"} abilit${abilities.length === 1 ? "y is" : "ies are"} not modeled`,
+        ),
+      };
+    }
+    default:
+      if (weakText)
+        return {
+          tone: "watch",
+          label: "Clears · weak spot",
+          detail: `Every wave clears on modeled damage, but ${weakText}`,
+        };
+      if (phase.endTowers.some((tower) => tower.cell == null))
+        return {
+          tone: "watch",
+          label: "Clears · unplaced",
+          detail:
+            "Every wave clears on modeled damage; a tower has no cell yet",
+        };
+      return {
+        tone: "clear",
+        label: "Clears",
+        detail: "Every wave clears on modeled damage",
+      };
   }
-  if (phase.endTowers.some((tower) => tower.cell == null))
-    return "a tower has no cell yet";
-  return "every wave clears on modeled data";
 }
 
 /**
@@ -362,7 +427,12 @@ function routeArrows(points: readonly GridPoint[]) {
     arrows.push({
       col: a.col + (b.col - a.col) * 0.5,
       row: a.row + (b.row - a.row) * 0.5,
-      angle: (Math.atan2(b.row - a.row, b.col - a.col) * 180) / Math.PI,
+      // Rounded: Node and the browser can disagree on the last digit of
+      // atan2, and an unrounded angle then breaks hydration of the map.
+      angle:
+        Math.round(
+          ((Math.atan2(b.row - a.row, b.col - a.col) * 180) / Math.PI) * 100,
+        ) / 100,
     });
   }
   return arrows;
@@ -769,149 +839,181 @@ export function MatchPlanView({
         ) : null;
       })()}
 
-      <section className="match-controls" aria-label="Plan constraints">
-        <label>
-          Map
-          <select
-            value={plan.settings.mapId}
-            onChange={(event) => regenerate({ mapId: event.target.value })}
-          >
-            {tracedMaps().map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Mode
-          <select
-            value={plan.settings.mode}
-            onChange={(event) =>
-              regenerate({ mode: event.target.value as "standard" | "advance" })
-            }
-          >
-            <option value="standard">Standard</option>
-            <option value="advance">Advance</option>
-          </select>
-        </label>
-        <label>
-          Match length
-          <select
-            value={plan.settings.matchLength}
-            onChange={(event) =>
-              regenerate({ matchLength: event.target.value as LiveMatchLength })
-            }
-          >
-            {LIVE_ECONOMY_CHECKPOINTS.map((entry) => (
-              <option key={entry.length} value={entry.length}>
-                {entry.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Difficulty baseline
-          <select
-            value={plan.settings.difficulty ?? DEFAULT_MATCH_PLAN_DIFFICULTY}
-            onChange={(event) =>
-              regenerate({
-                difficulty: event.target.value as MatchPlanDifficulty,
-              })
-            }
-          >
-            {MATCH_PLAN_DIFFICULTIES.map((difficulty) => (
-              <option key={difficulty} value={difficulty}>
-                {MATCH_PLAN_DIFFICULTY_LABELS[difficulty]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="match-auto-budget" aria-label="Automatic budget model">
-          <span>Budget model</span>
-          <strong>Automatic allocation</strong>
-          <small>Checkpoint floor + safety bank</small>
-        </div>
-        <button
-          className="match-undo"
-          type="button"
-          disabled={!history.length}
-          onClick={undo}
-        >
-          Undo change
-        </button>
-      </section>
-      <details className="match-overrides">
-        <summary>Adjust generated plan</summary>
-        <div>
+      {/* Settings are chosen once per match, so they fold into one line
+          that still states them — the window's plan comes next, not four
+          dropdowns. */}
+      <details className="match-settings">
+        <summary>
+          <span className="match-settings-label">Plan settings</span>
+          <span className="match-settings-values">
+            {[
+              map.name,
+              plan.settings.mode === "advance" ? "Advance" : "Standard",
+              LIVE_ECONOMY_CHECKPOINTS.find(
+                (entry) => entry.length === plan.settings.matchLength,
+              )?.label ?? plan.settings.matchLength,
+              MATCH_PLAN_DIFFICULTY_LABELS[
+                plan.settings.difficulty ?? DEFAULT_MATCH_PLAN_DIFFICULTY
+              ],
+            ].join(" · ")}
+          </span>
+          <span className="match-settings-edit" aria-hidden="true">
+            Edit
+          </span>
+        </summary>
+        <section className="match-controls" aria-label="Plan constraints">
           <label>
-            Emergency reserve
-            <input
-              type="number"
-              min="0"
-              step="50"
-              value={plan.settings.reserveGold}
+            Map
+            <select
+              value={plan.settings.mapId}
+              onChange={(event) => regenerate({ mapId: event.target.value })}
+            >
+              {tracedMaps().map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Mode
+            <select
+              value={plan.settings.mode}
               onChange={(event) =>
                 regenerate({
-                  reserveGold: Math.max(0, Number(event.target.value) || 0),
+                  mode: event.target.value as "standard" | "advance",
                 })
               }
-            />
+            >
+              <option value="standard">Standard</option>
+              <option value="advance">Advance</option>
+            </select>
           </label>
           <label>
-            Allocation order
-            <input
-              aria-label="Allocation order"
-              placeholder="Light, Earth, Light, Darkness"
-              value={allocationDraft}
-              onChange={(event) => setAllocationDraft(event.target.value)}
-            />
+            Match length
+            <select
+              value={plan.settings.matchLength}
+              onChange={(event) =>
+                regenerate({
+                  matchLength: event.target.value as LiveMatchLength,
+                })
+              }
+            >
+              {LIVE_ECONOMY_CHECKPOINTS.map((entry) => (
+                <option key={entry.length} value={entry.length}>
+                  {entry.label}
+                </option>
+              ))}
+            </select>
           </label>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={applyAllocationOrder}
+          <label>
+            Difficulty baseline
+            <select
+              value={plan.settings.difficulty ?? DEFAULT_MATCH_PLAN_DIFFICULTY}
+              onChange={(event) =>
+                regenerate({
+                  difficulty: event.target.value as MatchPlanDifficulty,
+                })
+              }
+            >
+              {MATCH_PLAN_DIFFICULTIES.map((difficulty) => (
+                <option key={difficulty} value={difficulty}>
+                  {MATCH_PLAN_DIFFICULTY_LABELS[difficulty]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div
+            className="match-auto-budget"
+            aria-label="Automatic budget model"
           >
-            Apply order
+            <span>Budget model</span>
+            <strong>Automatic allocation</strong>
+            <small>Checkpoint floor + safety bank</small>
+          </div>
+          <button
+            className="match-undo"
+            type="button"
+            disabled={!history.length}
+            onClick={undo}
+          >
+            Undo change
           </button>
-          <span>
-            {selectedTower
-              ? `Selected: ${selectedTower.towerName} ${selectedTower.level}. Choose a map cell to reserve it.`
-              : "Optional: select a lineup tower only when you want to replace the engine's placement."}
-          </span>
-          {selectedTower?.status === "temporary" && (
+        </section>
+        <details className="match-overrides">
+          <summary>Adjust generated plan</summary>
+          <div>
+            <label>
+              Emergency reserve
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value={plan.settings.reserveGold}
+                onChange={(event) =>
+                  regenerate({
+                    reserveGold: Math.max(0, Number(event.target.value) || 0),
+                  })
+                }
+              />
+            </label>
+            <label>
+              Allocation order
+              <input
+                aria-label="Allocation order"
+                placeholder="Light, Earth, Light, Darkness"
+                value={allocationDraft}
+                onChange={(event) => setAllocationDraft(event.target.value)}
+              />
+            </label>
             <button
               type="button"
               className="secondary-button"
-              onClick={toggleTemporaryRetention}
+              onClick={applyAllocationOrder}
             >
-              Keep temporary carry
+              Apply order
             </button>
-          )}
-        </div>
-      </details>
+            <span>
+              {selectedTower
+                ? `Selected: ${selectedTower.towerName} ${selectedTower.level}. Choose a map cell to reserve it.`
+                : "Optional: select a lineup tower only when you want to replace the engine's placement."}
+            </span>
+            {selectedTower?.status === "temporary" && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={toggleTemporaryRetention}
+              >
+                Keep temporary carry
+              </button>
+            )}
+          </div>
+        </details>
 
-      <section className="match-decision-model" aria-label="Planner workflow">
-        <div>
-          <span>Plan skeleton</span>
-          <strong>Five-wave field target</strong>
-          <small>
-            Towers, camps, elements and spend are generated together.
-          </small>
-        </div>
-        <i aria-hidden="true">→</i>
-        <div>
-          <span>Co-pilot check</span>
-          <strong>Compare the match to plan</strong>
-          <small>Gold, coverage and field state are the decision inputs.</small>
-        </div>
-        <i aria-hidden="true">→</i>
-        <div>
-          <span>Decision</span>
-          <strong>Stay, delay, repair or reposition</strong>
-          <small>No alert means keep following the active snapshot.</small>
-        </div>
-      </section>
+        <section className="match-decision-model" aria-label="Planner workflow">
+          <div>
+            <span>Plan skeleton</span>
+            <strong>Five-wave field target</strong>
+            <small>
+              Towers, camps, elements and spend are generated together.
+            </small>
+          </div>
+          <i aria-hidden="true">→</i>
+          <div>
+            <span>Co-pilot check</span>
+            <strong>Compare the match to plan</strong>
+            <small>
+              Gold, coverage and field state are the decision inputs.
+            </small>
+          </div>
+          <i aria-hidden="true">→</i>
+          <div>
+            <span>Decision</span>
+            <strong>Stay, delay, repair or reposition</strong>
+            <small>No alert means keep following the active snapshot.</small>
+          </div>
+        </section>
+      </details>
 
       <nav className="match-timeline" aria-label="Match phases">
         {plan.phases.map((entry, index) => {
@@ -980,14 +1082,29 @@ export function MatchPlanView({
           </p>
           <h2>{phase.label}</h2>
         </div>
-        <div
-          className={`match-confidence is-${phase.confidence}`}
-          title="How far this window's verdict can be trusted: low when a wave fails on modeled data or an armour is uncovered, medium when an ability or a placement is not modeled, high when every wave clears on modeled data."
-        >
-          <b>{phase.confidence} confidence</b>
-          <span>{confidenceReason(phase)}</span>
-        </div>
+        {(() => {
+          const status = windowStatus(phase);
+          return (
+            <div
+              className={`match-window-status is-${status.tone}`}
+              data-confidence={phase.confidence}
+              aria-label="Window status"
+              title={`Model confidence: ${phase.confidence}. Low when a wave fails on modeled data or an armour is weakly covered, medium when an ability or a placement is not modeled, high when every wave clears on modeled data.`}
+            >
+              <b>{status.label}</b>
+              <span>{status.detail}</span>
+            </div>
+          );
+        })()}
       </section>
+
+      <div className="match-now">
+        <CopilotDecision
+          phase={phase}
+          selectedCopyId={selectedCopyId}
+          onSelectTower={setSelectedCopyId}
+        />
+      </div>
 
       <PhaseSnapshot
         phase={phase}
@@ -1090,11 +1207,6 @@ export function MatchPlanView({
         </section>
 
         <aside className="match-brief" aria-label={`${phase.label} brief`}>
-          <CopilotDecision
-            phase={phase}
-            selectedCopyId={selectedCopyId}
-            onSelectTower={setSelectedCopyId}
-          />
           <details open>
             <summary>Lineup snapshot</summary>
             <LineupSnapshot
@@ -1358,7 +1470,24 @@ type ActionRow = {
   cells: string[];
   copyIds: string[];
   reason: string;
+  /** For a wait: what has to happen before it can be bought. */
+  blocker: string | null;
 };
+
+/**
+ * What a wait is waiting for, in a player's words: the missing keystone
+ * (the engine names it in the summary) or the gold still short of the
+ * safety floor.
+ */
+function waitBlocker(action: MatchPlanAction): string | null {
+  if (!action.legal) {
+    const needs = action.summary.match(/· needs (.+)$/)?.[1];
+    return needs ? `unlocks with the ${needs}` : "not legal yet";
+  }
+  return action.waitForGold != null
+    ? `needs ${action.waitForGold.toLocaleString()}g more above the safety bank`
+    : null;
+}
 
 /**
  * The window's actions grouped the way a player reads them: "Upgrade
@@ -1413,6 +1542,7 @@ function actionRows(actions: readonly MatchPlanAction[]): ActionRow[] {
       cells: [],
       copyIds: [],
       reason: action.reason,
+      blocker: tier === "wait" ? waitBlocker(action) : null,
     };
     row.count += 1;
     row.cost += action.cost;
@@ -1450,9 +1580,10 @@ function capPercent(margin: number): number {
 function WaveLedger({ phase, wave }: { phase: MatchPlanPhase; wave: number }) {
   const entry = phase.economy.waveLedger?.find((item) => item.wave === wave);
   if (!entry) return null;
+  // A wait is not summoned for any wave, so it never appears in a ledger.
   const rows = actionRows(
     phase.actions.filter((action) => entry.actionIds.includes(action.id)),
-  );
+  ).filter((row) => row.tier !== "wait");
   return (
     <div className="snapshot-wave-ledger">
       {rows.length ? (
@@ -1477,14 +1608,19 @@ function WaveLedger({ phase, wave }: { phase: MatchPlanPhase; wave: number }) {
 
 function ActionRows({
   actions,
+  startWave,
   selectedCopyId,
   onSelectTower,
 }: {
   actions: readonly MatchPlanAction[];
+  startWave: number;
   selectedCopyId: string | null;
   onSelectTower: (copyId: string) => void;
 }) {
-  const rows = actionRows(actions);
+  const allRows = actionRows(actions);
+  // Waits are not things to do: they sit apart, each naming what unblocks it.
+  const rows = allRows.filter((row) => row.tier !== "wait");
+  const blocked = allRows.filter((row) => row.tier === "wait");
   const shown = rows.slice(0, 8);
   const rest = rows.slice(8);
   const renderRow = (row: ActionRow) => {
@@ -1500,10 +1636,19 @@ function ActionRows({
           : `${row.cost.toLocaleString()}g`;
     const meta = [
       money,
-      row.cells.length && row.cells.length <= 3 ? row.cells.join(", ") : null,
+      row.tier === "wait"
+        ? row.blocker
+        : row.cells.length && row.cells.length <= 3
+          ? row.cells.join(", ")
+          : null,
       waves
         ? row.tier === "wait"
-          ? `wanted by ${waves}`
+          ? // A wait's target is clamped to the window's first wave, which
+            // says "as soon as possible", not a real deadline — only a
+            // later wave is worth naming.
+            first! > startWave
+            ? `wanted by ${waves}`
+            : null
           : `before ${waves}`
         : null,
     ]
@@ -1539,20 +1684,32 @@ function ActionRows({
       </li>
     );
   };
-  if (!rows.length)
-    return (
-      <p className="snapshot-action-empty">
-        Nothing to buy or sell in this window.
-      </p>
-    );
   return (
     <>
-      <ol className="snapshot-actions">{shown.map(renderRow)}</ol>
+      {rows.length ? (
+        <ol className="snapshot-actions">{shown.map(renderRow)}</ol>
+      ) : (
+        <p className="snapshot-action-empty">
+          {blocked.length
+            ? "Nothing can be bought yet in this window."
+            : "Nothing to buy or sell in this window."}
+        </p>
+      )}
       {rest.length > 0 && (
         <details className="snapshot-actions-more">
           <summary>and {rest.length} more</summary>
           <ol className="snapshot-actions">{rest.map(renderRow)}</ol>
         </details>
+      )}
+      {blocked.length > 0 && (
+        <>
+          <p className="snapshot-action-label snapshot-blocked-label">
+            Blocked
+          </p>
+          <ul className="snapshot-actions" aria-label="Blocked this window">
+            {blocked.map(renderRow)}
+          </ul>
+        </>
       )}
     </>
   );
@@ -1587,49 +1744,24 @@ function PhaseSnapshot({
           : "carried";
     return { tower, kind };
   });
-  const unmodeledAbilityWaves = phase.survival.waves
-    .filter(
-      (wave) =>
-        wave.status === "unverified" &&
-        wave.ability &&
-        wave.count != null &&
-        wave.element !== "Boss",
-    )
-    .map((wave) => `W${wave.wave}`);
-  const bossWaves = phase.survival.waves.filter(
-    (wave) => wave.element === "Boss",
-  );
   const missingStatWaves = phase.survival.waves.filter(
     (wave) =>
       wave.status === "unverified" &&
       wave.limitingFactor?.includes("no combat stat"),
   );
-  const verdict =
-    phase.survival.status === "survives"
-      ? "Clears every wave · 100% of wave HP"
-      : phase.survival.status === "borderline"
-        ? `Thin margin · wave ${phase.survival.worstWave}`
-        : phase.survival.status === "fails"
-          ? `Leaks at wave ${phase.survival.worstWave} · ${Math.floor((phase.survival.margin ?? 0) * 100)}% of its HP`
-          : bossWaves.length
-            ? `Boss stage · ${Math.round(bossWaves[0].hpPerCreep).toLocaleString()}–${Math.round(bossWaves[bossWaves.length - 1].hpPerCreep).toLocaleString()} HP per creep, ${bossWaves[0].ability ?? "Mixed"} ability composition not modeled`
-            : missingStatWaves.length
-              ? "Cannot verify · a placed tower has no combat stat at this level"
-              : `Clears base HP · ${unmodeledAbilityWaves.join(", ")} abilit${unmodeledAbilityWaves.length === 1 ? "y" : "ies"} not modeled`;
 
   return (
     <section
       className="phase-snapshot"
       aria-label={`${phase.label} strategy snapshot`}
     >
+      {/* The window's verdict lives once, in the status beside the window
+          heading; this header only frames the three columns. */}
       <header>
         <div>
           <p className="eyebrow">STRATEGY SNAPSHOT</p>
           <h3>Start here. Spend this. Reach this field.</h3>
         </div>
-        <strong className="snapshot-verdict" data-state={phase.survival.status}>
-          {verdict}
-        </strong>
       </header>
       <div className="snapshot-flow">
         <section className="snapshot-start">
@@ -1684,6 +1816,7 @@ function PhaseSnapshot({
           <p className="snapshot-action-label">Do in this window</p>
           <ActionRows
             actions={phase.actions}
+            startWave={phase.startWave}
             selectedCopyId={selectedCopyId}
             onSelectTower={onSelectTower}
           />
@@ -2082,6 +2215,7 @@ function PlanMap({
 }) {
   const [hoveredCampId, setHoveredCampId] = useState<string | null>(null);
   const [hoveredCopyId, setHoveredCopyId] = useState<string | null>(null);
+  const [showAllLater, setShowAllLater] = useState(false);
   const map = getMap(plan.settings.mapId);
   const activePaths = map.paths.filter((path) =>
     path.modes.includes(plan.settings.mode),
@@ -2113,7 +2247,19 @@ function PlanMap({
       }
     }
   }
-  const futurePlacements = [...futureByCopy.values()];
+  const allFuturePlacements = [...futureByCopy.values()];
+  // The whole rest of the build on the board buries this window's field
+  // under dozens of faint tokens, so by default only the next window's
+  // placements show — plus a selected later copy, so "where does it land"
+  // always has an answer.
+  const nextPhaseId = plan.phases[phase.index + 1]?.id;
+  const futurePlacements = showAllLater
+    ? allFuturePlacements
+    : allFuturePlacements.filter(
+        (entry) =>
+          entry.phaseId === nextPhaseId ||
+          entry.tower.copyId === selectedCopyId,
+      );
   const selectedTower =
     phase.endTowers.find((tower) => tower.copyId === selectedCopyId) ?? null;
   const focusTower = selectedTower ?? phase.endTowers.at(-1) ?? null;
@@ -2375,10 +2521,11 @@ function PlanMap({
                         )
                       }
                     >
+                      {/* One string: React server-renders a multi-part
+                          <title> as a single text node, and the split
+                          client nodes then fail hydration. */}
                       <title>
-                        {tower.towerName} {romanLevel(tower.level)} ·{" "}
-                        {towerMetaLine(tower, index)}
-                        {stepLabel ? ` · step ${stepLabel} this window` : ""}
+                        {`${tower.towerName} ${romanLevel(tower.level)} · ${towerMetaLine(tower, index)}${stepLabel ? ` · step ${stepLabel} this window` : ""}`}
                       </title>
                       <circle r=".42" />
                       <TowerToken
@@ -2400,11 +2547,11 @@ function PlanMap({
                 data-future-placement={tower.copyId}
               >
                 <title>
-                  {tower.towerName} {romanLevel(tower.level)} · waves {phaseId}{" "}
-                  ·{" "}
-                  {tower.campId
-                    ? (campLabelById.get(tower.campId) ?? tower.campId)
-                    : "planned"}
+                  {`${tower.towerName} ${romanLevel(tower.level)} · waves ${phaseId} · ${
+                    tower.campId
+                      ? (campLabelById.get(tower.campId) ?? tower.campId)
+                      : "planned"
+                  }`}
                 </title>
                 <circle r=".42" />
                 <TowerToken
@@ -2485,7 +2632,19 @@ function PlanMap({
           </span>
           <span>{viableCamps.length} viable camps</span>
           <span>{phase.endTowers.length} towers on the field</span>
-          <span>{futurePlacements.length} queued for later</span>
+          <span>{allFuturePlacements.length} queued for later</span>
+          {allFuturePlacements.length > 0 && (
+            <button
+              type="button"
+              className="match-map-later-toggle"
+              aria-pressed={showAllLater}
+              onClick={() => setShowAllLater((value) => !value)}
+            >
+              {showAllLater
+                ? "Show next window only"
+                : `Show all ${allFuturePlacements.length} later placements`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -2501,7 +2660,7 @@ function PlanMap({
             const assigned = phase.endTowers.filter(
               (tower) => tower.campId === camp.id,
             ).length;
-            const queued = futurePlacements.filter(
+            const queued = allFuturePlacements.filter(
               ({ tower }) => tower.campId === camp.id,
             ).length;
             const isPreferred = preferredCamp?.id === camp.id;
