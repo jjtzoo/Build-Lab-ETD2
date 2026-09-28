@@ -9563,3 +9563,18 @@ button.mechanic-chip {
     white-space: nowrap;
   }
 }
+
+/* Landing: the Build Lab card's anchor is picked per visit after mount;
+   it fades in once chosen instead of flashing a default and swapping. */
+.lp-random {
+  opacity: 0;
+  transition: opacity 240ms var(--ease);
+}
+.lp-random[data-ready] {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-random {
+    transition: none;
+  }
+}

@@ -24,16 +24,23 @@ import { SynergyNetwork } from "@/components/build-lab/SynergyNetwork";
 export function BuildLab({
   anchors,
   assets,
+  initialAnchorId,
 }: {
   anchors: AnchorItem[];
   names: Record<string, string>;
   assets: BuildLabAssets;
+  /** The server's random pick for this visit, so no one anchor is the default. */
+  initialAnchorId?: string;
 }) {
   const request = useRef<AbortController | null>(null);
   const resultRegion = useRef<HTMLDivElement | null>(null);
   const sequence = useRef(0);
 
-  const anchorId = useBuildLab((s) => s.anchorId);
+  // Until the visitor picks, the server's random anchor stands in — the
+  // same value on the server render and the first client render, so there
+  // is no hydration mismatch and no flash of a different tower.
+  const storeAnchorId = useBuildLab((s) => s.anchorId);
+  const anchorId = storeAnchorId || initialAnchorId || anchors[0]?.id || "";
   const requestState = useBuildLab((s) => s.requestState);
   const error = useBuildLab((s) => s.error);
   const recommendationSet = useBuildLab((s) => s.recommendationSet);
@@ -82,6 +89,13 @@ export function BuildLab({
   );
 
   useEffect(() => () => request.current?.abort(), []);
+
+  // Adopt the random pick once, so a result built for it stays paired with
+  // it; a visitor returning in the same session keeps their own choice.
+  useEffect(() => {
+    if (!useBuildLab.getState().anchorId && anchorId)
+      useBuildLab.setState({ anchorId });
+  }, [anchorId]);
 
   function select(next: number) {
     request.current?.abort();

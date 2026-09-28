@@ -15,6 +15,10 @@ export const metadata: Metadata = {
     "Plan around your anchor tower. Explore recommended support, keystone routes, coverage, and synergy.",
 };
 
+// Rendered per request so each visit opens on a random anchor rather than
+// always the same one. The anchor list itself is cheap to build.
+export const dynamic = "force-dynamic";
+
 export default function BuildLabPage() {
   const anchors = CURATED_ANCHORS.map(({ towerId }) => {
     const tower = getTower(towerId);
@@ -29,9 +33,12 @@ export default function BuildLabPage() {
       allocation: getAnchorAssumedAllocation(towerId),
     };
   });
+  const initialAnchorId =
+    anchors[Math.floor(Math.random() * anchors.length)]?.id;
   return (
     <BuildLab
       anchors={anchors}
+      initialAnchorId={initialAnchorId}
       names={Object.fromEntries(TOWERS.map((tower) => [tower.id, tower.name]))}
       assets={resolveBuildLabAssets()}
     />

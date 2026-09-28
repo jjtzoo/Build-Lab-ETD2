@@ -13,6 +13,7 @@ type RequestState =
   | "error";
 
 type BuildLabState = {
+  /** The anchor the visitor is looking at; empty until the page seeds it. */
   anchorId: string;
   requestState: RequestState;
   error: string;
@@ -64,7 +65,7 @@ type BuildLabState = {
 
 export const useBuildLab =
   create<BuildLabState>((set) => ({
-    anchorId: "laser",
+    anchorId: "",
     requestState: "empty",
     error: "",
     recommendationSet: null,

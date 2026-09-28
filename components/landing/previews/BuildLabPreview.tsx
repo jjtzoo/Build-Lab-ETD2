@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { BuildLabAssets } from "@/components/build-lab/assetResolver";
 import {
   ElementIcon,
@@ -21,6 +22,32 @@ export type BuildLabPreviewData = {
   }[];
   keystoneCount: number;
 };
+
+/**
+ * The landing card for Build Lab, showing one anchor picked at random per
+ * visit. Every anchor's preview is computed at build time (a recommendation
+ * takes up to ~1.3s, too slow per request), and the pick happens after
+ * mount so the static HTML and the first client render agree; the card
+ * fades in once chosen rather than flashing one tower and swapping it.
+ */
+export function RandomBuildLabPreview({
+  options,
+  assets,
+}: {
+  options: readonly BuildLabPreviewData[];
+  assets: BuildLabAssets;
+}) {
+  const [index, setIndex] = useState<number | null>(null);
+  useEffect(() => {
+    setIndex(Math.floor(Math.random() * options.length));
+  }, [options.length]);
+  if (!options.length) return null;
+  return (
+    <div className="lp-random" data-ready={index != null || undefined}>
+      <BuildLabPreview data={options[index ?? 0]} assets={assets} />
+    </div>
+  );
+}
 
 export function BuildLabPreview({
   data,

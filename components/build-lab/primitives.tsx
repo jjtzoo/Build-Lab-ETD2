@@ -164,7 +164,6 @@ export function TowerArt({
           fill
           quality={90}
           sizes="(max-width: 767px) 168px, (max-width: 1199px) 240px, 288px"
-          priority={tower.id === "laser"}
         />
       ) : (
         <span
